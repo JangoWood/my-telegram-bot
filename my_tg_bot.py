@@ -458,7 +458,7 @@ def run_bot():
     """Запускает Telegram-бота"""
     application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
 
-    # --- НАСТРОЙКА МЕНЮ КОМАНД (ДОБАВЬТЕ ЭТОТ БЛОК) ---
+    # --- НАСТРОЙКА МЕНЮ КОМАНД ---
     from telegram import BotCommand
     
     commands = [
@@ -470,7 +470,7 @@ def run_bot():
         BotCommand("recipes", "📖 Список всех рецептов"),
         BotCommand("cook", "🍳 Рассчитать ингредиенты (например: /cook рыба т1 5)"),
     ]
-    # Устанавливаем команды для бота
+    # ✅ Используем синхронную версию (без await)
     application.bot.set_my_commands(commands)
     # --- КОНЕЦ БЛОКА НАСТРОЙКИ ---
 
