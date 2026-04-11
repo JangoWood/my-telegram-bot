@@ -96,6 +96,7 @@ def get_all_data(sheet):
         print(f"Ошибка: {e}")
         return []
 
+
 # --- КОМАНДЫ БОТА ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
@@ -397,6 +398,218 @@ async def recipes_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if response:
         await update.message.reply_text(response, parse_mode="HTML")
 
+
+def get_cw_data(sheet):
+    """Получает данные для клановых войн из разных диапазонов"""
+    try:
+        cw_data = {
+            "🍲 Готовая еда": [],
+            "⭐ Таланты": [],
+            "🧪 Зелья усиления": [],
+            "🍎 Фрукты": [],
+            "📦 Прочее": []
+        }
+
+        # Диапазоны для чтения
+        ranges = {
+            "🍲 Готовая еда": "E37:H47",
+            "⭐ Таланты": "E51:H55",
+            "🧪 Зелья усиления": "E57:H65",
+            "🍎 Фрукты": "E68:H72",
+            "📦 Прочее": "E75:H76"
+        }
+
+        # Список слов-маркеров, которые нужно пропускать
+        skip_words = ["Еда", "Таланты", "Зелья", "Фрукты", "Прочее",
+                      "Есть в КХ", "Нужно", "Не хватает", "Название"]
+
+        for category, cell_range in ranges.items():
+            data = sheet.get(cell_range)
+            for row in data:
+                if row and len(row) >= 4 and row[0]:  # Проверяем, что есть название
+                    name = row[0].strip() if row[0] else ""
+
+                    # Пропускаем строки-заголовки и пустые строки
+                    if not name:
+                        continue
+                    if any(skip_word in name for skip_word in skip_words):
+                        continue
+                    if name in ["Еда", "Таланты", "Зелья", "Фрукты", "Прочее"]:
+                        continue
+
+                    # Получаем значения
+                    in_stock = row[1].strip() if len(row) > 1 and row[1] else "0"
+                    needed = row[2].strip() if len(row) > 2 and row[2] else "0"
+                    missing = row[3].strip() if len(row) > 3 and row[3] else "0"
+
+                    # Преобразуем в числа, если возможно
+                    if in_stock == "" or in_stock == "-":
+                        in_stock = "0"
+                    if needed == "" or needed == "-":
+                        needed = "0"
+                    if missing == "" or missing == "-":
+                        missing = "0"
+
+                    item = {
+                        "name": name,
+                        "in_stock": in_stock,
+                        "needed": needed,
+                        "missing": missing
+                    }
+                    cw_data[category].append(item)
+
+        return cw_data
+    except Exception as e:
+        print(f"Ошибка при чтении CW данных: {e}")
+        return None
+
+
+async def cw(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Показывает информацию для клановых войн"""
+    sheet = get_google_sheet()
+    if sheet is None:
+        await update.message.reply_text("❌ Ошибка подключения к таблице.")
+        return
+
+    await update.message.reply_text("⏳ Загружаю данные для клановых войн...")
+
+    cw_data = get_cw_data(sheet)
+
+    if not cw_data:
+        await update.message.reply_text("❌ Не удалось загрузить данные. Проверьте структуру таблицы.")
+        return
+
+    response = "⚔️ <b>КЛАНОВЫЕ ВОЙНЫ</b> ⚔️\n"
+    response += "📊 <b>Готовность ресурсов</b>\n"
+    response += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+
+    for category, items in cw_data.items():
+        if not items:
+            continue
+
+        response += f"<b>{category}</b>\n"
+        response += "<pre>\n"
+        # Увеличил ширину колонок для лучшего отображения
+        response += f"{'Название':<30} {'В наличии':<10} {'Нужно':<8} {'Не хватает':<10}\n"
+        response += "-" * 58 + "\n"
+
+        for item in items:
+            name = item["name"][:28]  # Увеличил до 28 символов
+            spaces = " " * (28 - len(name))
+            response += f"{name}{spaces} {item['in_stock']:<10} {item['needed']:<8} {item['missing']:<10}\n"
+
+        response += "</pre>\n\n"
+
+        # Защита от слишком длинных сообщений
+        if len(response) > 3500:
+            await update.message.reply_text(response, parse_mode="HTML")
+            response = ""
+
+    if response:
+        await update.message.reply_text(response, parse_mode="HTML")
+
+
+async def cw_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Показывает краткую статистику готовности к КВ"""
+    sheet = get_google_sheet()
+    if sheet is None:
+        await update.message.reply_text("❌ Ошибка подключения к таблице.")
+        return
+
+    cw_data = get_cw_data(sheet)
+
+    if not cw_data:
+        await update.message.reply_text("❌ Не удалось загрузить данные.")
+        return
+
+    response = "⚔️ <b>КВ: Сводка готовности</b> ⚔️\n\n"
+
+    total_missing = 0
+    total_needed = 0
+
+    for category, items in cw_data.items():
+        if not items:
+            continue
+
+        category_missing = 0
+        category_needed = 0
+
+        for item in items:
+            needed = int(item["needed"]) if item["needed"].isdigit() else 0
+            missing = int(item["missing"]) if item["missing"].isdigit() else 0
+            category_needed += needed
+            category_missing += missing
+
+        total_needed += category_needed
+        total_missing += category_missing
+
+        # Определяем статус категории
+        if category_missing == 0:
+            status = "✅ ГОТОВО"
+        elif category_missing <= category_needed * 0.3:
+            status = "⚠️ ПОЧТИ ГОТОВО"
+        else:
+            status = "❌ НЕ ГОТОВО"
+
+        response += f"<b>{category}</b>\n"
+        response += f"  📦 Нужно всего: {category_needed}\n"
+        response += f"  ❌ Не хватает: {category_missing}\n"
+        response += f"  📊 Статус: {status}\n\n"
+
+    response += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+    response += f"<b>📊 ИТОГО:</b>\n"
+    response += f"  📦 Нужно всего: {total_needed}\n"
+    response += f"  ❌ Не хватает: {total_missing}\n"
+
+    if total_missing == 0:
+        response += "\n🎉 <b>ВСЁ ГОТОВО! Можно воевать!</b> 🎉"
+    else:
+        percent = int((total_needed - total_missing) / total_needed * 100) if total_needed > 0 else 0
+        response += f"\n📈 <b>Готовность: {percent}%</b>"
+
+    await update.message.reply_text(response, parse_mode="HTML")
+
+
+async def cw_check(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Показывает только то, чего не хватает для КВ"""
+    sheet = get_google_sheet()
+    if sheet is None:
+        await update.message.reply_text("❌ Ошибка подключения к таблице.")
+        return
+
+    cw_data = get_cw_data(sheet)
+
+    if not cw_data:
+        await update.message.reply_text("❌ Не удалось загрузить данные.")
+        return
+
+    response = "⚠️ <b>ЧЕГО НЕ ХВАТАЕТ ДЛЯ КВ</b> ⚠️\n"
+    response += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+
+    has_missing = False
+
+    for category, items in cw_data.items():
+        missing_items = [item for item in items if int(item["missing"]) > 0]
+
+        if missing_items:
+            has_missing = True
+            response += f"<b>{category}</b>\n"
+            response += "<pre>\n"
+            response += f"{'Название':<30} {'Не хватает':<10}\n"
+            response += "-" * 42 + "\n"
+
+            for item in missing_items:
+                name = item["name"][:28]
+                spaces = " " * (28 - len(name))
+                response += f"{name}{spaces} {item['missing']:<10}\n"
+
+            response += "</pre>\n\n"
+
+    if not has_missing:
+        response += "🎉 <b>ВСЁ ЕСТЬ! Ничего не хватает!</b> 🎉"
+
+    await update.message.reply_text(response, parse_mode="HTML")
+
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Показывает справочник всех команд бота"""
     help_text = """
@@ -408,39 +621,37 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 • <code>/get_all</code> — показать все остатки на складе
 • <code>/find &lt;текст&gt;</code> — найти товар на складе
-  <i>Пример: /find рыба</i>
-• <code>/stats</code> — статистика склада (всего позиций, сумма)
+• <code>/stats</code> — статистика склада
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 🍳 <b>Приготовление блюд</b>
 
 • <code>/cook &lt;блюдо&gt; &lt;количество&gt;</code> — рассчитать ингредиенты
-  <i>Пример: /cook рыба т1 5</i>
-• <code>/recipes</code> — список всех рецептов с ингредиентами
+• <code>/recipes</code> — список всех рецептов
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+⚔️ <b>Клановые войны</b>
+
+• <code>/cw</code> — полная таблица готовности к КВ
+• <code>/cw_stats</code> — краткая сводка готовности к КВ
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 📝 <b>Доступные рецепты и синонимы</b>
 
-🐟 <b>Рыбные блюда</b>
-  • рыба т1 / рыба 1 — Блюдо из рыбы [I]
-  • рыба т3 / рыба 3 — Блюдо из рыбы [III]
-
-🥩 <b>Мясные блюда</b>
-  • мясо т1 / мясо 1 — Блюдо из мяса [I]
-  • мясо т3 / мясо 3 — Блюдо из мяса [III]
-
-🍲 <b>Сложные блюда</b>
-  • аквел т1 / аквел 1 — Аквельский обед [I]
-  • аквел т3 / аквел 3 — Аквельский обед [III]
-
-🍞 <b>Прочие блюда</b>
-  • хлеб — Пастуший хлеб [I]
-  • чеснок — Чесночная похлебка [I]
-  • суп / лук — Луковый суп [I]
-  • лечо — Острый лечо [I]
-  • салат — Питательный салат
+🐟 Рыба т1 / рыба 1 — Блюдо из рыбы [I]
+🐟 Рыба т3 / рыба 3 — Блюдо из рыбы [III]
+🥩 Мясо т1 / мясо 1 — Блюдо из мяса [I]
+🥩 Мясо т3 / мясо 3 — Блюдо из мяса [III]
+🍲 Аквел т1 / аквел 1 — Аквельский обед [I]
+🍲 Аквел т3 / аквел 3 — Аквельский обед [III]
+🍞 Хлеб — Пастуший хлеб [I]
+🧄 Чеснок — Чесночная похлебка [I]
+🧅 Суп / лук — Луковый суп [I]
+🌶 Лечо — Острый лечо [I]
+🥗 Салат — Питательный салат
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -448,31 +659,17 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 • Количество можно не указывать — будет 1 порция
 • Вместо соли можно использовать золото (1 соль = 10 зол.)
 • Бот показывает наличие на складе автоматически
-
-❓ Вопросы или идеи? Пишите разработчику
+• /cw_stats покажет общую готовность к КВ
 """
     await update.message.reply_text(help_text, parse_mode="HTML")
-    
+
+
 # --- ЗАПУСК БОТА ---
 def run_bot():
     """Запускает Telegram-бота"""
     application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
 
-    # --- НАСТРОЙКА МЕНЮ КОМАНД ---
-    from telegram import BotCommand
-    
-    commands = [
-        BotCommand("start", "🚀 Запустить бота и показать приветствие"),
-        BotCommand("help", "📚 Показать список всех команд"),
-        BotCommand("get_all", "📦 Показать все остатки на складе"),
-        BotCommand("find", "🔍 Найти товар (например: /find рыба)"),
-        BotCommand("stats", "📊 Показать статистику склада"),
-        BotCommand("recipes", "📖 Список всех рецептов"),
-        BotCommand("cook", "🍳 Рассчитать ингредиенты (например: /cook рыба т1 5)"),
-    ]
-    # ✅ Используем синхронную версию (без await)
-    application.bot.set_my_commands(commands)
-    # --- КОНЕЦ БЛОКА НАСТРОЙКИ ---
+    # ... настройка меню команд ...
 
     # Добавляем обработчики команд
     application.add_handler(CommandHandler("start", start))
@@ -482,6 +679,11 @@ def run_bot():
     application.add_handler(CommandHandler("find", find))
     application.add_handler(CommandHandler("recipes", recipes_list))
     application.add_handler(CommandHandler("cook", cook))
+
+    # НОВЫЕ КОМАНДЫ
+    application.add_handler(CommandHandler("cw", cw))
+    application.add_handler(CommandHandler("cw_stats", cw_stats))
+    application.add_handler(CommandHandler("cw_check", cw_check))
 
     # Запускаем polling
     application.run_polling(allowed_updates=Update.ALL_TYPES)
