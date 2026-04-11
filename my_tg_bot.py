@@ -8,6 +8,8 @@ from telegram.ext import Application, CommandHandler, ContextTypes
 import gspread
 from google.oauth2.service_account import Credentials
 from recipes import RECIPES, get_recipe, get_all_recipes
+from telegram.ext import Application, CommandHandler
+from telegram import BotCommand
 
 # ===== НАСТРОЙКИ =====
 # Все секреты — из переменных окружения Render
@@ -456,15 +458,32 @@ def run_bot():
     """Запускает Telegram-бота"""
     application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
 
+    # --- НАСТРОЙКА МЕНЮ КОМАНД (ДОБАВЬТЕ ЭТОТ БЛОК) ---
+    from telegram import BotCommand
+    
+    commands = [
+        BotCommand("start", "🚀 Запустить бота и показать приветствие"),
+        BotCommand("help", "📚 Показать список всех команд"),
+        BotCommand("get_all", "📦 Показать все остатки на складе"),
+        BotCommand("find", "🔍 Найти товар (например: /find рыба)"),
+        BotCommand("stats", "📊 Показать статистику склада"),
+        BotCommand("recipes", "📖 Список всех рецептов"),
+        BotCommand("cook", "🍳 Рассчитать ингредиенты (например: /cook рыба т1 5)"),
+    ]
+    # Устанавливаем команды для бота
+    application.bot.set_my_commands(commands)
+    # --- КОНЕЦ БЛОКА НАСТРОЙКИ ---
+
+    # Добавляем обработчики команд
     application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("help", help_command))  # ← ДОБАВИТЬ
+    application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("stats", stats))
     application.add_handler(CommandHandler("get_all", get_all))
     application.add_handler(CommandHandler("find", find))
-    application.add_handler(CommandHandler("recipes", recipes_list))  # ← ЭТА СТРОКА!
-    application.add_handler(CommandHandler("cook", cook))             # ← И ЭТА!
+    application.add_handler(CommandHandler("recipes", recipes_list))
+    application.add_handler(CommandHandler("cook", cook))
 
-    # Запускаем polling (бот сам будет забирать обновления)
+    # Запускаем polling
     application.run_polling(allowed_updates=Update.ALL_TYPES)
 
 
