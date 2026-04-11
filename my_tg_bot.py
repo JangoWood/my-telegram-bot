@@ -97,11 +97,17 @@ def get_all_data(sheet):
 # --- КОМАНДЫ БОТА ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "Привет! Я бот для проверки склада.\n\n"
-        "📋 Команды:\n"
-        "/get_all - Показать все остатки\n"
-        "/find <текст> - Найти по названию\n"
-        "/stats - Показать статистику"
+        "🍳 <b>Кулинарный помощник</b>\n\n"
+        "Я помогу вам готовить блюда и следить за остатками на складе!\n\n"
+        "📋 <b>Основные команды:</b>\n"
+        "• /help — полный справочник команд\n"
+        "• /cook <блюдо> <количество> — рассчитать ингредиенты\n"
+        "• /get_all — посмотреть остатки на складе\n"
+        "• /recipes — список всех рецептов\n\n"
+        "🔍 <b>Попробуйте прямо сейчас:</b>\n"
+        "<code>/cook рыба т1 5</code>\n\n"
+        "📖 Отправьте /help для подробной инструкции",
+        parse_mode="HTML"
     )
 
 
@@ -389,12 +395,69 @@ async def recipes_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if response:
         await update.message.reply_text(response, parse_mode="HTML")
 
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Показывает справочник всех команд бота"""
+    help_text = """
+🍳 <b>Кулинарный помощник — справочник команд</b>
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📦 <b>Склад и остатки</b>
+
+• <code>/get_all</code> — показать все остатки на складе
+• <code>/find &lt;текст&gt;</code> — найти товар на складе
+  <i>Пример: /find рыба</i>
+• <code>/stats</code> — статистика склада (всего позиций, сумма)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🍳 <b>Приготовление блюд</b>
+
+• <code>/cook &lt;блюдо&gt; &lt;количество&gt;</code> — рассчитать ингредиенты
+  <i>Пример: /cook рыба т1 5</i>
+• <code>/recipes</code> — список всех рецептов с ингредиентами
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📝 <b>Доступные рецепты и синонимы</b>
+
+🐟 <b>Рыбные блюда</b>
+  • рыба т1 / рыба 1 — Блюдо из рыбы [I]
+  • рыба т3 / рыба 3 — Блюдо из рыбы [III]
+
+🥩 <b>Мясные блюда</b>
+  • мясо т1 / мясо 1 — Блюдо из мяса [I]
+  • мясо т3 / мясо 3 — Блюдо из мяса [III]
+
+🍲 <b>Сложные блюда</b>
+  • аквел т1 / аквел 1 — Аквельский обед [I]
+  • аквел т3 / аквел 3 — Аквельский обед [III]
+
+🍞 <b>Прочие блюда</b>
+  • хлеб — Пастуший хлеб [I]
+  • чеснок — Чесночная похлебка [I]
+  • суп / лук — Луковый суп [I]
+  • лечо — Острый лечо [I]
+  • салат — Питательный салат
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+💡 <b>Советы:</b>
+• Количество можно не указывать — будет 1 порция
+• Вместо соли можно использовать золото (1 соль = 10 зол.)
+• Бот показывает наличие на складе автоматически
+
+❓ Вопросы или идеи? Пишите разработчику
+"""
+    await update.message.reply_text(help_text, parse_mode="HTML")
+    
 # --- ЗАПУСК БОТА ---
 def run_bot():
     """Запускает Telegram-бота"""
     application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
 
     application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("help", help_command))  # ← ДОБАВИТЬ
     application.add_handler(CommandHandler("stats", stats))
     application.add_handler(CommandHandler("get_all", get_all))
     application.add_handler(CommandHandler("find", find))
