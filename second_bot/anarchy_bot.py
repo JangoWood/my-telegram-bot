@@ -6,6 +6,8 @@ from telegram.ext import Application, CommandHandler, ContextTypes
 from dotenv import load_dotenv
 from pathlib import Path
 from io import StringIO
+from flask import Flask
+import threading
 
 # Загружаем переменные из .env в корне проекта
 env_path = Path(__file__).parent.parent / '.env'
@@ -15,6 +17,19 @@ TELEGRAM_BOT_TOKEN = os.getenv('SECOND_BOT_TOKEN')
 CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSWZzQ4H8cNNvFc0Yxt0XQ9XHH8869jWMoC12z8DPNc1Xd02CqRlIdRx4PbqTCb0lHA9yDx8nSdqb_i/pub?output=csv'
 CW_SHEET_GID = '279368796'  # GID листа со специализациями
 
+# Создаём Flask-приложение для healthcheck
+flask_app = Flask(__name__)
+
+@flask_app.route('/')
+@flask_app.route('/health')
+@flask_app.route('/healthcheck')
+def health():
+    return "OK", 200
+
+def run_flask():
+    # Render задаёт порт через переменную окружения PORT
+    port = int(os.environ.get("PORT", 10000))
+    flask_app.run(host='0.0.0.0', port=port)
 
 # ==================== ОСНОВНАЯ ТАБЛИЦА (актуальная таблица) ====================
 
@@ -485,10 +500,7 @@ def main():
 
 
 if __name__ == '__main__':
-    try:
-        main()
-    except Exception as e:
-        print(f"🔴 Ошибка: {e}")
-        import traceback
-
-        traceback.print_exc()
+    # Запускаем Flask в отдельном потоке для healthcheck
+    threading.Thread(target=run_flask, daemon=True).start()
+    # Запускаем бота
+    main()
