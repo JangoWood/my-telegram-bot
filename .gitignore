@@ -1,0 +1,16 @@
+# Файлы с секретами
+*.json
+*.key
+.env
+credentials.json
+grand-brand-*.json
+
+# Файлы Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# IDE
+.vscode/
+.idea/
