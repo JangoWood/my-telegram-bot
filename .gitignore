@@ -1,16 +1,40 @@
-# Файлы с секретами
+# Секреты и ключи (НИКОГДА не коммитить!)
 *.json
 *.key
+*.pem
 .env
-credentials.json
+.venv/
+venv/
 grand-brand-*.json
+credentials*.json
 
 # Файлы Python
 __pycache__/
-*.pyc
+*.py[cod]
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+
+# Виртуальное окружение
 .venv/
 venv/
+ENV/
+env/
 
 # IDE
 .vscode/
 .idea/
+*.swp
+*.swo
+
+# Логи и временные файлы
+*.log
+*.tmp
+.DS_Store
+
+# Файлы ботов (если хотите исключить конкретные)
+# my_bot.py - НЕ исключайте, это код!
+# start.sh - НЕ исключайте!
+# requirements.txt - НЕ исключайте!
