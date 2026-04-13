@@ -1,116 +1,494 @@
 import os
+import csv
 import requests
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 from dotenv import load_dotenv
 from pathlib import Path
+from io import StringIO
 
-# Загрузка переменных окружения
+# Загружаем переменные из .env в корне проекта
 env_path = Path(__file__).parent.parent / '.env'
 load_dotenv(env_path)
 
 TELEGRAM_BOT_TOKEN = os.getenv('SECOND_BOT_TOKEN')
 CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSWZzQ4H8cNNvFc0Yxt0XQ9XHH8869jWMoC12z8DPNc1Xd02CqRlIdRx4PbqTCb0lHA9yDx8nSdqb_i/pub?output=csv'
+CW_SHEET_GID = '279368796'  # GID листа со специализациями
+
+
+# ==================== ОСНОВНАЯ ТАБЛИЦА (актуальная таблица) ====================
 
 def get_table_data():
-    """Загружает CSV и возвращает список строк, находя данные под 'Актуальная таблица'"""
+    """Загружает CSV и находит самую нижнюю и правую таблицу с 'Состав'"""
     try:
         response = requests.get(CSV_URL, timeout=15)
         response.raise_for_status()
+        response.encoding = 'utf-8'
 
-        # Разбираем CSV-строку
-        lines = response.text.strip().split('\n')
-        # Разделяем по запятым (это простой вариант, но для Google CSV работает)
-        data = [line.split(',') for line in lines]
+        csv_file = StringIO(response.text)
+        reader = csv.reader(csv_file)
+        data = list(reader)
 
-        # Ищем строку с "Актуальная таблица"
-        target_index = -1
+        if not data:
+            return None, None, "❌ Таблица пуста"
+
+        # Находим ВСЕ ячейки с "Состав"
+        positions = []
         for i, row in enumerate(data):
+            for j, cell in enumerate(row):
+                if cell and cell.strip() == 'Состав':
+                    positions.append((i, j))
+
+        if not positions:
+            return None, None, "❌ Не найдена ячейка 'Состав'"
+
+        # Берём самую нижнюю и правую
+        positions.sort(key=lambda x: (x[0], x[1]), reverse=True)
+        target_row, target_col = positions[0]
+
+        # Заголовки
+        headers = data[target_row][target_col:]
+
+        # Данные начинаются со следующей строки
+        start_row = target_row + 1
+
+        # Собираем ВСЕ строки, которые содержат данные (пропускаем пустые)
+        result = []
+        for row in data[start_row:]:
+            # Проверяем, не наткнулись ли на новый "Состав" (начало следующей таблицы)
             for cell in row:
-                if 'Актуальная таблица' in cell:
-                    target_index = i
+                if cell and cell.strip() == 'Состав':
+                    # Дошли до следующей таблицы — останавливаемся
                     break
-            if target_index != -1:
-                break
-
-        if target_index == -1:
-            return None, "❌ Не найдена строка 'Актуальная таблица'"
-
-        # Берём всё, что ниже найденной строки
-        result = data[target_index + 1:]
-
-        # Убираем пустые строки в конце
-        while result and not any(result[-1]):
-            result.pop()
+            else:
+                # Берём нужные колонки
+                if len(row) > target_col:
+                    data_row = row[target_col:]
+                    # Проверяем, есть ли в строке хоть какие-то данные
+                    if data_row and any(cell and cell.strip() for cell in data_row):
+                        name = data_row[0].strip() if data_row[0] else ""
+                        # Добавляем любую строку с именем (даже если дальше пусто)
+                        if name:
+                            result.append(data_row)
+                continue
+            break  # Выходим, если нашли новый "Состав"
 
         if not result:
-            return None, "❌ Под таблицей нет данных"
+            return None, None, "❌ Нет данных под 'Состав'"
 
-        return result, None
+        return result, headers, None
     except Exception as e:
-        return None, f"❌ Ошибка загрузки: {e}"
+        return None, None, f"❌ Ошибка: {e}"
 
-# --- Обработчики команд (такие же, как у первого бота, но используют get_table_data) ---
+
+def format_table_row(row, headers):
+    """Форматирует строку данных, используя даты из заголовков"""
+    if not row or len(row) < 3:
+        return ""
+
+    name = row[0].strip()
+    if not name or name.lower() == 'состав':
+        return ""
+
+    # Берём даты из заголовков (2-я и 3-я колонки, индекс 1 и 2)
+    date_start = headers[1].strip() if len(headers) > 1 else "??"
+    date_end = headers[2].strip() if len(headers) > 2 else "??"
+
+    # Берём значения (индексы: 1=дата1, 2=дата2, 3=очки, 4=монеты, 5=итог)
+    # Внимание: индексы зависят от того, что приходит из CSV
+    points = row[3].strip() if len(row) > 3 else "0"
+    coins = row[4].strip() if len(row) > 4 else "0"
+    total = row[5].strip() if len(row) > 5 else "0"
+    minus = row[6].strip() if len(row) > 6 else ""
+
+    # Если очки и монеты пустые — пропускаем строку
+    if not points and not coins:
+        return ""
+
+    result = f"🤟🏼 <b>{name}</b>\n"
+    result += f"  📅 {date_start} – {date_end}: ⚔️ {points} очков, 💰 {coins} монет"
+    if total and total not in ['0', '']:
+        result += f", 📦 итог: {total}"
+    if minus and minus not in ['0', '', '-']:
+        result += f" ⚠️ минус: {minus}"
+    result += "\n"
+
+    return result
+
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "📊 Бот для чтения публичной CSV-таблицы\n\n"
-        "Команды:\n/get_data - показать данные\n/find <текст> - поиск\n/stats - статистика"
+        "📊 <b>Бот для чтения таблицы</b>\n\n"
+        "Отправьте /help для просмотра всех команд.\n\n"
+        "📋 <b>Быстрые команды:</b>\n"
+        "  /get_data — данные из таблицы\n"
+        "  /stats — статистика\n"
+        "  /s — специализации игроков\n"
+        "  /f алхимия — поиск по специализации",
+        parse_mode="HTML"
     )
 
 async def get_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    data, error = get_table_data()
+    data, headers, error = get_table_data()
     if error:
         await update.message.reply_text(error)
         return
 
-    response = "📊 Данные из таблицы:\n\n"
-    for i, row in enumerate(data[:20], 1):
-        response += f"{i}. {' | '.join(row)}\n"
-        if len(response) > 4000:
-            await update.message.reply_text(response)
-            response = ""
+    if not data:
+        await update.message.reply_text("❌ Нет данных")
+        return
+
+    response = "📊 <b>Актуальная таблица</b>\n\n"
+    for row in data:
+        formatted = format_table_row(row, headers)
+        if formatted:
+            response += formatted + "\n"
+            if len(response) > 4000:
+                await update.message.reply_text(response, parse_mode="HTML")
+                response = ""
+
     if response:
-        await update.message.reply_text(response)
+        await update.message.reply_text(response, parse_mode="HTML")
+
+
+async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    data, headers, error = get_table_data()
+    if error:
+        await update.message.reply_text(error)
+        return
+
+    if not data:
+        await update.message.reply_text("❌ Нет данных")
+        return
+
+    date_start = headers[1].strip() if len(headers) > 1 else "??"
+    date_end = headers[2].strip() if len(headers) > 2 else "??"
+
+    total_points = 0
+    total_coins = 0
+    total_hand_coins = 0
+
+    for row in data:
+        if not row or len(row) < 7:
+            continue
+
+        name = row[0].strip()
+        if not name or name.lower() == 'состав':
+            continue
+
+        try:
+            points = float(row[3].replace(',', '.')) if row[3] else 0
+            coins = float(row[4].replace(',', '.')) if row[4] else 0
+            hand_coins = float(row[5].replace(',', '.')) if row[5] else 0
+        except ValueError:
+            continue
+
+        total_points += points
+        total_coins += coins
+        total_hand_coins += hand_coins
+
+    response = f"📊 <b>Статистика таблицы</b>\n\n"
+    response += f"📅 <b>Период:</b> {date_start} – {date_end}\n\n"
+    response += f"⚔️ <b>Сумма очков:</b> {total_points:,.2f}\n"
+    response += f"💰 <b>Сумма монет:</b> {total_coins:,.2f}\n"
+    response += f"💎 <b>Монет на руках:</b> {total_hand_coins:,.2f}\n"
+
+    await update.message.reply_text(response, parse_mode="HTML")
+
 
 async def find(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.args:
-        await update.message.reply_text("ℹ️ Укажите текст. Пример: /find рецепт")
+        await update.message.reply_text("ℹ️ Укажите текст для поиска. Пример: /find pa3ym")
         return
 
-    search_term = ' '.join(context.args).lower()
-    data, error = get_table_data()
+    search = ' '.join(context.args).lower()
+    data, headers, error = get_table_data()
     if error:
         await update.message.reply_text(error)
         return
 
-    found = []
-    for i, row in enumerate(data, 1):
-        if any(search_term in cell.lower() for cell in row):
-            found.append(f"{i}. {' | '.join(row)}")
-            if len(found) >= 20:
-                found.append("... и ещё строки")
+    if not data:
+        await update.message.reply_text("❌ Нет данных для поиска")
+        return
+
+    found_rows = []
+    for row in data:
+        if not row:
+            continue
+        row_text = ' '.join(row).lower()
+        if search in row_text:
+            found_rows.append(row)
+            if len(found_rows) >= 20:
                 break
 
-    if not found:
-        await update.message.reply_text(f"❌ Ничего не найдено для '{search_term}'")
-    else:
-        await update.message.reply_text(f"🔎 Найдено:\n\n" + "\n".join(found))
-
-async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    data, error = get_table_data()
-    if error:
-        await update.message.reply_text(error)
+    if not found_rows:
+        await update.message.reply_text(f"❌ Ничего не найдено для '{search}'")
         return
-    await update.message.reply_text(f"📊 Всего строк с данными: {len(data)}")
+
+    response = f"🔎 <b>Найдено {len(found_rows)} результатов:</b>\n\n"
+    for row in found_rows:
+        formatted = format_table_row(row, headers)
+        if formatted:
+            response += formatted + "\n"
+        if len(response) > 4000:
+            await update.message.reply_text(response, parse_mode="HTML")
+            response = ""
+
+    if response:
+        await update.message.reply_text(response, parse_mode="HTML")
+
+
+# ==================== СПЕЦИАЛИЗАЦИИ (лист с GID 279368796) ====================
+
+async def spec(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Показывает таблицу специализаций игроков (/s)"""
+    try:
+        url = f'https://docs.google.com/spreadsheets/d/e/2PACX-1vSWZzQ4H8cNNvFc0Yxt0XQ9XHH8869jWMoC12z8DPNc1Xd02CqRlIdRx4PbqTCb0lHA9yDx8nSdqb_i/pub?gid={CW_SHEET_GID}&output=csv'
+        response = requests.get(url, timeout=15)
+        response.raise_for_status()
+        response.encoding = 'utf-8'
+
+        csv_file = StringIO(response.text)
+        reader = csv.reader(csv_file)
+        data = list(reader)
+
+        if not data:
+            await update.message.reply_text("❌ Нет данных")
+            return
+
+        headers = data[0]
+
+        response = "🛠️ <b>Специализации игроков</b>\n\n<pre>"
+        response += f"{'Игрок':<18} {'Крафтер':<8} {'Рыбалка':<8} {'Шахтёр':<8} {'Охота':<8} {'Кулинария':<8} {'Алхимия':<8} {'Плавильщик':<9} {'Фермер':<8}\n"
+        response += "-" * 85 + "\n"
+
+        for row in data[1:]:
+            if not row or len(row) < 2:
+                continue
+
+            name = row[0].strip() if row[0] else "???"
+            crafter = row[1].strip() if len(row) > 1 else "-"
+            fish = row[2].strip() if len(row) > 2 else "-"
+            miner = row[3].strip() if len(row) > 3 else "-"
+            hunt = row[4].strip() if len(row) > 4 else "-"
+            cook = row[5].strip() if len(row) > 5 else "-"
+            alchemy = row[6].strip() if len(row) > 6 else "-"
+            smelt = row[7].strip() if len(row) > 7 else "-"
+            farm = row[8].strip() if len(row) > 8 else "-"
+
+            response += f"{name:<18} {crafter:<8} {fish:<8} {miner:<8} {hunt:<8} {cook:<8} {alchemy:<8} {smelt:<9} {farm:<8}\n"
+
+            if len(response) > 3900:
+                response += "</pre>"
+                await update.message.reply_text(response, parse_mode="HTML")
+                response = "<pre>"
+
+        response += "</pre>"
+        await update.message.reply_text(response, parse_mode="HTML")
+
+    except Exception as e:
+        await update.message.reply_text(f"❌ Ошибка: {e}")
+
+
+async def spec_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Поиск игроков по специализации с группировкой по уровням (/f)"""
+    if not context.args:
+        await update.message.reply_text(
+            "🔍 <b>Поиск по специализации</b>\n\n"
+            "Примеры:\n"
+            "  /f алхимия\n"
+            "  /f кулинария\n"
+            "  /f крафтер\n\n"
+            "📋 <b>Доступные специализации и синонимы:</b>\n"
+            "  • крафтер / крафт / к\n"
+            "  • рыбалка / рыба / р\n"
+            "  • шахтёр / шахта / ш\n"
+            "  • охота / охотник / о\n"
+            "  • кулинария / еда / кухня / кул\n"
+            "  • алхимия / алхим / алх / а\n"
+            "  • плавильщик / плавка / пл\n"
+            "  • фермер / ферма / ф",
+            parse_mode="HTML"
+        )
+        return
+
+    search_input = ' '.join(context.args).lower()
+
+    synonyms = {
+        'крафтер': 1, 'крафт': 1, 'к': 1,
+        'рыбалка': 2, 'рыба': 2, 'р': 2,
+        'шахтёр': 3, 'шахта': 3, 'ш': 3,
+        'охота': 4, 'охотник': 4, 'о': 4,
+        'кулинария': 5, 'еда': 5, 'кухня': 5, 'кул': 5,
+        'алхимия': 6, 'алхим': 6, 'алх': 6, 'а': 6,
+        'плавильщик': 7, 'плавка': 7, 'пл': 7,
+        'фермер': 8, 'ферма': 8, 'ф': 8,
+    }
+
+    col_index = None
+    for key, index in synonyms.items():
+        if search_input == key or (len(search_input) > 1 and key.startswith(search_input)):
+            col_index = index
+            break
+
+    spec_names = {
+        1: 'КРАФТЕР',
+        2: 'РЫБАЛКА',
+        3: 'ШАХТЁР',
+        4: 'ОХОТА',
+        5: 'КУЛИНАРИЯ',
+        6: 'АЛХИМИЯ',
+        7: 'ПЛАВИЛЬЩИК',
+        8: 'ФЕРМЕР'
+    }
+
+    if col_index is None:
+        await update.message.reply_text(
+            f"❌ Специализация '{search_input}' не найдена.\n\n"
+            f"📋 <b>Доступные синонимы:</b>\n"
+            f"  • крафтер / крафт / к\n"
+            f"  • рыбалка / рыба / р\n"
+            f"  • шахтёр / шахта / ш\n"
+            f"  • охота / охотник / о\n"
+            f"  • кулинария / еда / кухня / кул\n"
+            f"  • алхимия / алхим / алх / а\n"
+            f"  • плавильщик / плавка / пл\n"
+            f"  • фермер / ферма / ф",
+            parse_mode="HTML"
+        )
+        return
+
+    try:
+        url = f'https://docs.google.com/spreadsheets/d/e/2PACX-1vSWZzQ4H8cNNvFc0Yxt0XQ9XHH8869jWMoC12z8DPNc1Xd02CqRlIdRx4PbqTCb0lHA9yDx8nSdqb_i/pub?gid={CW_SHEET_GID}&output=csv'
+        response = requests.get(url, timeout=15)
+        response.raise_for_status()
+        response.encoding = 'utf-8'
+
+        csv_file = StringIO(response.text)
+        reader = csv.reader(csv_file)
+        data = list(reader)
+
+        if not data:
+            await update.message.reply_text("❌ Нет данных")
+            return
+
+        levels = {}
+
+        for row in data[1:]:
+            if not row or len(row) < col_index + 1:
+                continue
+
+            name = row[0].strip()
+            if not name:
+                continue
+
+            level = row[col_index].strip() if row[col_index] else "—"
+            if not level or level == "-":
+                continue
+
+            if level not in levels:
+                levels[level] = []
+            levels[level].append(name)
+
+        if not levels:
+            await update.message.reply_text(f"❌ Нет данных по специализации '{spec_names[col_index]}'")
+            return
+
+        def sort_key(level):
+            order = {'ГМ': 1, 'ПМ': 2, 'М': 3, 'У': 4}
+            prefix = level[:2] if level[:2] in order else level[:1] if level[:1] in order else 'Я'
+            num = int(level[2:]) if len(level) > 2 and level[2:].isdigit() else 0
+            return (order.get(prefix, 99), -num)
+
+        sorted_levels = sorted(levels.keys(), key=sort_key)
+
+        response = f"🔍 <b>Поиск по специализации: {spec_names[col_index]}</b>\n\n"
+
+        for level in sorted_levels:
+            players = sorted(levels[level], key=str.lower)
+            response += f"<b>{level}</b> ({len(players)}): {', '.join(players)}\n"
+
+            if len(response) > 4000:
+                await update.message.reply_text(response, parse_mode="HTML")
+                response = ""
+
+        if response:
+            await update.message.reply_text(response, parse_mode="HTML")
+
+    except Exception as e:
+        await update.message.reply_text(f"❌ Ошибка: {e}")
+
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Показывает список всех команд бота"""
+    help_text = """
+📖 <b>Помощь — список команд бота</b>
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📊 <b>Основная таблица (актуальная таблица)</b>
+  • <code>/get_data</code> — показать данные из таблицы
+  • <code>/stats</code> — статистика (очки, монеты, итог)
+  • <code>/find &lt;текст&gt;</code> — поиск по таблице
+    <i>Пример: /find pa3ym</i>
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🛠️ <b>Специализации игроков</b>
+  • <code>/f &lt;специализация&gt;</code> — поиск с группировкой
+
+  <b>Доступные специализации и синонимы:</b>
+  • крафтер / крафт / <b>к</b>
+  • рыбалка / рыба / <b>р</b>
+  • шахтёр / шахта / <b>ш</b>
+  • охота / охотник / <b>о</b>
+  • кулинария / еда / кухня / <b>кул</b>
+  • алхимия / алхим / алх / <b>а</b>
+  • плавильщик / плавка / <b>пл</b>
+  • фермер / ферма / <b>ф</b>
+
+  <i>Примеры: /f а, /f алхимия, /f еда, /f ф</i>
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ℹ️ <b>Другие команды</b>
+  • <code>/start</code> — приветственное сообщение
+  • <code>/help</code> — это сообщение
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+💡 Данные берутся из публичной Google Таблицы.
+    Обновления происходят автоматически.
+"""
+    await update.message.reply_text(help_text, parse_mode="HTML")
+
+# ==================== ЗАПУСК БОТА ====================
 
 def main():
+    print("🟢 Запуск бота...")
     app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
+
+    # Основные команды
     app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("help", help_command))
+
+    # Команды для основной таблицы
     app.add_handler(CommandHandler("get_data", get_data))
-    app.add_handler(CommandHandler("find", find))
     app.add_handler(CommandHandler("stats", stats))
-    print("✅ Второй бот запущен")
+    app.add_handler(CommandHandler("find", find))
+
+    # Команды для специализаций
+    # app.add_handler(CommandHandler("s", spec))  ← ЗАКОММЕНТИРОВАЛИ или УДАЛИЛИ
+    app.add_handler(CommandHandler("f", spec_search))
+
+    print("✅ Бот запущен и готов к работе!")
     app.run_polling()
 
+
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except Exception as e:
+        print(f"🔴 Ошибка: {e}")
+        import traceback
+
+        traceback.print_exc()
