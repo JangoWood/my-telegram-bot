@@ -1,2 +1,2 @@
 #!/bin/bash
-python3 my_bot.py
+python3 anarchy_bot.py
