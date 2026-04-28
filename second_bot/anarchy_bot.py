@@ -367,7 +367,7 @@ async def inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
             # Создаём результат
             result = InlineQueryResultArticle(
                 id=f"player_{name}",
-                title=f"🎮 {name}",
+                title=f"🤟🏼 {name}",
                 description=f"⚔️ {points} очков, 💰 {coins} монет",
                 input_message_content=InputTextMessageContent(text, parse_mode="HTML")
             )
