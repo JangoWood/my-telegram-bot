@@ -34,7 +34,7 @@ def run_flask():
 # ==================== ОСНОВНАЯ ТАБЛИЦА (актуальная таблица) ====================
 
 def get_table_data():
-    """Загружает CSV и находит самую нижнюю и правую таблицу с 'Состав'"""
+    """Загружает CSV и возвращает данные из ПЕРВОЙ таблицы с 'Состав'"""
     try:
         response = requests.get(CSV_URL, timeout=15)
         response.raise_for_status()
@@ -47,46 +47,45 @@ def get_table_data():
         if not data:
             return None, None, "❌ Таблица пуста"
 
-        # Находим ВСЕ ячейки с "Состав"
-        positions = []
+        # Находим ПЕРВУЮ ячейку с "Состав"
+        target_row = None
+        target_col = None
         for i, row in enumerate(data):
             for j, cell in enumerate(row):
                 if cell and cell.strip() == 'Состав':
-                    positions.append((i, j))
+                    target_row = i
+                    target_col = j
+                    break
+            if target_row is not None:
+                break
 
-        if not positions:
+        if target_row is None:
             return None, None, "❌ Не найдена ячейка 'Состав'"
 
-        # Берём самую нижнюю и правую
-        positions.sort(key=lambda x: (x[0], x[1]), reverse=True)
-        target_row, target_col = positions[0]
+        print(f"Найден 'Состав' в строке {target_row}, колонке {target_col}")
 
-        # Заголовки
+        # Заголовки — это строка target_row, начиная с target_col
         headers = data[target_row][target_col:]
 
         # Данные начинаются со следующей строки
         start_row = target_row + 1
 
-        # Собираем ВСЕ строки, которые содержат данные (пропускаем пустые)
+        # Собираем ВСЕ строки, которые содержат данные
         result = []
         for row in data[start_row:]:
             # Проверяем, не наткнулись ли на новый "Состав" (начало следующей таблицы)
             for cell in row:
                 if cell and cell.strip() == 'Состав':
-                    # Дошли до следующей таблицы — останавливаемся
                     break
             else:
-                # Берём нужные колонки
                 if len(row) > target_col:
                     data_row = row[target_col:]
-                    # Проверяем, есть ли в строке хоть какие-то данные
                     if data_row and any(cell and cell.strip() for cell in data_row):
                         name = data_row[0].strip() if data_row[0] else ""
-                        # Добавляем любую строку с именем (даже если дальше пусто)
                         if name:
                             result.append(data_row)
                 continue
-            break  # Выходим, если нашли новый "Состав"
+            break
 
         if not result:
             return None, None, "❌ Нет данных под 'Состав'"
