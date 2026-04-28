@@ -140,7 +140,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "  /get_data — данные из таблицы\n"
         "  /stats — статистика\n"
         "  /s — специализации игроков\n"
-        "  /f алхимия — поиск по специализации",
+        "  /f алхимия — поиск по специализации"
+        "  /prof - 👤 Показать специализации игрока (ответом на его сообщение)",
         parse_mode="HTML"
     )
 
@@ -520,6 +521,134 @@ async def spec_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         await update.message.reply_text(f"❌ Ошибка: {e}")
 
+
+async def get_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Показывает специализации игрока по тегу из ответа на сообщение"""
+
+    # Проверяем, есть ли ответ на сообщение
+    if not update.message.reply_to_message:
+        await update.message.reply_text(
+            "ℹ️ <b>Как использовать:</b>\n"
+            "1. Нажмите 'ответить' на сообщение игрока\n"
+            "2. Отправьте команду /prof\n\n"
+            "Бот найдёт игрока по его Telegram тегу и покажет специализации",
+            parse_mode="HTML"
+        )
+        return
+
+    # Получаем автора исходного сообщения
+    user = update.message.reply_to_message.from_user
+    user_tag = f"@{user.username}" if user.username else None
+
+    if not user_tag:
+        await update.message.reply_text(
+            "❌ У пользователя нет username в Telegram.\n"
+            "Попросите его установить username в настройках Telegram."
+        )
+        return
+
+    # Загружаем данные специализаций
+    data, headers, error = get_specializations_data()
+
+    if error or not data:
+        await update.message.reply_text("❌ Не удалось загрузить данные специализаций")
+        return
+
+    # Ищем строку с тегом
+    found_row = None
+    for row in data:
+        if row and len(row) > 0 and row[0].strip().lower() == user_tag.lower():
+            found_row = row
+            break
+
+    if not found_row:
+        await update.message.reply_text(
+            f"❌ Игрок с тегом {user_tag} не найден в таблице специализаций.\n\n"
+            f"Возможно, в таблице указан другой тег или имя не совпадает."
+        )
+        return
+
+    # Форматируем вывод специализаций
+    response = format_specializations_for_profile(found_row, headers)
+    await update.message.reply_text(response, parse_mode="HTML")
+
+def format_specializations_for_profile(row, headers):
+    """Форматирует специализации игрока для красивого вывода (как в /f, но для одного игрока)"""
+    if not row or len(row) < 2:
+        return "❌ Нет данных"
+
+    # Первая колонка — это тег (@username), вторая — имя игрока
+    tag = row[0].strip() if len(row) > 0 else "?"
+    name = row[1].strip() if len(row) > 1 and row[1] else "Неизвестно"
+
+    # Названия специализаций (заголовки)
+    spec_names = headers[2:] if len(headers) > 2 else []
+
+    response = f"🤟🏼 <b>{name}</b>\n"
+    response += f"📱 {tag}\n\n"
+    response += "<b>📋 Специализации:</b>\n"
+
+    for i, spec in enumerate(spec_names):
+        if i + 2 < len(row) and row[i + 2]:
+            value = row[i + 2].strip()
+            if value and value != '-':
+                response += f"  • {spec}: <b>{value}</b>\n"
+
+    return response
+
+
+def format_specializations_for_profile(row, headers):
+    """Форматирует специализации игрока для красивого вывода (как в /f, но для одного игрока)"""
+    if not row or len(row) < 2:
+        return "❌ Нет данных"
+
+    # Первая колонка — это тег (@username), вторая — имя игрока
+    tag = row[0].strip() if len(row) > 0 else "?"
+    name = row[1].strip() if len(row) > 1 and row[1] else "Неизвестно"
+
+    # Названия специализаций (заголовки)
+    spec_names = headers[2:] if len(headers) > 2 else []
+
+    response = f"🤟🏼 <b>{name}</b>\n"
+    response += f"📱 {tag}\n\n"
+    response += "<b>📋 Специализации:</b>\n"
+
+    for i, spec in enumerate(spec_names):
+        if i + 2 < len(row) and row[i + 2]:
+            value = row[i + 2].strip()
+            if value and value != '-':
+                response += f"  • {spec}: <b>{value}</b>\n"
+
+    return response
+
+def get_specializations_data():
+    """Загружает данные из таблицы специализаций (лист CW_SHEET_GID)"""
+    try:
+        url = f'https://docs.google.com/spreadsheets/d/e/2PACX-1vQhxznVeD5jD268Xb5x9crTJe0Di5Ra0OeSfqn_O_GA0plGpQHd8RFUg1GLlAnHgQx45XlklE1IVub9/pub?gid={CW_SHEET_GID}&output=csv'
+        response = requests.get(url, timeout=15)
+        response.raise_for_status()
+        response.encoding = 'utf-8'
+
+        csv_file = StringIO(response.text)
+        reader = csv.reader(csv_file)
+        data = list(reader)
+
+        if not data:
+            return None, None, "❌ Таблица пуста"
+
+        # Заголовки — первая строка
+        headers = data[0]
+
+        # Данные — все остальные строки
+        result = []
+        for row in data[1:]:
+            if any(cell and cell.strip() for cell in row):
+                result.append(row)
+
+        return result, headers, None
+    except Exception as e:
+        return None, None, f"❌ Ошибка: {e}"
+
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Показывает список всех команд бота"""
     help_text = """
@@ -584,6 +713,8 @@ def main():
 
     # Инлайн-обработчик
     app.add_handler(InlineQueryHandler(inline_query))
+
+    app.add_handler(CommandHandler("prof", get_profile))
 
     print("✅ Бот запущен и готов к работе!")
     app.run_polling()
