@@ -307,7 +307,7 @@ async def spec(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обрабатывает инлайн-запросы (@bot_name текст)"""
+    """Обрабатывает инлайн-запросы (@bot_name текст) — сразу показываем результат"""
     query = update.inline_query.query.strip().lower()
 
     if not query:
@@ -316,7 +316,7 @@ async def inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
             InlineQueryResultArticle(
                 id="help",
                 title="🔍 Введите имя игрока для поиска",
-                input_message_content=InputTextMessageContent("/help")
+                input_message_content=InputTextMessageContent("📊 Введите имя игрока, например: pa3ym, Giz, Антифон")
             )
         ]
         await update.inline_query.answer(results, cache_time=0)
@@ -330,7 +330,7 @@ async def inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
             InlineQueryResultArticle(
                 id="error",
                 title="❌ Ошибка загрузки данных",
-                input_message_content=InputTextMessageContent("/help")
+                input_message_content=InputTextMessageContent("❌ Не удалось загрузить таблицу. Попробуйте позже.")
             )
         ]
         await update.inline_query.answer(results, cache_time=0)
@@ -347,29 +347,43 @@ async def inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # Проверяем, содержит ли имя поисковую строку
         if query in name.lower():
+            # Формируем красивый ответ для отправки
+            date_start = headers[1].strip() if len(headers) > 1 else "??"
+            date_end = headers[2].strip() if len(headers) > 2 else "??"
             points = row[3].strip() if len(row) > 3 else "0"
             coins = row[4].strip() if len(row) > 4 else "0"
+            total = row[5].strip() if len(row) > 5 else "0"
+            minus = row[6].strip() if len(row) > 6 else ""
 
-            # Создаём результат для инлайн-списка
+            text = f"🤟🏼 <b>{name}</b>\n"
+            text += f"📅 {date_start} – {date_end}\n"
+            text += f"⚔️ {points} очков\n"
+            text += f"💰 {coins} монет"
+            if total and total not in ['0', '']:
+                text += f"\n📦 итог: {total}"
+            if minus and minus not in ['0', '', '-']:
+                text += f"\n⚠️ минус: {minus}"
+
+            # Создаём результат
             result = InlineQueryResultArticle(
-                id=f"player_{name}",  # уникальный ID
+                id=f"player_{name}",
                 title=f"🎮 {name}",
                 description=f"⚔️ {points} очков, 💰 {coins} монет",
-                input_message_content=InputTextMessageContent(f"/find {name}")
+                input_message_content=InputTextMessageContent(text, parse_mode="HTML")
             )
             found.append(result)
 
-            if len(found) >= 20:  # Ограничиваем количество результатов
+            if len(found) >= 20:
                 break
 
-    # Если ничего не найдено, показываем подсказку
+    # Если ничего не найдено
     if not found:
         results = [
             InlineQueryResultArticle(
                 id="not_found",
                 title=f"❌ Не найдено: '{query}'",
                 description="Попробуйте другое имя",
-                input_message_content=InputTextMessageContent(f"❌ Игрок '{query}' не найден")
+                input_message_content=InputTextMessageContent(f"❌ Игрок '{query}' не найден в текущей таблице")
             )
         ]
         await update.inline_query.answer(results, cache_time=0)
