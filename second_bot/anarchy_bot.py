@@ -8,6 +8,8 @@ from pathlib import Path
 from io import StringIO
 from flask import Flask
 import threading
+from telegram import InlineQueryResultArticle, InputTextMessageContent
+from telegram.ext import InlineQueryHandler
 
 # Загружаем переменные из .env в корне проекта
 env_path = Path(__file__).parent.parent / '.env'
@@ -304,6 +306,78 @@ async def spec(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"❌ Ошибка: {e}")
 
 
+async def inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обрабатывает инлайн-запросы (@bot_name текст)"""
+    query = update.inline_query.query.strip().lower()
+
+    if not query:
+        # Если запрос пустой, показываем подсказку
+        results = [
+            InlineQueryResultArticle(
+                id="help",
+                title="🔍 Введите имя игрока для поиска",
+                input_message_content=InputTextMessageContent("/help")
+            )
+        ]
+        await update.inline_query.answer(results, cache_time=0)
+        return
+
+    # Загружаем данные из таблицы
+    data, headers, error = get_table_data()
+
+    if error or not data:
+        results = [
+            InlineQueryResultArticle(
+                id="error",
+                title="❌ Ошибка загрузки данных",
+                input_message_content=InputTextMessageContent("/help")
+            )
+        ]
+        await update.inline_query.answer(results, cache_time=0)
+        return
+
+    # Ищем совпадения
+    found = []
+    for row in data:
+        if not row:
+            continue
+        name = row[0].strip() if row[0] else ""
+        if not name or name.lower() == 'состав':
+            continue
+
+        # Проверяем, содержит ли имя поисковую строку
+        if query in name.lower():
+            points = row[3].strip() if len(row) > 3 else "0"
+            coins = row[4].strip() if len(row) > 4 else "0"
+
+            # Создаём результат для инлайн-списка
+            result = InlineQueryResultArticle(
+                id=f"player_{name}",  # уникальный ID
+                title=f"🎮 {name}",
+                description=f"⚔️ {points} очков, 💰 {coins} монет",
+                input_message_content=InputTextMessageContent(f"/find {name}")
+            )
+            found.append(result)
+
+            if len(found) >= 20:  # Ограничиваем количество результатов
+                break
+
+    # Если ничего не найдено, показываем подсказку
+    if not found:
+        results = [
+            InlineQueryResultArticle(
+                id="not_found",
+                title=f"❌ Не найдено: '{query}'",
+                description="Попробуйте другое имя",
+                input_message_content=InputTextMessageContent(f"❌ Игрок '{query}' не найден")
+            )
+        ]
+        await update.inline_query.answer(results, cache_time=0)
+        return
+
+    # Отправляем результаты
+    await update.inline_query.answer(found, cache_time=0)
+
 async def spec_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Поиск игроков по специализации с группировкой по уровням (/f)"""
     if not context.args:
@@ -493,6 +567,9 @@ def main():
     # Команды для специализаций
     # app.add_handler(CommandHandler("s", spec))  ← ЗАКОММЕНТИРОВАЛИ или УДАЛИЛИ
     app.add_handler(CommandHandler("f", spec_search))
+
+    # Инлайн-обработчик
+    app.add_handler(InlineQueryHandler(inline_query))
 
     print("✅ Бот запущен и готов к работе!")
     app.run_polling()
