@@ -10,6 +10,8 @@ from flask import Flask
 import threading
 from telegram import InlineQueryResultArticle, InputTextMessageContent
 from telegram.ext import InlineQueryHandler
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import CallbackQueryHandler
 
 # Загружаем переменные из .env в корне проекта
 env_path = Path(__file__).parent.parent / '.env'
@@ -38,6 +40,89 @@ def run_flask():
     port = int(os.environ.get("PORT", 10000))
     flask_app.run(host='0.0.0.0', port=port)
 
+
+async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обрабатывает нажатия на кнопки выбора грейда"""
+    query = update.callback_query
+    await query.answer()
+
+    # Определяем, какой грейд выбран
+    grade_map = {
+        'get_data_t4+': ('0', 'T4+'),
+        'get_data_t4': ('296213375', 'T4'),
+        'get_data_t3+': ('677729120', 'T3+'),
+    }
+
+    if query.data in grade_map:
+        gid, name = grade_map[query.data]
+        data, headers, error = get_table_data_by_gid_with_fallback(gid)
+
+        if error or not data:
+            await query.edit_message_text(f"❌ Нет данных для грейда {name}")
+            return
+
+        date_start = headers[1].strip() if headers and len(headers) > 1 else "??"
+        date_end = headers[2].strip() if headers and len(headers) > 2 else "??"
+
+        response = f"📊 <b>Таблица {name}</b>\n"
+        response += f"📅 <b>Период:</b> {date_start} – {date_end}\n\n"
+        response += "<pre>"
+        response += f"{'Игрок':<20} {'Очки':<8} {'Монеты':<10} {'Итог':<10}\n"
+        response += "-" * 50 + "\n"
+
+        for row in data[:30]:  # Ограничиваем количество строк
+            name_player = row[0].strip() if row[0] else "???"
+            points = row[3].strip() if len(row) > 3 else "0"
+            coins = row[4].strip() if len(row) > 4 else "0"
+            total = row[5].strip() if len(row) > 5 else "0"
+            response += f"{name_player:<20} {points:<8} {coins:<10} {total:<10}\n"
+
+        if len(data) > 30:
+            response += f"\n📌 <i>Показано 30 из {len(data)} строк</i>"
+
+        response += "</pre>"
+        await query.edit_message_text(response, parse_mode="HTML")
+
+
+def get_table_data_by_gid_with_fallback(gid):
+    """Загружает данные с листа по GID, с обработкой ошибок"""
+    try:
+        url = f'https://docs.google.com/spreadsheets/d/e/2PACX-1vQhxznVeD5jD268Xb5x9crTJe0Di5Ra0OeSfqn_O_GA0plGpQHd8RFUg1GLlAnHgQx45XlklE1IVub9/pub?gid={gid}&output=csv'
+        response = requests.get(url, timeout=30)
+        response.raise_for_status()
+        response.encoding = 'utf-8'
+
+        csv_file = StringIO(response.text)
+        reader = csv.reader(csv_file)
+        data = list(reader)
+
+        if not data:
+            return None, None, "❌ Таблица пуста"
+
+        # Ищем строку с заголовком "Состав" (без учёта регистра)
+        start_row = None
+        for i, row in enumerate(data):
+            if row and len(row) > 0 and row[0].strip().lower() == 'состав':
+                start_row = i
+                break
+
+        if start_row is None:
+            return None, None, "❌ Не найден заголовок 'Состав'"
+
+        headers = data[start_row]
+        start_row += 1
+
+        result = []
+        for row in data[start_row:]:
+            if not row or len(row) < 2:
+                continue
+            name = row[0].strip() if row[0] else ""
+            if name and len(name) > 1 and name.lower() != 'состав':
+                result.append(row)
+
+        return result, headers, None
+    except Exception as e:
+        return None, None, f"❌ Ошибка: {e}"
 
 def get_table_data_by_gid(gid):
     """Загружает данные с конкретного листа по его GID (только одну таблицу под первым 'Состав')"""
@@ -229,27 +314,97 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode="HTML"
     )
 
+
 async def get_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    data, headers, error = get_table_data()
+    """Показывает данные из таблицы для указанного грейда"""
+
+    # Словарь соответствия аргументов -> GID и название
+    grade_config = {
+        't4+': {'gid': '0', 'name': 'T4+', 'aliases': ['t4+', 'т4+']},
+        't4': {'gid': '296213375', 'name': 'T4', 'aliases': ['t4', 'т4']},
+        't3+': {'gid': '677729120', 'name': 'T3+', 'aliases': ['t3+', 'т3+']},
+    }
+
+    # Проверяем, указан ли аргумент
+    if not context.args:
+        keyboard = [
+            [
+                InlineKeyboardButton("📊 T4+ (основной)", callback_data="get_data_t4+"),
+                InlineKeyboardButton("📊 T4", callback_data="get_data_t4"),
+                InlineKeyboardButton("📊 T3+", callback_data="get_data_t3+")
+            ]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await update.message.reply_text(
+            "📊 <b>Выберите грейд для отображения таблицы:</b>\n\n"
+            "• <b>T4+</b> — основной лист\n"
+            "• <b>T4</b> — второй лист\n"
+            "• <b>T3+</b> — третий лист",
+            parse_mode="HTML",
+            reply_markup=reply_markup
+        )
+        return
+
+    # Определяем, какой грейд запросили
+    arg = context.args[0].lower().strip()
+    selected_grade = None
+    selected_gid = None
+    selected_name = None
+
+    for grade, config in grade_config.items():
+        if arg in config['aliases']:
+            selected_grade = grade
+            selected_gid = config['gid']
+            selected_name = config['name']
+            break
+
+    if not selected_gid:
+        await update.message.reply_text(
+            f"❌ Неизвестный грейд: '{arg}'\n\n"
+            f"📋 <b>Доступные грейды:</b>\n"
+            f"  • /get_data t4+ — T4+ (основной)\n"
+            f"  • /get_data t4 — T4\n"
+            f"  • /get_data t3+ — T3+",
+            parse_mode="HTML"
+        )
+        return
+
+    # Загружаем данные с выбранного листа
+    data, headers, error = get_table_data_by_gid_with_fallback(selected_gid)
+
     if error:
         await update.message.reply_text(error)
         return
 
     if not data:
-        await update.message.reply_text("❌ Нет данных")
+        await update.message.reply_text(f"❌ Нет данных для грейда {selected_name}")
         return
 
-    response = "📊 <b>Актуальная таблица</b>\n\n"
-    for row in data:
-        formatted = format_table_row(row, headers)
-        if formatted:
-            response += formatted + "\n"
-            if len(response) > 4000:
-                await update.message.reply_text(response, parse_mode="HTML")
-                response = ""
+    # Формируем ответ
+    date_start = headers[1].strip() if headers and len(headers) > 1 else "??"
+    date_end = headers[2].strip() if headers and len(headers) > 2 else "??"
 
-    if response:
-        await update.message.reply_text(response, parse_mode="HTML")
+    response = f"📊 <b>Таблица {selected_name}</b>\n"
+    response += f"📅 <b>Период:</b> {date_start} – {date_end}\n\n"
+    response += "<pre>"
+    response += f"{'Игрок':<20} {'Очки':<8} {'Монеты':<10} {'Итог':<10}\n"
+    response += "-" * 50 + "\n"
+
+    for row in data:
+        name = row[0].strip() if row[0] else "???"
+        points = row[3].strip() if len(row) > 3 else "0"
+        coins = row[4].strip() if len(row) > 4 else "0"
+        total = row[5].strip() if len(row) > 5 else "0"
+
+        response += f"{name:<20} {points:<8} {coins:<10} {total:<10}\n"
+
+        if len(response) > 3900:
+            response += "</pre>"
+            await update.message.reply_text(response, parse_mode="HTML")
+            response = "<pre>"
+
+    response += "</pre>"
+    await update.message.reply_text(response, parse_mode="HTML")
 
 
 async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -857,6 +1012,7 @@ def main():
 
     # Команды для основной таблицы
     app.add_handler(CommandHandler("get_data", get_data))
+    app.add_handler(CallbackQueryHandler(button_callback))
     app.add_handler(CommandHandler("stats", stats))
     app.add_handler(CommandHandler("find", find))
 
