@@ -57,7 +57,7 @@ def get_table_data_by_gid(gid):
         # Ищем первую строку с "Состав" в первой колонке
         start_row = None
         for i, row in enumerate(data):
-            if row and len(row) > 0 and row[0].strip() == 'Состав':
+            if row and len(row) > 0 and row[0].strip().lower() == 'состав':
                 start_row = i
                 break
 
@@ -72,7 +72,7 @@ def get_table_data_by_gid(gid):
         result = []
         for row in data[start_row:]:
             # Проверяем, не встретили ли новый "Состав" (начало следующей таблицы)
-            if row and len(row) > 0 and row[0].strip() == 'Состав':
+            if row and len(row) > 0 and row[0].strip().lower() == 'состав':
                 break  # Останавливаемся на следующей таблице
 
             # Проверяем, не пустая ли строка (и не заканчивается ли таблица)
