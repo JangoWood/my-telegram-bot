@@ -19,6 +19,10 @@ TELEGRAM_BOT_TOKEN = os.getenv('SECOND_BOT_TOKEN')
 CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQhxznVeD5jD268Xb5x9crTJe0Di5Ra0OeSfqn_O_GA0plGpQHd8RFUg1GLlAnHgQx45XlklE1IVub9/pub?output=csv'
 CW_SHEET_GID = '279368796'  # GID листа со специализациями
 
+# GID листов с таблицами
+MAIN_SHEET_GID = '0'  # Основной лист (который использовался ранее)
+SECOND_SHEET_GID = '296213375'  # Новый лист
+
 # Создаём Flask-приложение для healthcheck
 flask_app = Flask(__name__)
 
@@ -33,6 +37,52 @@ def run_flask():
     port = int(os.environ.get("PORT", 10000))
     flask_app.run(host='0.0.0.0', port=port)
 
+
+def get_table_data_by_gid(gid):
+    """Загружает данные с конкретного листа по его GID"""
+    try:
+        url = f'https://docs.google.com/spreadsheets/d/e/2PACX-1vQhxznVeD5jD268Xb5x9crTJe0Di5Ra0OeSfqn_O_GA0plGpQHd8RFUg1GLlAnHgQx45XlklE1IVub9/pub?gid={gid}&output=csv'
+        response = requests.get(url, timeout=30)
+        response.raise_for_status()
+        response.encoding = 'utf-8'
+
+        csv_file = StringIO(response.text)
+        reader = csv.reader(csv_file)
+        data = list(reader)
+
+        if not data:
+            return None, None
+
+        # Ищем строку с заголовком "Состав"
+        start_row = None
+        for i, row in enumerate(data):
+            for cell in row:
+                if cell and cell.strip() == 'Состав':
+                    start_row = i
+                    break
+            if start_row is not None:
+                break
+
+        if start_row is None:
+            print(f"⚠️ На листе {gid} не найден заголовок 'Состав'")
+            return None, None
+
+        headers = data[start_row]
+        start_row += 1
+
+        result = []
+        for row in data[start_row:]:
+            if not row or len(row) < 2:
+                continue
+            name = row[0].strip() if row[0] else ""
+            if name and len(name) > 1 and name.lower() != 'состав':
+                result.append(row)
+
+        print(f"✅ Лист {gid}: загружено {len(result)} строк")
+        return result, headers
+    except Exception as e:
+        print(f"❌ Ошибка загрузки листа {gid}: {e}")
+        return None, None
 # ==================== ОСНОВНАЯ ТАБЛИЦА (актуальная таблица) ====================
 
 def get_table_data():
@@ -96,6 +146,28 @@ def get_table_data():
     except Exception as e:
         return None, None, f"❌ Ошибка: {e}"
 
+
+def get_combined_table_data():
+    """Объединяет данные с двух листов для поиска (/find)"""
+    # Загружаем данные с основного листа
+    main_data, main_headers = get_table_data_by_gid(MAIN_SHEET_GID)
+
+    # Загружаем данные со второго листа
+    second_data, second_headers = get_table_data_by_gid(SECOND_SHEET_GID)
+
+    # Объединяем строки
+    combined_data = []
+    if main_data:
+        combined_data.extend(main_data)
+    if second_data:
+        combined_data.extend(second_data)
+
+    print(f"📊 Всего строк для поиска: {len(combined_data)}")
+
+    # Для заголовков используем первый непустой
+    headers = main_headers if main_headers else second_headers
+
+    return combined_data, headers
 
 def format_table_row(row, headers):
     """Форматирует строку данных, используя даты из заголовков"""
@@ -214,7 +286,7 @@ async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def find(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Ищет игрока по имени (только в первом столбце)"""
+    """Ищет игрока в объединённых данных с двух листов"""
     if not context.args:
         await update.message.reply_text(
             "ℹ️ Укажите имя игрока для поиска. Пример: /find pa3ym",
@@ -223,17 +295,15 @@ async def find(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     search = ' '.join(context.args).lower().strip()
-    data, headers, error = get_table_data()
 
-    if error:
-        await update.message.reply_text(error)
-        return
+    # Используем объединённые данные с двух листов
+    data, headers = get_combined_table_data()
 
     if not data:
         await update.message.reply_text("❌ Нет данных для поиска")
         return
 
-    # Поиск ТОЛЬКО в первом столбце (имя игрока)
+    # Поиск только в первом столбце (имя игрока)
     found_rows = []
     for row in data:
         if not row:
@@ -242,7 +312,6 @@ async def find(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not name:
             continue
 
-        # Проверяем, содержится ли поисковая строка в имени
         if search in name:
             found_rows.append(row)
             if len(found_rows) >= 20:
@@ -252,9 +321,9 @@ async def find(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"❌ Игрок '{search}' не найден")
         return
 
-    # Определяем даты из заголовков
-    date_start = headers[1].strip() if len(headers) > 1 else "??"
-    date_end = headers[2].strip() if len(headers) > 2 else "??"
+    # Определяем даты (если есть, иначе стандартные)
+    date_start = headers[1].strip() if headers and len(headers) > 1 else "??"
+    date_end = headers[2].strip() if headers and len(headers) > 2 else "??"
 
     response = f"🔎 <b>Найдено {len(found_rows)} результатов:</b>\n\n"
 
