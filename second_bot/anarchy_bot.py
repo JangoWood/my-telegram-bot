@@ -630,12 +630,9 @@ async def spec_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def get_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Показывает специализации игрока:
-    - если ответ на сообщение — ищет по тегу автора
-    - если без ответа — ищет по тегу самого пользователя
-    """
+    """Показывает специализации игрока"""
 
-    # Загружаем данные специализаций один раз
+    # Загружаем данные специализаций
     data, headers, error = get_specializations_data()
     if error or not data:
         await update.message.reply_text("❌ Не удалось загрузить данные специализаций")
@@ -643,21 +640,29 @@ async def get_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Определяем, чей тег искать
     user_tag = None
-    source = None
+    is_self = True
+    use_reply = False
 
-    # Случай 1: команда в ответ на сообщение
+    # Если команда в ответ на сообщение — пробуем взять автора
     if update.message.reply_to_message:
-        user = update.message.reply_to_message.from_user
-        user_tag = f"@{user.username}" if user.username else None
-        source = "ответа на сообщение"
+        replied_user = update.message.reply_to_message.from_user
+        replied_tag = f"@{replied_user.username}" if replied_user.username else None
 
-    # Случай 2: команда без ответа — ищем самого пользователя
-    else:
+        # Проверяем, есть ли этот тег в таблице
+        if replied_tag:
+            for row in data:
+                if row and len(row) > 0 and row[0].strip().lower() == replied_tag.lower():
+                    use_reply = True
+                    user_tag = replied_tag
+                    is_self = (replied_user.id == update.effective_user.id)
+                    break
+
+    # Если не используем ответ (нет тега в таблице или нет ответа) — берём отправителя
+    if not use_reply:
         user = update.effective_user
         user_tag = f"@{user.username}" if user.username else None
-        source = "вашего тега"
+        is_self = True
 
-    # Проверяем, есть ли тег у пользователя
     if not user_tag:
         await update.message.reply_text(
             "❌ У пользователя нет username в Telegram.\n"
@@ -672,14 +677,13 @@ async def get_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
             found_row = row
             break
 
-    # Если нашли — показываем специализации
     if found_row:
         response = format_specializations_for_profile(found_row, headers)
         await update.message.reply_text(response, parse_mode="HTML")
         return
 
-    # Если не нашли — показываем понятное сообщение
-    if source == "вашего тега":
+    # Если не нашли
+    if is_self:
         await update.message.reply_text(
             f"❌ Игрок с тегом {user_tag} не найден в таблице специализаций.\n\n"
             f"📝 <b>Чтобы добавиться в таблицу:</b>\n"
@@ -691,8 +695,7 @@ async def get_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await update.message.reply_text(
             f"❌ Игрок с тегом {user_tag} не найден в таблице специализаций.\n\n"
-            f"Возможно, в таблице указан другой тег или игрок ещё не добавлен.\n\n"
-            f"💡 Попросите игрока добавиться в таблицу через администратора.",
+            f"Возможно, в таблице указан другой тег или игрок ещё не добавлен.",
             parse_mode="HTML"
         )
 
