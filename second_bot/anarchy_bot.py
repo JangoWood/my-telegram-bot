@@ -46,7 +46,6 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    # Определяем, какой грейд выбран
     grade_map = {
         'get_data_t4+': ('0', 'T4+'),
         'get_data_t4': ('296213375', 'T4'),
@@ -55,7 +54,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if query.data in grade_map:
         gid, name = grade_map[query.data]
-        data, headers, error = get_table_data_by_gid_with_fallback(gid)
+        data, headers, error = get_table_data_by_gid(gid)
 
         if error or not data:
             await query.edit_message_text(f"❌ Нет данных для грейда {name}")
@@ -64,23 +63,31 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         date_start = headers[1].strip() if headers and len(headers) > 1 else "??"
         date_end = headers[2].strip() if headers and len(headers) > 2 else "??"
 
-        response = f"📊 <b>Таблица {name}</b>\n"
+        response = f"📊 <b>Актуальная таблица {name}</b>\n"
         response += f"📅 <b>Период:</b> {date_start} – {date_end}\n\n"
-        response += "<pre>"
-        response += f"{'Игрок':<20} {'Очки':<8} {'Монеты':<10} {'Итог':<10}\n"
-        response += "-" * 50 + "\n"
 
-        for row in data[:30]:  # Ограничиваем количество строк
+        for row in data[:30]:
             name_player = row[0].strip() if row[0] else "???"
             points = row[3].strip() if len(row) > 3 else "0"
             coins = row[4].strip() if len(row) > 4 else "0"
             total = row[5].strip() if len(row) > 5 else "0"
-            response += f"{name_player:<20} {points:<8} {coins:<10} {total:<10}\n"
+            minus = row[6].strip() if len(row) > 6 else ""
+
+            response += f"🤟🏼 <b>{name_player}</b>\n"
+            response += f"  📅 {date_start} – {date_end}: ⚔️ {points} очков, 💰 {coins} монет"
+            if total and total not in ['0', '']:
+                response += f", 📦 итог: {total}"
+            if minus and minus not in ['0', '', '-']:
+                response += f" ⚠️ минус: {minus}"
+            response += "\n\n"
+
+            if len(response) > 4000:
+                await query.edit_message_text(response, parse_mode="HTML")
+                response = ""
 
         if len(data) > 30:
             response += f"\n📌 <i>Показано 30 из {len(data)} строк</i>"
 
-        response += "</pre>"
         await query.edit_message_text(response, parse_mode="HTML")
 
 
@@ -329,7 +336,7 @@ async def get_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.args:
         keyboard = [
             [
-                InlineKeyboardButton("📊 T4+ (основной)", callback_data="get_data_t4+"),
+                InlineKeyboardButton("📊 T4+", callback_data="get_data_t4+"),
                 InlineKeyboardButton("📊 T4", callback_data="get_data_t4"),
                 InlineKeyboardButton("📊 T3+", callback_data="get_data_t3+")
             ]
@@ -337,9 +344,9 @@ async def get_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup = InlineKeyboardMarkup(keyboard)
         await update.message.reply_text(
             "📊 <b>Выберите грейд для отображения таблицы:</b>\n\n"
-            "• <b>T4+</b> — основной лист\n"
-            "• <b>T4</b> — второй лист\n"
-            "• <b>T3+</b> — третий лист",
+            "• <b>T4+</b> — Анархия\n"
+            "• <b>T4</b> — Наследие Анархии\n"
+            "• <b>T3+</b> — Крылья Анархии",
             parse_mode="HTML",
             reply_markup=reply_markup
         )
@@ -370,7 +377,7 @@ async def get_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     # Загружаем данные с выбранного листа
-    data, headers, error = get_table_data_by_gid_with_fallback(selected_gid)
+    data, headers, error = get_table_data_by_gid(selected_gid)
 
     if error:
         await update.message.reply_text(error)
@@ -380,31 +387,34 @@ async def get_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"❌ Нет данных для грейда {selected_name}")
         return
 
-    # Формируем ответ
+    # Формируем ответ с эмодзи (как раньше)
     date_start = headers[1].strip() if headers and len(headers) > 1 else "??"
     date_end = headers[2].strip() if headers and len(headers) > 2 else "??"
 
-    response = f"📊 <b>Таблица {selected_name}</b>\n"
+    response = f"📊 <b>Актуальная таблица</b>\n"
     response += f"📅 <b>Период:</b> {date_start} – {date_end}\n\n"
-    response += "<pre>"
-    response += f"{'Игрок':<20} {'Очки':<8} {'Монеты':<10} {'Итог':<10}\n"
-    response += "-" * 50 + "\n"
 
     for row in data:
         name = row[0].strip() if row[0] else "???"
         points = row[3].strip() if len(row) > 3 else "0"
         coins = row[4].strip() if len(row) > 4 else "0"
         total = row[5].strip() if len(row) > 5 else "0"
+        minus = row[6].strip() if len(row) > 6 else ""
 
-        response += f"{name:<20} {points:<8} {coins:<10} {total:<10}\n"
+        response += f"🤟🏼 <b>{name}</b>\n"
+        response += f"  📅 {date_start} – {date_end}: ⚔️ {points} очков, 💰 {coins} монет"
+        if total and total not in ['0', '']:
+            response += f", 📦 итог: {total}"
+        if minus and minus not in ['0', '', '-']:
+            response += f" ⚠️ минус: {minus}"
+        response += "\n\n"
 
-        if len(response) > 3900:
-            response += "</pre>"
+        if len(response) > 4000:
             await update.message.reply_text(response, parse_mode="HTML")
-            response = "<pre>"
+            response = ""
 
-    response += "</pre>"
-    await update.message.reply_text(response, parse_mode="HTML")
+    if response:
+        await update.message.reply_text(response, parse_mode="HTML")
 
 
 async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
