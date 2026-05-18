@@ -214,12 +214,17 @@ async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def find(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Ищет игрока по имени (только в первом столбце)"""
     if not context.args:
-        await update.message.reply_text("ℹ️ Укажите текст для поиска. Пример: /find pa3ym")
+        await update.message.reply_text(
+            "ℹ️ Укажите имя игрока для поиска. Пример: /find pa3ym",
+            parse_mode="HTML"
+        )
         return
 
-    search = ' '.join(context.args).lower()
+    search = ' '.join(context.args).lower().strip()
     data, headers, error = get_table_data()
+
     if error:
         await update.message.reply_text(error)
         return
@@ -228,25 +233,46 @@ async def find(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ Нет данных для поиска")
         return
 
+    # Поиск ТОЛЬКО в первом столбце (имя игрока)
     found_rows = []
     for row in data:
         if not row:
             continue
-        row_text = ' '.join(row).lower()
-        if search in row_text:
+        name = row[0].strip().lower() if row[0] else ""
+        if not name:
+            continue
+
+        # Проверяем, содержится ли поисковая строка в имени
+        if search in name:
             found_rows.append(row)
             if len(found_rows) >= 20:
                 break
 
     if not found_rows:
-        await update.message.reply_text(f"❌ Ничего не найдено для '{search}'")
+        await update.message.reply_text(f"❌ Игрок '{search}' не найден")
         return
 
+    # Определяем даты из заголовков
+    date_start = headers[1].strip() if len(headers) > 1 else "??"
+    date_end = headers[2].strip() if len(headers) > 2 else "??"
+
     response = f"🔎 <b>Найдено {len(found_rows)} результатов:</b>\n\n"
+
     for row in found_rows:
-        formatted = format_table_row(row, headers)
-        if formatted:
-            response += formatted + "\n"
+        name = row[0].strip() if row[0] else "???"
+        points = row[3].strip() if len(row) > 3 else "0"
+        coins = row[4].strip() if len(row) > 4 else "0"
+        total = row[5].strip() if len(row) > 5 else "0"
+        minus = row[6].strip() if len(row) > 6 else ""
+
+        response += f"🤟🏼 <b>{name}</b>\n"
+        response += f"  📅 {date_start} – {date_end}: ⚔️ {points} очков, 💰 {coins} монет"
+        if total and total not in ['0', '']:
+            response += f", 📦 итог: {total}"
+        if minus and minus not in ['0', '', '-']:
+            response += f" ⚠️ минус: {minus}"
+        response += "\n\n"
+
         if len(response) > 4000:
             await update.message.reply_text(response, parse_mode="HTML")
             response = ""
