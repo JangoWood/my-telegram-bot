@@ -348,14 +348,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def get_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Показывает данные из таблицы для указанного грейда"""
 
-    # Словарь соответствия аргументов -> GID и название
     grade_config = {
         't4+': {'gid': '0', 'name': 'T4+', 'aliases': ['t4+', 'т4+']},
         't4': {'gid': '296213375', 'name': 'T4', 'aliases': ['t4', 'т4']},
         't3+': {'gid': '677729120', 'name': 'T3+', 'aliases': ['t3+', 'т3+']},
     }
 
-    # Проверяем, указан ли аргумент
     if not context.args:
         keyboard = [
             [
@@ -375,15 +373,12 @@ async def get_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    # Определяем, какой грейд запросили
     arg = context.args[0].lower().strip()
-    selected_grade = None
     selected_gid = None
     selected_name = None
 
     for grade, config in grade_config.items():
         if arg in config['aliases']:
-            selected_grade = grade
             selected_gid = config['gid']
             selected_name = config['name']
             break
@@ -392,29 +387,23 @@ async def get_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(
             f"❌ Неизвестный грейд: '{arg}'\n\n"
             f"📋 <b>Доступные грейды:</b>\n"
-            f"  • /get_data t4+ — T4+ (основной)\n"
+            f"  • /get_data t4+ — T4+\n"
             f"  • /get_data t4 — T4\n"
             f"  • /get_data t3+ — T3+",
             parse_mode="HTML"
         )
         return
 
-    # Загружаем данные с выбранного листа
-    data, headers, error = get_table_data_by_gid(selected_gid)
-
-    if error:
-        await update.message.reply_text(error)
-        return
+    data, headers = get_table_data_by_gid(selected_gid)
 
     if not data:
         await update.message.reply_text(f"❌ Нет данных для грейда {selected_name}")
         return
 
-    # Формируем ответ с эмодзи (как раньше)
     date_start = headers[1].strip() if headers and len(headers) > 1 else "??"
     date_end = headers[2].strip() if headers and len(headers) > 2 else "??"
 
-    response = f"📊 <b>Актуальная таблица</b>\n"
+    response = f"📊 <b>Актуальная таблица {selected_name}</b>\n"
     response += f"📅 <b>Период:</b> {date_start} – {date_end}\n\n"
 
     for row in data:
