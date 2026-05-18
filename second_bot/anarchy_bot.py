@@ -20,8 +20,9 @@ CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQhxznVeD5jD268Xb5x9c
 CW_SHEET_GID = '279368796'  # GID листа со специализациями
 
 # GID листов с таблицами
-MAIN_SHEET_GID = '0'  # Основной лист (который использовался ранее)
-SECOND_SHEET_GID = '296213375'  # Новый лист
+MAIN_SHEET_GID = '0'                    # Основной лист
+SECOND_SHEET_GID = '296213375'          # Второй лист
+THIRD_SHEET_GID = '677729120'           # Третий лист (новый)
 
 # Создаём Flask-приложение для healthcheck
 flask_app = Flask(__name__)
@@ -154,12 +155,15 @@ def get_table_data():
 
 
 def get_combined_table_data():
-    """Объединяет данные с двух листов для поиска (/find)"""
+    """Объединяет данные с трёх листов для поиска (/find)"""
     # Загружаем данные с основного листа
     main_data, main_headers = get_table_data_by_gid(MAIN_SHEET_GID)
 
     # Загружаем данные со второго листа
     second_data, second_headers = get_table_data_by_gid(SECOND_SHEET_GID)
+
+    # Загружаем данные с третьего листа (новый)
+    third_data, third_headers = get_table_data_by_gid(THIRD_SHEET_GID)
 
     # Объединяем строки
     combined_data = []
@@ -167,11 +171,13 @@ def get_combined_table_data():
         combined_data.extend(main_data)
     if second_data:
         combined_data.extend(second_data)
+    if third_data:
+        combined_data.extend(third_data)
 
     print(f"📊 Всего строк для поиска: {len(combined_data)}")
 
-    # Для заголовков используем первый непустой
-    headers = main_headers if main_headers else second_headers
+    # Для заголовков используем первый непустой (с основного листа)
+    headers = main_headers if main_headers else (second_headers if second_headers else third_headers)
 
     return combined_data, headers
 
