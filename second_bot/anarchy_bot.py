@@ -630,35 +630,39 @@ async def spec_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def get_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Показывает специализации игрока по тегу из ответа на сообщение"""
+    """Показывает специализации игрока:
+    - если ответ на сообщение — ищет по тегу автора
+    - если без ответа — ищет по тегу самого пользователя
+    """
 
-    # Проверяем, есть ли ответ на сообщение
-    if not update.message.reply_to_message:
-        await update.message.reply_text(
-            "ℹ️ <b>Как использовать:</b>\n"
-            "1. Нажмите 'ответить' на сообщение игрока\n"
-            "2. Отправьте команду /prof\n\n"
-            "Бот найдёт игрока по его Telegram тегу и покажет специализации",
-            parse_mode="HTML"
-        )
+    # Загружаем данные специализаций один раз
+    data, headers, error = get_specializations_data()
+    if error or not data:
+        await update.message.reply_text("❌ Не удалось загрузить данные специализаций")
         return
 
-    # Получаем автора исходного сообщения
-    user = update.message.reply_to_message.from_user
-    user_tag = f"@{user.username}" if user.username else None
+    # Определяем, чей тег искать
+    user_tag = None
+    source = None
 
+    # Случай 1: команда в ответ на сообщение
+    if update.message.reply_to_message:
+        user = update.message.reply_to_message.from_user
+        user_tag = f"@{user.username}" if user.username else None
+        source = "ответа на сообщение"
+
+    # Случай 2: команда без ответа — ищем самого пользователя
+    else:
+        user = update.effective_user
+        user_tag = f"@{user.username}" if user.username else None
+        source = "вашего тега"
+
+    # Проверяем, есть ли тег у пользователя
     if not user_tag:
         await update.message.reply_text(
             "❌ У пользователя нет username в Telegram.\n"
             "Попросите его установить username в настройках Telegram."
         )
-        return
-
-    # Загружаем данные специализаций
-    data, headers, error = get_specializations_data()
-
-    if error or not data:
-        await update.message.reply_text("❌ Не удалось загрузить данные специализаций")
         return
 
     # Ищем строку с тегом
@@ -668,16 +672,29 @@ async def get_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
             found_row = row
             break
 
-    if not found_row:
-        await update.message.reply_text(
-            f"❌ Игрок с тегом {user_tag} не найден в таблице специализаций.\n\n"
-            f"Возможно, в таблице указан другой тег или имя не совпадает."
-        )
+    # Если нашли — показываем специализации
+    if found_row:
+        response = format_specializations_for_profile(found_row, headers)
+        await update.message.reply_text(response, parse_mode="HTML")
         return
 
-    # Форматируем вывод специализаций
-    response = format_specializations_for_profile(found_row, headers)
-    await update.message.reply_text(response, parse_mode="HTML")
+    # Если не нашли — показываем понятное сообщение
+    if source == "вашего тега":
+        await update.message.reply_text(
+            f"❌ Игрок с тегом {user_tag} не найден в таблице специализаций.\n\n"
+            f"📝 <b>Чтобы добавиться в таблицу:</b>\n"
+            f"1. Напишите администратору\n"
+            f"2. Сообщите ваш игровой ник и специализации\n\n"
+            f"💡 После добавления команда /prof начнёт работать для вас автоматически.",
+            parse_mode="HTML"
+        )
+    else:
+        await update.message.reply_text(
+            f"❌ Игрок с тегом {user_tag} не найден в таблице специализаций.\n\n"
+            f"Возможно, в таблице указан другой тег или игрок ещё не добавлен.\n\n"
+            f"💡 Попросите игрока добавиться в таблицу через администратора.",
+            parse_mode="HTML"
+        )
 
 def format_specializations_for_profile(row, headers):
     """Форматирует специализации игрока для красивого вывода (как в /f, но для одного игрока)"""
