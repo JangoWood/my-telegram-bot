@@ -39,7 +39,7 @@ def run_flask():
 
 
 def get_table_data_by_gid(gid):
-    """Загружает данные с конкретного листа по его GID"""
+    """Загружает данные с конкретного листа по его GID (только одну таблицу под первым 'Состав')"""
     try:
         url = f'https://docs.google.com/spreadsheets/d/e/2PACX-1vQhxznVeD5jD268Xb5x9crTJe0Di5Ra0OeSfqn_O_GA0plGpQHd8RFUg1GLlAnHgQx45XlklE1IVub9/pub?gid={gid}&output=csv'
         response = requests.get(url, timeout=30)
@@ -53,14 +53,11 @@ def get_table_data_by_gid(gid):
         if not data:
             return None, None
 
-        # Ищем строку с заголовком "Состав"
+        # Ищем первую строку с "Состав" в первой колонке
         start_row = None
         for i, row in enumerate(data):
-            for cell in row:
-                if cell and cell.strip() == 'Состав':
-                    start_row = i
-                    break
-            if start_row is not None:
+            if row and len(row) > 0 and row[0].strip() == 'Состав':
+                start_row = i
                 break
 
         if start_row is None:
@@ -70,19 +67,28 @@ def get_table_data_by_gid(gid):
         headers = data[start_row]
         start_row += 1
 
+        # Собираем данные ТОЛЬКО до следующего "Состав" или пустой строки
         result = []
         for row in data[start_row:]:
+            # Проверяем, не встретили ли новый "Состав" (начало следующей таблицы)
+            if row and len(row) > 0 and row[0].strip() == 'Состав':
+                break  # Останавливаемся на следующей таблице
+
+            # Проверяем, не пустая ли строка (и не заканчивается ли таблица)
             if not row or len(row) < 2:
                 continue
+
             name = row[0].strip() if row[0] else ""
+            # Пропускаем пустые строки и строки-заголовки
             if name and len(name) > 1 and name.lower() != 'состав':
                 result.append(row)
 
-        print(f"✅ Лист {gid}: загружено {len(result)} строк")
+        print(f"✅ Лист {gid}: загружено {len(result)} строк (ожидалось около 40)")
         return result, headers
     except Exception as e:
         print(f"❌ Ошибка загрузки листа {gid}: {e}")
         return None, None
+
 # ==================== ОСНОВНАЯ ТАБЛИЦА (актуальная таблица) ====================
 
 def get_table_data():
