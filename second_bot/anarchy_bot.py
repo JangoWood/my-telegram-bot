@@ -523,19 +523,19 @@ async def spec_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    # Разбираем аргументы: первое слово — специализация, второе (опционально) — уровень
+    # Разбираем аргументы
     search_input = context.args[0].lower()
     level_filter = context.args[1].upper() if len(context.args) > 1 else None
 
     synonyms = {
-        'крафтер': 1, 'крафт': 1, 'к': 1,
-        'рыбалка': 2, 'рыба': 2, 'р': 2,
-        'шахтёр': 3, 'шахта': 3, 'ш': 3,
-        'охота': 4, 'охотник': 4, 'о': 4,
-        'кулинария': 5, 'еда': 5, 'кухня': 5, 'кул': 5,
-        'алхимия': 6, 'алхим': 6, 'алх': 6, 'а': 6,
-        'плавильщик': 7, 'плавка': 7, 'пл': 7,
-        'фермер': 8, 'ферма': 8, 'ф': 8,
+        'крафтер': 2, 'крафт': 2, 'к': 2,
+        'рыбалка': 3, 'рыба': 3, 'р': 3,
+        'шахтёр': 4, 'шахта': 4, 'ш': 4,
+        'охота': 5, 'охотник': 5, 'о': 5,
+        'кулинария': 6, 'еда': 6, 'кухня': 6, 'кул': 6,
+        'алхимия': 7, 'алхим': 7, 'алх': 7, 'а': 7,
+        'плавильщик': 8, 'плавка': 8, 'пл': 8,
+        'фермер': 9, 'ферма': 9, 'ф': 9,
     }
 
     col_index = None
@@ -545,14 +545,14 @@ async def spec_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
             break
 
     spec_names = {
-        1: 'КРАФТЕР',
-        2: 'РЫБАЛКА',
-        3: 'ШАХТЁР',
-        4: 'ОХОТА',
-        5: 'КУЛИНАРИЯ',
-        6: 'АЛХИМИЯ',
-        7: 'ПЛАВИЛЬЩИК',
-        8: 'ФЕРМЕР'
+        2: 'КРАФТЕР',
+        3: 'РЫБАЛКА',
+        4: 'ШАХТЁР',
+        5: 'ОХОТА',
+        6: 'КУЛИНАРИЯ',
+        7: 'АЛХИМИЯ',
+        8: 'ПЛАВИЛЬЩИК',
+        9: 'ФЕРМЕР'
     }
 
     if col_index is None:
@@ -592,7 +592,7 @@ async def spec_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if not row or len(row) < col_index + 1:
                 continue
 
-            name = row[1].strip() if len(row) > 1 else ""  # Имя игрока (вторая колонка)
+            name = row[1].strip() if len(row) > 1 else ""  # Имя в колонке 1
             if not name:
                 continue
 
@@ -600,7 +600,6 @@ async def spec_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if not level or level == "-":
                 continue
 
-            # Применяем фильтр по уровню (если указан)
             if level_filter and level.upper() != level_filter:
                 continue
 
@@ -615,12 +614,25 @@ async def spec_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             return
 
-        # Сортировка уровней: ГМ5, ГМ4, ..., ПМ3, М3, У3 и т.д.
+        # Сортировка уровней: Э > ГМ > М > ПМ > У, внутри группы по убыванию номера
         def sort_key(level):
-            order = {'ГМ': 1, 'ПМ': 2, 'М': 3, 'У': 4}
-            prefix = level[:2] if level[:2] in order else level[:1] if level[:1] in order else 'Я'
-            num = int(level[2:]) if len(level) > 2 and level[2:].isdigit() else 0
-            return (order.get(prefix, 99), -num)
+            order = {'Э': 1, 'ГМ': 2, 'М': 3, 'ПМ': 4, 'У': 5}
+
+            if level[:2] in order:
+                prefix = level[:2]
+                num_start = 2
+            elif level[:1] in order:
+                prefix = level[:1]
+                num_start = 1
+            else:
+                return (99, 0)
+
+            try:
+                num = int(level[num_start:]) if len(level) > num_start else 0
+            except:
+                num = 0
+
+            return (order[prefix], -num)
 
         sorted_levels = sorted(levels.keys(), key=sort_key)
 
