@@ -43,17 +43,8 @@ def run_flask():
 
 async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обрабатывает нажатия на кнопки выбора грейда"""
-    print("🔔 1. button_callback ВЫЗВАН")
     query = update.callback_query
-    print(f"🔔 2. Данные кнопки: {query.data}")
-
-    try:
-        await query.answer()
-        print("🔔 3. query.answer() выполнен")
-    except Exception as e:
-        print(f"❌ Ошибка при answer: {e}")
-
-    print(f"DEBUG: Нажата кнопка с данными: {query.data}")
+    await query.answer()
 
     grade_map = {
         'get_data_t4+': ('0', 'T4+'),
@@ -63,15 +54,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if query.data in grade_map:
         gid, name = grade_map[query.data]
-        print(f"DEBUG: Загружаем данные для GID {gid}")
-
-        try:
-            data, headers = get_table_data_by_gid(gid)
-            print(f"DEBUG: Получено {len(data) if data else 0} строк")
-        except Exception as e:
-            print(f"❌ Ошибка get_table_data_by_gid: {e}")
-            await query.edit_message_text(f"❌ Ошибка загрузки данных: {e}")
-            return
+        data, headers = get_table_data_by_gid(gid)
 
         if not data:
             await query.edit_message_text(f"❌ Нет данных для грейда {name}")
@@ -83,6 +66,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         response = f"📊 <b>Актуальная таблица {name}</b>\n"
         response += f"📅 <b>Период:</b> {date_start} – {date_end}\n\n"
 
+        # Убираем [:20] - теперь все строки
         for row in data:
             name_player = row[0].strip() if row[0] else "???"
             points = row[3].strip() if len(row) > 3 else "0"
@@ -102,16 +86,8 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await query.edit_message_text(response, parse_mode="HTML")
                 response = ""
 
-        if len(data) > 20:
-            response += f"\n📌 <i>Показано 20 из {len(data)} строк</i>"
-
-        try:
-            await query.edit_message_text(response, parse_mode="HTML")
-            print("✅ Сообщение успешно обновлено")
-        except Exception as e:
-            print(f"❌ Ошибка при edit_message_text: {e}")
-    else:
-        print(f"DEBUG: Неизвестный callback: {query.data}")
+        # Убираем сообщение "Показано X из Y строк" — теперь показываем всё
+        await query.edit_message_text(response, parse_mode="HTML")
 
 
 def get_table_data_by_gid_with_fallback(gid):
