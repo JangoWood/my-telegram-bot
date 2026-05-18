@@ -46,6 +46,9 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
+    # Отладочный вывод
+    print(f"DEBUG: Нажата кнопка с данными: {query.data}")
+
     grade_map = {
         'get_data_t4+': ('0', 'T4+'),
         'get_data_t4': ('296213375', 'T4'),
@@ -54,6 +57,8 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if query.data in grade_map:
         gid, name = grade_map[query.data]
+        print(f"DEBUG: Загружаем данные для GID {gid}")
+
         data, headers, error = get_table_data_by_gid(gid)
 
         if error or not data:
@@ -66,7 +71,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         response = f"📊 <b>Актуальная таблица {name}</b>\n"
         response += f"📅 <b>Период:</b> {date_start} – {date_end}\n\n"
 
-        for row in data[:30]:
+        for row in data[:20]:
             name_player = row[0].strip() if row[0] else "???"
             points = row[3].strip() if len(row) > 3 else "0"
             coins = row[4].strip() if len(row) > 4 else "0"
@@ -85,10 +90,12 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await query.edit_message_text(response, parse_mode="HTML")
                 response = ""
 
-        if len(data) > 30:
-            response += f"\n📌 <i>Показано 30 из {len(data)} строк</i>"
+        if len(data) > 20:
+            response += f"\n📌 <i>Показано 20 из {len(data)} строк</i>"
 
         await query.edit_message_text(response, parse_mode="HTML")
+    else:
+        print(f"DEBUG: Неизвестный callback: {query.data}")
 
 
 def get_table_data_by_gid_with_fallback(gid):
