@@ -500,15 +500,16 @@ async def inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Отправляем результаты
     await update.inline_query.answer(found, cache_time=0)
 
+
 async def spec_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Поиск игроков по специализации с группировкой по уровням (/f)"""
+    """Поиск игроков по специализации с возможностью фильтрации по уровню"""
     if not context.args:
         await update.message.reply_text(
             "🔍 <b>Поиск по специализации</b>\n\n"
             "Примеры:\n"
-            "  /f алхимия\n"
-            "  /f кулинария\n"
-            "  /f крафтер\n\n"
+            "  /f алхимия — все алхимики\n"
+            "  /f алхимия ГМ4 — только ГМ4\n"
+            "  /f кулинария ПМ3 — только ПМ3\n\n"
             "📋 <b>Доступные специализации и синонимы:</b>\n"
             "  • крафтер / крафт / к\n"
             "  • рыбалка / рыба / р\n"
@@ -522,7 +523,9 @@ async def spec_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    search_input = ' '.join(context.args).lower()
+    # Разбираем аргументы: первое слово — специализация, второе (опционально) — уровень
+    search_input = context.args[0].lower()
+    level_filter = context.args[1].upper() if len(context.args) > 1 else None
 
     synonyms = {
         'крафтер': 1, 'крафт': 1, 'к': 1,
@@ -569,7 +572,7 @@ async def spec_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     try:
-        url = f'https://docs.google.com/spreadsheets/d/e/2PACX-1vSWZzQ4H8cNNvFc0Yxt0XQ9XHH8869jWMoC12z8DPNc1Xd02CqRlIdRx4PbqTCb0lHA9yDx8nSdqb_i/pub?gid={CW_SHEET_GID}&output=csv'
+        url = f'https://docs.google.com/spreadsheets/d/e/2PACX-1vQhxznVeD5jD268Xb5x9crTJe0Di5Ra0OeSfqn_O_GA0plGpQHd8RFUg1GLlAnHgQx45XlklE1IVub9/pub?gid={CW_SHEET_GID}&output=csv'
         response = requests.get(url, timeout=15)
         response.raise_for_status()
         response.encoding = 'utf-8'
@@ -582,13 +585,14 @@ async def spec_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("❌ Нет данных")
             return
 
+        # Группируем игроков по уровню
         levels = {}
 
-        for row in data[1:]:
+        for row in data[1:]:  # Пропускаем заголовки
             if not row or len(row) < col_index + 1:
                 continue
 
-            name = row[0].strip()
+            name = row[1].strip() if len(row) > 1 else ""  # Имя игрока (вторая колонка)
             if not name:
                 continue
 
@@ -596,14 +600,22 @@ async def spec_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if not level or level == "-":
                 continue
 
+            # Применяем фильтр по уровню (если указан)
+            if level_filter and level.upper() != level_filter:
+                continue
+
             if level not in levels:
                 levels[level] = []
             levels[level].append(name)
 
         if not levels:
-            await update.message.reply_text(f"❌ Нет данных по специализации '{spec_names[col_index]}'")
+            filter_text = f" с уровнем {level_filter}" if level_filter else ""
+            await update.message.reply_text(
+                f"❌ Нет игроков по специализации '{spec_names[col_index]}'{filter_text}"
+            )
             return
 
+        # Сортировка уровней: ГМ5, ГМ4, ..., ПМ3, М3, У3 и т.д.
         def sort_key(level):
             order = {'ГМ': 1, 'ПМ': 2, 'М': 3, 'У': 4}
             prefix = level[:2] if level[:2] in order else level[:1] if level[:1] in order else 'Я'
@@ -612,7 +624,9 @@ async def spec_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         sorted_levels = sorted(levels.keys(), key=sort_key)
 
-        response = f"🔍 <b>Поиск по специализации: {spec_names[col_index]}</b>\n\n"
+        spec_name = spec_names[col_index]
+        filter_text = f" {level_filter}" if level_filter else ""
+        response = f"🔍 <b>Поиск по специализации: {spec_name}{filter_text}</b>\n\n"
 
         for level in sorted_levels:
             players = sorted(levels[level], key=str.lower)
