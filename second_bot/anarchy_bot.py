@@ -43,10 +43,16 @@ def run_flask():
 
 async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обрабатывает нажатия на кнопки выбора грейда"""
+    print("🔔 1. button_callback ВЫЗВАН")
     query = update.callback_query
-    await query.answer()
+    print(f"🔔 2. Данные кнопки: {query.data}")
 
-    # Отладочный вывод
+    try:
+        await query.answer()
+        print("🔔 3. query.answer() выполнен")
+    except Exception as e:
+        print(f"❌ Ошибка при answer: {e}")
+
     print(f"DEBUG: Нажата кнопка с данными: {query.data}")
 
     grade_map = {
@@ -59,9 +65,15 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         gid, name = grade_map[query.data]
         print(f"DEBUG: Загружаем данные для GID {gid}")
 
-        data, headers, error = get_table_data_by_gid(gid)
+        try:
+            data, headers = get_table_data_by_gid(gid)
+            print(f"DEBUG: Получено {len(data) if data else 0} строк")
+        except Exception as e:
+            print(f"❌ Ошибка get_table_data_by_gid: {e}")
+            await query.edit_message_text(f"❌ Ошибка загрузки данных: {e}")
+            return
 
-        if error or not data:
+        if not data:
             await query.edit_message_text(f"❌ Нет данных для грейда {name}")
             return
 
@@ -93,7 +105,11 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if len(data) > 20:
             response += f"\n📌 <i>Показано 20 из {len(data)} строк</i>"
 
-        await query.edit_message_text(response, parse_mode="HTML")
+        try:
+            await query.edit_message_text(response, parse_mode="HTML")
+            print("✅ Сообщение успешно обновлено")
+        except Exception as e:
+            print(f"❌ Ошибка при edit_message_text: {e}")
     else:
         print(f"DEBUG: Неизвестный callback: {query.data}")
 
