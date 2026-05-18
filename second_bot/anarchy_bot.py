@@ -83,7 +83,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         response = f"📊 <b>Актуальная таблица {name}</b>\n"
         response += f"📅 <b>Период:</b> {date_start} – {date_end}\n\n"
 
-        for row in data[:20]:
+        for row in data:
             name_player = row[0].strip() if row[0] else "???"
             points = row[3].strip() if len(row) > 3 else "0"
             coins = row[4].strip() if len(row) > 4 else "0"
