@@ -36,6 +36,8 @@ CREDENTIALS_FILE = 'credentials.json'
 REALM_SHEET_ID = os.getenv('REALM_SHEET_ID')
 REALM_SHEET_NAME = 'Ремесло'  # Название листа (можно тоже вынести в переменные, если нужно)
 
+user_sessions = {}  # {user_id: {'skills': {}, 'user_tag': str, 'telegram_name': str, 'skills_text': str}}
+
 # Создаём Flask-приложение для healthcheck
 flask_app = Flask(__name__)
 
@@ -1162,7 +1164,7 @@ def update_player_realm(user_tag, player_name, clan, skills, update_time):
 
 
 async def update_realm(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обновляет навыки игрока"""
+    """Шаг 1: получение навыков, запрос ника"""
 
     if not update.message.reply_to_message:
         await update.message.reply_text(
@@ -1194,26 +1196,90 @@ async def update_realm(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    player_name = user.first_name
-    clan = "Анархия"
+    # Сохраняем сессию
+    user_sessions[user.id] = {
+        'skills': skills,
+        'user_tag': user_tag,
+        'telegram_name': user.first_name,
+        'skills_text': skills_text
+    }
 
+    # Шаг 2: просим ввести игровой ник
+    await update.message.reply_text(
+        "🤟🏼 <b>Введите ваш игровой ник</b>\n\n"
+        "Например: Jango, Crazyrain34, Giz\n\n"
+        "Просто напишите его в ответ на это сообщение.",
+        parse_mode="HTML"
+    )
+
+
+async def handle_nickname(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Шаг 2: получаем игровой ник от пользователя"""
+    user_id = update.effective_user.id
+
+    if user_id not in user_sessions:
+        return
+
+    nickname = update.message.text.strip()
+    if not nickname:
+        await update.message.reply_text("❌ Ник не может быть пустым. Попробуйте ещё раз.")
+        return
+
+    # Сохраняем ник
+    user_sessions[user_id]['nickname'] = nickname
+
+    # Шаг 3: показываем выбор клана
+    keyboard = [
+        [InlineKeyboardButton("🤟 Анархия", callback_data="clan_anarchy")],
+        [InlineKeyboardButton("🤟🏾️ Наследие Анархии", callback_data="clan_legacy")],
+        [InlineKeyboardButton("🤟🏼 Крылья Анархии", callback_data="clan_wings")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await update.message.reply_text(
+        "🏛️ <b>Выберите ваш клан</b>",
+        parse_mode="HTML",
+        reply_markup=reply_markup
+    )
+
+async def clan_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Шаг 3: получаем выбор клана и сохраняем всё в таблицу"""
+    query = update.callback_query
+    await query.answer()
+
+    user_id = update.effective_user.id
+
+    if user_id not in user_sessions:
+        await query.edit_message_text("❌ Сессия истекла. Начните заново: /update_me")
+        return
+
+    clan_map = {
+        'clan_anarchy': 'Анархия',
+        'clan_legacy': 'Наследие Анархии',
+        'clan_wings': 'Крылья Анархии'
+    }
+    clan = clan_map.get(query.data, 'Анархия')
+
+    data = user_sessions.pop(user_id)
+    nickname = data['nickname']
+    skills = data['skills']
+    user_tag = data['user_tag']
+
+    # Сохраняем в таблицу
     moscow_tz = pytz.timezone('Europe/Moscow')
     now_moscow = datetime.now(moscow_tz)
-
-    success = update_player_realm(user_tag, player_name, clan, skills, now_moscow)
+    success = update_player_realm(user_tag, nickname, clan, skills, now_moscow)
 
     if success:
-        response = f"✅ <b>Навыки {player_name} успешно обновлены!</b>\n\n"
+        response = f"✅ <b>Навыки сохранены!</b>\n"
+        response += f"🎮 Игровой ник: {nickname}\n"
+        response += f"🏛️ Клан: {clan}\n\n"
         for skill, level in skills.items():
             response += f"  • {skill}: {level}\n"
-        response += f"\n📅 Дата обновления: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-        await update.message.reply_text(response, parse_mode="HTML")
+        response += f"\n📅 Дата: {now_moscow.strftime('%Y-%m-%d %H:%M:%S')}"
+        await query.edit_message_text(response, parse_mode="HTML")
     else:
-        await update.message.reply_text(
-            "❌ Ошибка сохранения. Сообщите администратору.",
-            parse_mode="HTML"
-        )
-
+        await query.edit_message_text("❌ Ошибка сохранения. Сообщите администратору.")
 
 def get_realm_worksheet():
     """Подключается к таблице с навыками"""
@@ -1299,6 +1365,8 @@ def main():
 
     # Новая команда для обновления навыков
     app.add_handler(CommandHandler("update_me", update_realm))  # ← здесь
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_nickname))
+    app.add_handler(CallbackQueryHandler(clan_callback, pattern="^clan_"))
 
     print("✅ Бот запущен и готов к работе!")
     app.run_polling()
