@@ -1219,6 +1219,11 @@ async def handle_nickname(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
 
     if user_id not in user_sessions:
+        # Если сессии нет, возможно пользователь уже завершил процесс
+        await update.message.reply_text(
+            "❌ Активная сессия не найдена.\n\n"
+            "Начните заново: /update_me (ответом на сообщение с навыками)"
+        )
         return
 
     nickname = update.message.text.strip()
@@ -1251,7 +1256,10 @@ async def clan_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
 
     if user_id not in user_sessions:
-        await query.edit_message_text("❌ Сессия истекла. Начните заново: /update_me")
+        await query.edit_message_text(
+            "❌ Сессия истекла или данные уже сохранены.\n\n"
+            "Если данные не сохранились, начните заново: /update_me"
+        )
         return
 
     clan_map = {
@@ -1261,7 +1269,7 @@ async def clan_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     }
     clan = clan_map.get(query.data, 'Анархия')
 
-    data = user_sessions.pop(user_id)
+    data = user_sessions.pop(user_id)  # Удаляем сессию ПОСЛЕ получения данных
     nickname = data['nickname']
     skills = data['skills']
     user_tag = data['user_tag']
@@ -1280,7 +1288,11 @@ async def clan_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         response += f"\n📅 Дата: {now_moscow.strftime('%Y-%m-%d %H:%M:%S')}"
         await query.edit_message_text(response, parse_mode="HTML")
     else:
-        await query.edit_message_text("❌ Ошибка сохранения. Сообщите администратору.")
+        # Если ошибка, возвращаем сессию обратно
+        user_sessions[user_id] = data
+        await query.edit_message_text(
+            "❌ Ошибка сохранения. Попробуйте ещё раз /update_me"
+        )
 
 def get_realm_worksheet():
     """Подключается к таблице с навыками"""
