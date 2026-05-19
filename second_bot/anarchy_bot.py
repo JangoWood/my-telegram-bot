@@ -16,6 +16,13 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CallbackQueryHandler
 import gspread
 from google.oauth2.service_account import Credentials
+import pytz
+
+# Внутри функции update_realm:
+moscow_tz = pytz.timezone('Europe/Moscow')
+now_moscow = datetime.now(moscow_tz)
+
+success = update_player_realm(user_tag, player_name, clan, skills, now_moscow)
 
 # Загружаем переменные из .env в корне проекта
 env_path = Path(__file__).parent.parent / '.env'
@@ -1196,7 +1203,10 @@ async def update_realm(update: Update, context: ContextTypes.DEFAULT_TYPE):
     player_name = user.first_name
     clan = "Анархия"
 
-    success = update_player_realm(user_tag, player_name, clan, skills, datetime.now())
+    moscow_tz = pytz.timezone('Europe/Moscow')
+    now_moscow = datetime.now(moscow_tz)
+
+    success = update_player_realm(user_tag, player_name, clan, skills, now_moscow)
 
     if success:
         response = f"✅ <b>Навыки {player_name} успешно обновлены!</b>\n\n"
