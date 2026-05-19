@@ -1,6 +1,8 @@
 import os
 import csv
+import re
 import requests
+from datetime import datetime
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 from dotenv import load_dotenv
@@ -25,6 +27,10 @@ CW_SHEET_GID = '279368796'  # GID листа со специализациями
 MAIN_SHEET_GID = '0'                    # Основной лист
 SECOND_SHEET_GID = '296213375'          # Второй лист
 THIRD_SHEET_GID = '677729120'           # Третий лист (новый)
+
+# Таблица с навыками игроков
+REALM_SHEET_ID = os.getenv('REALM_SHEET_ID')
+REALM_SHEET_NAME = 'Ремесло'  # Название листа (можно тоже вынести в переменные, если нужно)
 
 # Создаём Flask-приложение для healthcheck
 flask_app = Flask(__name__)
@@ -1073,6 +1079,194 @@ def get_specializations_data():
     except Exception as e:
         return None, None, f"❌ Ошибка: {e}"
 
+
+# Словарь для преобразования уровней
+LEVEL_MAP = {
+    'Подмастерье': 'ПМ',
+    'Ученик': 'У',
+    'Грандмастер': 'ГМ',
+    'Мастер': 'М',
+    'Эксперт': 'Э'
+}
+
+
+def parse_skills_from_text(text):
+    """Извлекает и преобразует навыки из текста сообщения"""
+    skills = {}
+
+    # Регулярное выражение для поиска: Навык Название: Уровень число ▫️ (опыт/максимум)
+    # Пример: "⚒ Навык Крафтера: Подмастерье 2 ▫️ (1473/2500)"
+    patterns = {
+        'Крафтер': r'[Кк]рафтер[а]?\s*:\s*([^\s▫️]+(?:\s+[^\s▫️]+)?)',
+        'Рыбалка': r'[Рр]ыбалк[иа]\s*:\s*([^\s▫️]+(?:\s+[^\s▫️]+)?)',
+        'Шахтёр': r'[Шш]ахт[её]р[а]?\s*:\s*([^\s▫️]+(?:\s+[^\s▫️]+)?)',
+        'Охота': r'[Оо]хот[ыа]\s*:\s*([^\s▫️]+(?:\s+[^\s▫️]+)?)',
+        'Кулинария': r'[Кк]улинари[яи]\s*:\s*([^\s▫️]+(?:\s+[^\s▫️]+)?)',
+        'Алхимия': r'[Аа]лхими[яи]\s*:\s*([^\s▫️]+(?:\s+[^\s▫️]+)?)',
+        'Плавильщик': r'[Пп]лавильщик[а]?\s*:\s*([^\s▫️]+(?:\s+[^\s▫️]+)?)',
+        'Фермер': r'[Фф]ермер[а]?\s*:\s*([^\s▫️]+(?:\s+[^\s▫️]+)?)',
+    }
+
+    for skill, pattern in patterns.items():
+        match = re.search(pattern, text, re.IGNORECASE)
+        if match:
+            level_text = match.group(1).strip()
+            # Преобразуем уровень: "Подмастерье 2" -> "ПМ2"
+            converted_level = convert_level(level_text)
+            skills[skill] = converted_level
+
+    return skills
+
+
+def convert_level(level_text):
+    """Преобразует текстовый уровень в короткий код"""
+    # Примеры: "Подмастерье 2" -> "ПМ2", "Грандмастер 5" -> "ГМ5"
+    for full_name, short_code in LEVEL_MAP.items():
+        if full_name in level_text:
+            # Извлекаем число
+            numbers = re.findall(r'\d+', level_text)
+            number = numbers[0] if numbers else ''
+            return f"{short_code}{number}"
+
+    # Если не нашли известный уровень, возвращаем как есть
+    return level_text
+
+
+def update_player_realm(user_tag, player_name, clan, skills, update_time):
+    """Обновляет или добавляет запись о навыках игрока"""
+    try:
+        ws = get_realm_worksheet()
+        if not ws:
+            return False
+
+        # Ищем, есть ли уже такой игрок по тегу
+        try:
+            cell = ws.find(user_tag)
+        except:
+            cell = None
+
+        now = update_time.strftime('%Y-%m-%d %H:%M:%S')
+
+        if cell:
+            # Обновляем существующую строку
+            row_num = cell.row
+            ws.update(f'B{row_num}', player_name)
+            ws.update(f'C{row_num}', clan)
+            ws.update(f'D{row_num}', skills.get('Крафтер', ''))
+            ws.update(f'E{row_num}', skills.get('Рыбалка', ''))
+            ws.update(f'F{row_num}', skills.get('Шахтёр', ''))
+            ws.update(f'G{row_num}', skills.get('Охота', ''))
+            ws.update(f'H{row_num}', skills.get('Кулинария', ''))
+            ws.update(f'I{row_num}', skills.get('Алхимия', ''))
+            ws.update(f'J{row_num}', skills.get('Плавильщик', ''))
+            ws.update(f'K{row_num}', skills.get('Фермер', ''))
+            ws.update(f'L{row_num}', now)
+        else:
+            # Добавляем новую строку
+            ws.append_row([
+                user_tag,
+                player_name,
+                clan,
+                skills.get('Крафтер', ''),
+                skills.get('Рыбалка', ''),
+                skills.get('Шахтёр', ''),
+                skills.get('Охота', ''),
+                skills.get('Кулинария', ''),
+                skills.get('Алхимия', ''),
+                skills.get('Плавильщик', ''),
+                skills.get('Фермер', ''),
+                now
+            ])
+
+        return True
+    except Exception as e:
+        print(f"Ошибка записи навыков: {e}")
+        return False
+
+
+async def update_realm(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обновляет навыки игрока на основе ответа на сообщение"""
+
+    # Проверяем, что команда используется как ответ
+    if not update.message.reply_to_message:
+        await update.message.reply_text(
+            "❌ <b>Как использовать /update_realm</b>\n\n"
+            "1. Отправьте в чат сообщение со своими навыками (как в игре)\n"
+            "2. Нажмите «ответить» на это сообщение\n"
+            "3. Напишите /update_realm\n\n"
+            "📝 <b>Пример сообщения с навыками:</b>\n"
+            "⚒ Навык Крафтера: Подмастерье 2 ▫️ (1473/2500)\n"
+            "🎣 Навык Рыбалки: Подмастерье 1 ▫️ (1725/1800)\n"
+            "⛏ Навык Шахтера: Ученик 1 ▫️ (0/300)\n"
+            "🏹 Навык Охоты: Подмастерье 1 ▫️ (600/1800)\n"
+            "🥨 Навык Кулинарии: Грандмастер 1 ▫️ (5785/14000)\n"
+            "🧪🌡 Навык Алхимии: Грандмастер 5 ▫️ (16011/53782)\n"
+            "🪔 Навык Плавильщика: Подмастерье 3 ▫️ (1485/3500)\n"
+            "🌽 Навык Фермера: Грандмастер 1 ▫️ (2237/14000)",
+            parse_mode="HTML"
+        )
+        return
+
+    # Получаем текст сообщения, на которое ответили
+    skills_text = update.message.reply_to_message.text
+
+    # Парсим навыки
+    skills = parse_skills_from_text(skills_text)
+
+    if not skills:
+        await update.message.reply_text(
+            "❌ <b>Как использовать /update_me</b>\n\n"
+            "1. Отправьте в чат сообщение со своими навыками (как в игре)\n"
+            "2. Нажмите «ответить» на это сообщение\n"
+            "3. Напишите /update_me\n\n"
+            ...
+        )
+        return
+
+    # Получаем информацию об игроке
+    user = update.effective_user
+    user_tag = f"@{user.username}" if user.username else None
+
+    if not user_tag:
+        await update.message.reply_text(
+            "❌ У вас нет username в Telegram.\n\n"
+            "Установите username в настройках Telegram и попробуйте снова."
+        )
+        return
+
+    player_name = user.first_name
+    clan = "Анархия"  # Можно будет потом добавить выбор клана
+
+    # Сохраняем в Google Sheets
+    success = update_player_realm(user_tag, player_name, clan, skills, datetime.now())
+
+    if success:
+        # Показываем обновлённый профиль
+        response = f"✅ <b>Навыки {player_name} успешно обновлены!</b>\n\n"
+        response += f"📋 <b>Ваши специализации:</b>\n"
+        for skill, level in skills.items():
+            response += f"  • {skill}: {level}\n"
+        response += f"\n📅 Дата обновления: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+        await update.message.reply_text(response, parse_mode="HTML")
+    else:
+        await update.message.reply_text(
+            "❌ Ошибка сохранения. Сообщите администратору.\n\n"
+            "Возможные причины: нет доступа к таблице или неверный ID."
+        )
+
+def get_realm_worksheet():
+    """Подключается к таблице с навыками"""
+    try:
+        scope = ['https://www.googleapis.com/auth/spreadsheets',
+                 'https://www.googleapis.com/auth/drive']
+        creds = Credentials.from_service_account_file(CREDENTIALS_FILE, scopes=scope)
+        client = gspread.authorize(creds)
+        sheet = client.open_by_key(REALM_SHEET_ID).worksheet(REALM_SHEET_NAME)
+        return sheet
+    except Exception as e:
+        print(f"Ошибка подключения к таблице навыков: {e}")
+        return None
+
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Показывает список всех команд бота"""
     help_text = """
@@ -1140,6 +1334,9 @@ def main():
     app.add_handler(InlineQueryHandler(inline_query))
 
     app.add_handler(CommandHandler("prof", get_profile))
+
+    # Новая команда для обновления навыков
+    app.add_handler(CommandHandler("update_me", update_realm))  # ← здесь
 
     print("✅ Бот запущен и готов к работе!")
     app.run_polling()
