@@ -1122,19 +1122,19 @@ def update_player_realm(user_tag, player_name, clan, skills, update_time):
 
         now = update_time.strftime('%Y-%m-%d %H:%M:%S')
 
-        # Подготавливаем строку данных
+        # Подготавливаем строку данных (ключи БЕЗ эмодзи)
         row_data = [
             user_tag,
             player_name,
             clan,
-            skills.get('⚒️Крафтер', ''),
-            skills.get('🎣Рыбалка', ''),
-            skills.get('⛏️Шахтёр', ''),
-            skills.get('🏹Охота', ''),
-            skills.get('🥨Кулинария', ''),
-            skills.get('🧪🌡Алхимия', ''),
-            skills.get('🪔Плавильщик', ''),
-            skills.get('🌽Фермер', ''),
+            skills.get('Крафтер', ''),
+            skills.get('Рыбалка', ''),
+            skills.get('Шахтёр', ''),
+            skills.get('Охота', ''),
+            skills.get('Кулинария', ''),
+            skills.get('Алхимия', ''),
+            skills.get('Плавильщик', ''),
+            skills.get('Фермер', ''),
             now
         ]
 
@@ -1147,7 +1147,6 @@ def update_player_realm(user_tag, player_name, clan, skills, update_time):
         if cell:
             # Обновляем существующую строку
             row_num = cell.row
-            # Обновляем диапазон A:L одной операцией
             update_range = f'A{row_num}:L{row_num}'
             ws.update(range_name=update_range, values=[row_data])
             print(f"✅ Обновлена строка {row_num} для {user_tag}")
@@ -1281,13 +1280,19 @@ async def clan_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     success = update_player_realm(user_tag, nickname, clan, skills, now_moscow)
 
     if success:
-        response = f"✅ <b>Навыки сохранены!</b>\n"
-        response += f"🎮 Игровой ник: {nickname}\n"
-        response += f"📯 Клан: {clan}\n\n"
-        for skill, level in skills.items():
-            response += f"  • {skill}: {level}\n"
-        response += f"\n📅 Дата: {now_moscow.strftime('%Y-%m-%d %H:%M:%S')}"
-        # Заменяем сообщение с кнопками на финальный результат
+        response = f"✅ <b>Навыки сохранены!</b>\n\n"
+        response += f"🎮 <b>Игровой ник:</b> {nickname}\n"
+        response += f"🏛️ <b>Клан:</b> {clan}\n\n"
+        response += f"⚒️ <b>Крафтер:</b> {skills.get('Крафтер', '—')}\n"
+        response += f"🎣 <b>Рыбалка:</b> {skills.get('Рыбалка', '—')}\n"
+        response += f"⛏️ <b>Шахтёр:</b> {skills.get('Шахтёр', '—')}\n"
+        response += f"🏹 <b>Охота:</b> {skills.get('Охота', '—')}\n"
+        response += f"🥨 <b>Кулинария:</b> {skills.get('Кулинария', '—')}\n"
+        response += f"🧪 <b>Алхимия:</b> {skills.get('Алхимия', '—')}\n"
+        response += f"🪔 <b>Плавильщик:</b> {skills.get('Плавильщик', '—')}\n"
+        response += f"🌽 <b>Фермер:</b> {skills.get('Фермер', '—')}\n"
+        response += f"\n📅 <b>Дата:</b> {now_moscow.strftime('%Y-%m-%d %H:%M:%S')}"
+
         await query.edit_message_text(response, parse_mode="HTML")
     else:
         # Если ошибка, возвращаем сессию обратно
