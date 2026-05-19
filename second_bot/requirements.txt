@@ -3,3 +3,5 @@ requests
 httpx
 flask
 python-dotenv
+gspread
+google-auth
