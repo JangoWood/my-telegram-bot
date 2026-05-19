@@ -1164,7 +1164,55 @@ def update_player_realm(user_tag, player_name, clan, skills, update_time):
 
 async def update_realm(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обновляет навыки игрока"""
-    await update.message.reply_text("✅ Команда update_realm работает!")
+
+    # Шаг 1: проверка ответа на сообщение
+    if not update.message.reply_to_message:
+        await update.message.reply_text("❌ Ответьте на сообщение с навыками")
+        return
+    await update.message.reply_text("✅ Шаг 1 пройден: ответ на сообщение есть")
+
+    # Шаг 2: парсинг навыков
+    skills_text = update.message.reply_to_message.text
+    skills = parse_skills_from_text(skills_text)
+
+    if not skills:
+        await update.message.reply_text("❌ Не удалось распознать навыки")
+        return
+    await update.message.reply_text(f"✅ Шаг 2 пройден: навыки распознаны: {skills}")
+
+    # Шаг 3: получаем информацию об игроке
+    user = update.effective_user
+    user_tag = f"@{user.username}" if user.username else None
+
+    if not user_tag:
+        await update.message.reply_text("❌ У вас нет username")
+        return
+    await update.message.reply_text(f"✅ Шаг 3 пройден: тег {user_tag}, имя {user.first_name}")
+
+    player_name = user.first_name
+    clan = "Анархия"
+
+    # Шаг 4: подключение к таблице
+    try:
+        ws = get_realm_worksheet()
+        if ws is None:
+            await update.message.reply_text("❌ get_realm_worksheet() вернул None")
+            return
+        await update.message.reply_text("✅ Шаг 4 пройден: подключение к таблице успешно")
+    except Exception as e:
+        await update.message.reply_text(f"❌ Ошибка подключения: {e}")
+        return
+
+    # Шаг 5: сохранение
+    success = update_player_realm(user_tag, player_name, clan, skills, datetime.now())
+
+    if success:
+        response = f"✅ Навыки {player_name} сохранены!\n\n"
+        for skill, level in skills.items():
+            response += f"  • {skill}: {level}\n"
+        await update.message.reply_text(response, parse_mode="HTML")
+    else:
+        await update.message.reply_text("❌ Ошибка сохранения. Проверьте логи Render.")
 
 def get_realm_worksheet():
     """Подключается к таблице с навыками"""
