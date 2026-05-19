@@ -1351,12 +1351,10 @@ def main():
 
     # Команды для основной таблицы
     app.add_handler(CommandHandler("get_data", get_data))
-    app.add_handler(CallbackQueryHandler(button_callback))
     app.add_handler(CommandHandler("stats", stats))
     app.add_handler(CommandHandler("find", find))
 
     # Команды для специализаций
-    # app.add_handler(CommandHandler("s", spec))  ← ЗАКОММЕНТИРОВАЛИ или УДАЛИЛИ
     app.add_handler(CommandHandler("f", spec_search))
 
     # Инлайн-обработчик
@@ -1365,9 +1363,12 @@ def main():
     app.add_handler(CommandHandler("prof", get_profile))
 
     # Новая команда для обновления навыков
-    app.add_handler(CommandHandler("update_me", update_realm))  # ← здесь
+    app.add_handler(CommandHandler("update_me", update_realm))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_nickname))
+
+    # Callback обработчики: сначала специфичный, потом общий
     app.add_handler(CallbackQueryHandler(clan_callback, pattern="^clan_"))
+    app.add_handler(CallbackQueryHandler(button_callback))  # без паттерна - обрабатывает всё остальное
 
     print("✅ Бот запущен и готов к работе!")
     app.run_polling()
