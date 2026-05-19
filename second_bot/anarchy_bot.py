@@ -1272,41 +1272,6 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(help_text, parse_mode="HTML")
 
 
-async def test_deeplink(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Тестовая функция для проверки извлечения диплинка из сообщения"""
-    if not update.message:
-        return
-
-    message = update.message
-    user = update.effective_user
-
-    response = f"🧪 <b>Тест диплинка</b>\n\n"
-    response += f"Отправил: @{user.username if user.username else 'нет username'}\n\n"
-
-    # Проверяем текст сообщения
-    if message.text:
-        response += f"📝 Текст: {message.text[:200]}\n\n"
-
-    # Проверяем entities (ссылки, форматирование)
-    if message.entities:
-        response += f"🔗 Найдено entities: {len(message.entities)}\n"
-        for i, entity in enumerate(message.entities):
-            response += f"\n  {i + 1}. Тип: {entity.type}\n"
-            if entity.type == "text_link":
-                response += f"     URL: {entity.url}\n"
-                # Пробуем извлечь start-параметр
-                if "start=" in entity.url:
-                    start_param = entity.url.split("start=")[-1]
-                    response += f"     🎮 Игровой ник: {start_param}\n"
-            elif entity.type == "mention":
-                response += f"     Упоминание: {message.text[entity.offset:entity.offset + entity.length]}\n"
-    else:
-        response += "❌ Нет entities (ссылок, форматирования)\n"
-
-    await update.message.reply_text(response, parse_mode="HTML")
-
-
-
 # ==================== ЗАПУСК БОТА ====================
 
 def main():
@@ -1334,9 +1299,6 @@ def main():
 
     # Новая команда для обновления навыков
     app.add_handler(CommandHandler("update_me", update_realm))  # ← здесь
-
-    # В функции main(), после других обработчиков:
-    app.add_handler(CommandHandler("testlink", test_deeplink))
 
     print("✅ Бот запущен и готов к работе!")
     app.run_polling()
