@@ -1190,10 +1190,10 @@ async def update_realm(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Проверяем, что команда используется как ответ
     if not update.message.reply_to_message:
         await update.message.reply_text(
-            "❌ <b>Как использовать /update_realm</b>\n\n"
+            "❌ <b>Как использовать /update_me</b>\n\n"
             "1. Отправьте в чат сообщение со своими навыками (как в игре)\n"
             "2. Нажмите «ответить» на это сообщение\n"
-            "3. Напишите /update_realm\n\n"
+            "3. Напишите /update_me\n\n"
             "📝 <b>Пример сообщения с навыками:</b>\n"
             "⚒ Навык Крафтера: Подмастерье 2 ▫️ (1473/2500)\n"
             "🎣 Навык Рыбалки: Подмастерье 1 ▫️ (1725/1800)\n"
