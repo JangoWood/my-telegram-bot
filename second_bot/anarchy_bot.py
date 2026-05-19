@@ -1325,7 +1325,7 @@ def main():
     app.add_handler(CommandHandler("prof", get_profile))
 
     # Новая команда для обновления навыков
-    app.add_handler(CommandHandler("update_me", update_realm))  # ← здесь
+    #app.add_handler(CommandHandler("update_me", update_realm))  # ← здесь
 
     print("✅ Бот запущен и готов к работе!")
     app.run_polling()
