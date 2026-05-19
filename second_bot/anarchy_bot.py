@@ -1166,53 +1166,51 @@ async def update_realm(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обновляет навыки игрока"""
 
     if not update.message.reply_to_message:
-        await update.message.reply_text(
-            "❌ Ответьте на сообщение с навыками командой /update_me",
-            parse_mode="HTML"
-        )
+        await update.message.reply_text("❌ Ответьте на сообщение с навыками командой /update_me")
         return
 
-    # Получаем текст сообщения, на которое ответили
     skills_text = update.message.reply_to_message.text
-
-    # Парсим навыки
     skills = parse_skills_from_text(skills_text)
 
     if not skills:
-        await update.message.reply_text(
-            "❌ Не удалось распознать навыки.\n\n"
-            "Убедитесь, что сообщение содержит строки вида:\n"
-            "«Навык Крафтера: Подмастерье 2»",
-            parse_mode="HTML"
-        )
+        await update.message.reply_text("❌ Не удалось распознать навыки")
         return
 
-    # Получаем информацию об игроке
     user = update.effective_user
     user_tag = f"@{user.username}" if user.username else None
 
     if not user_tag:
-        await update.message.reply_text(
-            "❌ У вас нет username в Telegram.\n\n"
-            "Установите username в настройках Telegram и попробуйте снова."
-        )
+        await update.message.reply_text("❌ У вас нет username в Telegram")
         return
 
     player_name = user.first_name
     clan = "Анархия"
 
-    # Сохраняем в Google Sheets
+    # ДИАГНОСТИКА 1: проверяем переменные
+    await update.message.reply_text(f"🔍 Диагностика:\nТег: {user_tag}\nИмя: {player_name}\nКлан: {clan}\nНавыки: {skills}")
+
+    # ДИАГНОСТИКА 2: проверяем подключение к таблице
+    try:
+        ws = get_realm_worksheet()
+        if ws is None:
+            await update.message.reply_text("❌ get_realm_worksheet() вернул None. Проверьте ID таблицы и доступ.")
+            return
+        else:
+            await update.message.reply_text("✅ Подключение к таблице успешно!")
+    except Exception as e:
+        await update.message.reply_text(f"❌ Ошибка подключения: {e}")
+        return
+
+    # Сохраняем
     success = update_player_realm(user_tag, player_name, clan, skills, datetime.now())
 
     if success:
         response = f"✅ <b>Навыки {player_name} успешно обновлены!</b>\n\n"
-        response += f"📋 <b>Ваши специализации:</b>\n"
         for skill, level in skills.items():
             response += f"  • {skill}: {level}\n"
-        response += f"\n📅 Дата обновления: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
         await update.message.reply_text(response, parse_mode="HTML")
     else:
-        await update.message.reply_text("❌ Ошибка сохранения. Сообщите администратору.")
+        await update.message.reply_text("❌ Ошибка сохранения. Проверьте логи Render.")
 
 def get_realm_worksheet():
     """Подключается к таблице с навыками"""
