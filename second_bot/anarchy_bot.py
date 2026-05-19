@@ -1112,13 +1112,16 @@ def update_player_realm(user_tag, player_name, clan, skills, update_time):
     """Обновляет или добавляет запись о навыках игрока"""
     try:
         ws = get_realm_worksheet()
-        if not ws:
+        if ws is None:
+            print("❌ get_realm_worksheet вернул None")
             return False
 
         # Ищем, есть ли уже такой игрок по тегу
         try:
             cell = ws.find(user_tag)
-        except:
+            print(f"🔍 Поиск тега {user_tag}: {'найден' if cell else 'не найден'}")
+        except Exception as e:
+            print(f"❌ Ошибка поиска: {e}")
             cell = None
 
         now = update_time.strftime('%Y-%m-%d %H:%M:%S')
@@ -1126,6 +1129,7 @@ def update_player_realm(user_tag, player_name, clan, skills, update_time):
         if cell:
             # Обновляем существующую строку
             row_num = cell.row
+            print(f"📝 Обновляем строку {row_num}")
             ws.update(f'B{row_num}', player_name)
             ws.update(f'C{row_num}', clan)
             ws.update(f'D{row_num}', skills.get('Крафтер', ''))
@@ -1139,6 +1143,7 @@ def update_player_realm(user_tag, player_name, clan, skills, update_time):
             ws.update(f'L{row_num}', now)
         else:
             # Добавляем новую строку
+            print(f"📝 Добавляем новую строку для {user_tag}")
             ws.append_row([
                 user_tag,
                 player_name,
@@ -1154,9 +1159,12 @@ def update_player_realm(user_tag, player_name, clan, skills, update_time):
                 now
             ])
 
+        print("✅ Данные успешно сохранены")
         return True
     except Exception as e:
-        print(f"Ошибка записи навыков: {e}")
+        print(f"❌ Ошибка записи навыков: {e}")
+        import traceback
+        traceback.print_exc()
         return False
 
 
