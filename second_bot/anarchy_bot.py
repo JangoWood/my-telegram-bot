@@ -17,6 +17,7 @@ from telegram.ext import CallbackQueryHandler
 import gspread
 from google.oauth2.service_account import Credentials
 import pytz
+from telegram.ext import MessageHandler, filters
 
 # Загружаем переменные из .env в корне проекта
 env_path = Path(__file__).parent.parent / '.env'
