@@ -31,6 +31,7 @@ SECOND_SHEET_GID = '296213375'          # Второй лист
 THIRD_SHEET_GID = '677729120'           # Третий лист (новый)
 
 # Таблица с навыками игроков
+CREDENTIALS_FILE = 'credentials.json'
 REALM_SHEET_ID = os.getenv('REALM_SHEET_ID')
 REALM_SHEET_NAME = 'Ремесло'  # Название листа (можно тоже вынести в переменные, если нужно)
 
@@ -1213,6 +1214,7 @@ async def update_realm(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(response, parse_mode="HTML")
     else:
         await update.message.reply_text("❌ Ошибка сохранения. Проверьте логи Render.")
+
 
 def get_realm_worksheet():
     """Подключается к таблице с навыками"""
