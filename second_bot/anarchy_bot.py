@@ -1027,30 +1027,6 @@ def format_specializations_for_profile(row, headers):
     return response
 
 
-def format_specializations_for_profile(row, headers):
-    """Форматирует специализации игрока для красивого вывода (как в /f, но для одного игрока)"""
-    if not row or len(row) < 2:
-        return "❌ Нет данных"
-
-    # Первая колонка — это тег (@username), вторая — имя игрока
-    tag = row[0].strip() if len(row) > 0 else "?"
-    name = row[1].strip() if len(row) > 1 and row[1] else "Неизвестно"
-
-    # Названия специализаций (заголовки)
-    spec_names = headers[2:] if len(headers) > 2 else []
-
-    response = f"🤟🏼 <b>{name}</b>\n"
-    response += f"📱 {tag}\n\n"
-    response += "<b>📋 Специализации:</b>\n"
-
-    for i, spec in enumerate(spec_names):
-        if i + 2 < len(row) and row[i + 2]:
-            value = row[i + 2].strip()
-            if value and value != '-':
-                response += f"  • {spec}: <b>{value}</b>\n"
-
-    return response
-
 def get_specializations_data():
     """Загружает данные из таблицы специализаций (лист CW_SHEET_GID)"""
     try:
@@ -1194,8 +1170,6 @@ async def update_realm(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    await update.message.reply_text("✅ Функция работает", parse_mode="HTML")
-
     # Получаем текст сообщения, на которое ответили
     skills_text = update.message.reply_to_message.text
 
@@ -1204,11 +1178,10 @@ async def update_realm(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if not skills:
         await update.message.reply_text(
-            "❌ <b>Как использовать /update_me</b>\n\n"
-            "1. Отправьте в чат сообщение со своими навыками (как в игре)\n"
-            "2. Нажмите «ответить» на это сообщение\n"
-            "3. Напишите /update_me\n\n"
-            ...
+            "❌ Не удалось распознать навыки.\n\n"
+            "Убедитесь, что сообщение содержит строки вида:\n"
+            "«Навык Крафтера: Подмастерье 2»",
+            parse_mode="HTML"
         )
         return
 
@@ -1224,13 +1197,12 @@ async def update_realm(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     player_name = user.first_name
-    clan = "Анархия"  # Можно будет потом добавить выбор клана
+    clan = "Анархия"
 
     # Сохраняем в Google Sheets
     success = update_player_realm(user_tag, player_name, clan, skills, datetime.now())
 
     if success:
-        # Показываем обновлённый профиль
         response = f"✅ <b>Навыки {player_name} успешно обновлены!</b>\n\n"
         response += f"📋 <b>Ваши специализации:</b>\n"
         for skill, level in skills.items():
@@ -1238,10 +1210,7 @@ async def update_realm(update: Update, context: ContextTypes.DEFAULT_TYPE):
         response += f"\n📅 Дата обновления: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
         await update.message.reply_text(response, parse_mode="HTML")
     else:
-        await update.message.reply_text(
-            "❌ Ошибка сохранения. Сообщите администратору.\n\n"
-            "Возможные причины: нет доступа к таблице или неверный ID."
-        )
+        await update.message.reply_text("❌ Ошибка сохранения. Сообщите администратору.")
 
 def get_realm_worksheet():
     """Подключается к таблице с навыками"""
@@ -1325,7 +1294,7 @@ def main():
     app.add_handler(CommandHandler("prof", get_profile))
 
     # Новая команда для обновления навыков
-    #app.add_handler(CommandHandler("update_me", update_realm))  # ← здесь
+    app.add_handler(CommandHandler("update_me", update_realm))  # ← здесь
 
     print("✅ Бот запущен и готов к работе!")
     app.run_polling()
