@@ -1248,6 +1248,7 @@ async def handle_nickname(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=reply_markup
     )
 
+
 async def clan_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Шаг 3: получаем выбор клана и сохраняем всё в таблицу"""
     query = update.callback_query
@@ -1269,7 +1270,7 @@ async def clan_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     }
     clan = clan_map.get(query.data, 'Анархия')
 
-    data = user_sessions.pop(user_id)  # Удаляем сессию ПОСЛЕ получения данных
+    data = user_sessions.pop(user_id)
     nickname = data['nickname']
     skills = data['skills']
     user_tag = data['user_tag']
@@ -1286,6 +1287,7 @@ async def clan_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         for skill, level in skills.items():
             response += f"  • {skill}: {level}\n"
         response += f"\n📅 Дата: {now_moscow.strftime('%Y-%m-%d %H:%M:%S')}"
+        # Заменяем сообщение с кнопками на финальный результат
         await query.edit_message_text(response, parse_mode="HTML")
     else:
         # Если ошибка, возвращаем сессию обратно
