@@ -940,35 +940,19 @@ async def spec_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def get_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Показывает специализации игрока"""
+    """Показывает специализации игрока из таблицы Ремесло"""
 
-    # Загружаем данные специализаций
-    data, headers, error = get_specializations_data()
-    if error or not data:
-        await update.message.reply_text("❌ Не удалось загрузить данные специализаций")
-        return
-
-    # Определяем, чей тег искать
+    # Определяем, чей профиль показывать
     user_tag = None
-    is_self = True
-    use_reply = False
+    is_self = False
 
-    # Если команда в ответ на сообщение — пробуем взять автора
+    # Вариант 1: ответ на сообщение
     if update.message.reply_to_message:
         replied_user = update.message.reply_to_message.from_user
-        replied_tag = f"@{replied_user.username}" if replied_user.username else None
-
-        # Проверяем, есть ли этот тег в таблице
-        if replied_tag:
-            for row in data:
-                if row and len(row) > 0 and row[0].strip().lower() == replied_tag.lower():
-                    use_reply = True
-                    user_tag = replied_tag
-                    is_self = (replied_user.id == update.effective_user.id)
-                    break
-
-    # Если не используем ответ (нет тега в таблице или нет ответа) — берём отправителя
-    if not use_reply:
+        user_tag = f"@{replied_user.username}" if replied_user.username else None
+        is_self = (replied_user.id == update.effective_user.id)
+    else:
+        # Вариант 2: команда без ответа — показываем самого пользователя
         user = update.effective_user
         user_tag = f"@{user.username}" if user.username else None
         is_self = True
@@ -976,38 +960,110 @@ async def get_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not user_tag:
         await update.message.reply_text(
             "❌ У пользователя нет username в Telegram.\n"
-            "Попросите его установить username в настройках Telegram."
+            "Попросите его установить username в настройках Telegram.",
+            parse_mode="HTML"
         )
         return
 
-    # Ищем строку с тегом
-    found_row = None
-    for row in data:
-        if row and len(row) > 0 and row[0].strip().lower() == user_tag.lower():
-            found_row = row
-            break
+    # Загружаем данные из таблицы Ремесло
+    player_data = get_player_realm_from_sheet(user_tag)
 
-    if found_row:
-        response = format_specializations_for_profile(found_row, headers)
-        await update.message.reply_text(response, parse_mode="HTML")
+    if not player_data:
+        if is_self:
+            await update.message.reply_text(
+                f"❌ Ваш профиль не найден в таблице Ремесло.\n\n"
+                f"📝 <b>Чтобы добавиться:</b>\n"
+                f"1. Отправьте сообщение со своими навыками\n"
+                f"2. Ответьте на него: /update_me\n\n"
+                f"💡 После этого ваши данные будут сохранены.",
+                parse_mode="HTML"
+            )
+        else:
+            await update.message.reply_text(
+                f"❌ Профиль {user_tag} не найден в таблице Ремесло.\n\n"
+                f"Возможно, игрок ещё не обновил свои навыки через /update_me",
+                parse_mode="HTML"
+            )
         return
 
-    # Если не нашли
-    if is_self:
-        await update.message.reply_text(
-            f"❌ Игрок с тегом {user_tag} не найден в таблице специализаций.\n\n"
-            f"📝 <b>Чтобы добавиться в таблицу:</b>\n"
-            f"1. Напишите администратору\n"
-            f"2. Сообщите ваш игровой ник и специализации\n\n"
-            f"💡 После добавления команда /prof начнёт работать для вас автоматически.",
-            parse_mode="HTML"
-        )
-    else:
-        await update.message.reply_text(
-            f"❌ Игрок с тегом {user_tag} не найден в таблице специализаций.\n\n"
-            f"Возможно, в таблице указан другой тег или игрок ещё не добавлен.",
-            parse_mode="HTML"
-        )
+    # Форматируем вывод
+    response = format_realm_profile(player_data)
+    await update.message.reply_text(response, parse_mode="HTML")
+
+
+def get_player_realm_from_sheet(user_tag):
+    """Получает данные игрока из таблицы Ремесло по тегу"""
+    try:
+        ws = get_realm_worksheet()
+        if ws is None:
+            print("❌ Не удалось подключиться к таблице Ремесло")
+            return None
+
+        # Ищем строку с тегом
+        cell = ws.find(user_tag)
+        if not cell:
+            return None
+
+        # Получаем всю строку
+        row = ws.row_values(cell.row)
+
+        return {
+            'tag': row[0] if len(row) > 0 else '',
+            'name': row[1] if len(row) > 1 else '',
+            'clan': row[2] if len(row) > 2 else '',
+            'skills': {
+                'Крафтер': row[3] if len(row) > 3 else '',
+                'Рыбалка': row[4] if len(row) > 4 else '',
+                'Шахтёр': row[5] if len(row) > 5 else '',
+                'Охота': row[6] if len(row) > 6 else '',
+                'Кулинария': row[7] if len(row) > 7 else '',
+                'Алхимия': row[8] if len(row) > 8 else '',
+                'Плавильщик': row[9] if len(row) > 9 else '',
+                'Фермер': row[10] if len(row) > 10 else '',
+            },
+            'updated': row[11] if len(row) > 11 else ''
+        }
+    except Exception as e:
+        print(f"Ошибка получения данных игрока {user_tag}: {e}")
+        return None
+
+
+def format_realm_profile(player_data):
+    """Форматирует вывод профиля из таблицы Ремесло"""
+    name = player_data['name']
+    tag = player_data['tag']
+    clan = player_data['clan']
+    skills = player_data['skills']
+    updated = player_data['updated']
+
+    response = f"🤟🏼 <b>{name}</b>\n"
+    response += f"📱 {tag}\n"
+    response += f"🏛️ {clan}\n\n"
+    response += "<b>📋 Специализации:</b>\n"
+
+    # Эмодзи для каждой специализации
+    emojis = {
+        'Крафтер': '⚒️',
+        'Рыбалка': '🎣',
+        'Шахтёр': '⛏️',
+        'Охота': '🏹',
+        'Кулинария': '🥨',
+        'Алхимия': '🧪',
+        'Плавильщик': '🪔',
+        'Фермер': '🌽'
+    }
+
+    for skill, value in skills.items():
+        if value:
+            emoji = emojis.get(skill, '•')
+            response += f"  {emoji} {skill}: <b>{value}</b>\n"
+        else:
+            response += f"  • {skill}: —\n"
+
+    if updated:
+        response += f"\n📅 <i>Обновлено: {updated}</i>"
+
+    return response
 
 def format_specializations_for_profile(row, headers):
     """Форматирует специализации игрока для красивого вывода (как в /f, но для одного игрока)"""
