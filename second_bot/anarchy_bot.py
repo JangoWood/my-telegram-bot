@@ -1116,50 +1116,42 @@ def update_player_realm(user_tag, player_name, clan, skills, update_time):
             print("❌ get_realm_worksheet вернул None")
             return False
 
+        now = update_time.strftime('%Y-%m-%d %H:%M:%S')
+
+        # Подготавливаем строку данных
+        row_data = [
+            user_tag,
+            player_name,
+            clan,
+            skills.get('Крафтер', ''),
+            skills.get('Рыбалка', ''),
+            skills.get('Шахтёр', ''),
+            skills.get('Охота', ''),
+            skills.get('Кулинария', ''),
+            skills.get('Алхимия', ''),
+            skills.get('Плавильщик', ''),
+            skills.get('Фермер', ''),
+            now
+        ]
+
         # Ищем, есть ли уже такой игрок по тегу
         try:
             cell = ws.find(user_tag)
-            print(f"🔍 Поиск тега {user_tag}: {'найден' if cell else 'не найден'}")
-        except Exception as e:
-            print(f"❌ Ошибка поиска: {e}")
+        except:
             cell = None
-
-        now = update_time.strftime('%Y-%m-%d %H:%M:%S')
 
         if cell:
             # Обновляем существующую строку
             row_num = cell.row
-            print(f"📝 Обновляем строку {row_num}")
-            ws.update(f'B{row_num}', player_name)
-            ws.update(f'C{row_num}', clan)
-            ws.update(f'D{row_num}', skills.get('Крафтер', ''))
-            ws.update(f'E{row_num}', skills.get('Рыбалка', ''))
-            ws.update(f'F{row_num}', skills.get('Шахтёр', ''))
-            ws.update(f'G{row_num}', skills.get('Охота', ''))
-            ws.update(f'H{row_num}', skills.get('Кулинария', ''))
-            ws.update(f'I{row_num}', skills.get('Алхимия', ''))
-            ws.update(f'J{row_num}', skills.get('Плавильщик', ''))
-            ws.update(f'K{row_num}', skills.get('Фермер', ''))
-            ws.update(f'L{row_num}', now)
+            # Обновляем диапазон A:L одной операцией
+            update_range = f'A{row_num}:L{row_num}'
+            ws.update(range_name=update_range, values=[row_data])
+            print(f"✅ Обновлена строка {row_num} для {user_tag}")
         else:
             # Добавляем новую строку
-            print(f"📝 Добавляем новую строку для {user_tag}")
-            ws.append_row([
-                user_tag,
-                player_name,
-                clan,
-                skills.get('Крафтер', ''),
-                skills.get('Рыбалка', ''),
-                skills.get('Шахтёр', ''),
-                skills.get('Охота', ''),
-                skills.get('Кулинария', ''),
-                skills.get('Алхимия', ''),
-                skills.get('Плавильщик', ''),
-                skills.get('Фермер', ''),
-                now
-            ])
+            ws.append_row(row_data)
+            print(f"✅ Добавлена новая строка для {user_tag}")
 
-        print("✅ Данные успешно сохранены")
         return True
     except Exception as e:
         print(f"❌ Ошибка записи навыков: {e}")
