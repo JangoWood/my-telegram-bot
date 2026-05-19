@@ -1073,24 +1073,21 @@ def parse_skills_from_text(text):
     """Извлекает и преобразует навыки из текста сообщения"""
     skills = {}
 
-    # Регулярное выражение для поиска: Навык Название: Уровень число ▫️ (опыт/максимум)
-    # Пример: "⚒ Навык Крафтера: Подмастерье 2 ▫️ (1473/2500)"
     patterns = {
-        'Крафтер': r'[Кк]рафтер[а]?\s*:\s*([^\s▫️]+(?:\s+[^\s▫️]+)?)',
-        'Рыбалка': r'[Рр]ыбалк[иа]\s*:\s*([^\s▫️]+(?:\s+[^\s▫️]+)?)',
-        'Шахтёр': r'[Шш]ахт[её]р[а]?\s*:\s*([^\s▫️]+(?:\s+[^\s▫️]+)?)',
-        'Охота': r'[Оо]хот[ыа]\s*:\s*([^\s▫️]+(?:\s+[^\s▫️]+)?)',
-        'Кулинария': r'[Кк]улинари[яи]\s*:\s*([^\s▫️]+(?:\s+[^\s▫️]+)?)',
-        'Алхимия': r'[Аа]лхими[яи]\s*:\s*([^\s▫️]+(?:\s+[^\s▫️]+)?)',
-        'Плавильщик': r'[Пп]лавильщик[а]?\s*:\s*([^\s▫️]+(?:\s+[^\s▫️]+)?)',
-        'Фермер': r'[Фф]ермер[а]?\s*:\s*([^\s▫️]+(?:\s+[^\s▫️]+)?)',
+        'Крафтер': r'[⚒]*\s*[Нн]авык\s*[Кк]рафтер[а]?\s*:\s*([^\s▫️]+(?:\s+[^\s▫️]+)?)',
+        'Рыбалка': r'[🎣]*\s*[Нн]авык\s*[Рр]ыбалк[иа]\s*:\s*([^\s▫️]+(?:\s+[^\s▫️]+)?)',
+        'Шахтёр': r'[⛏]*\s*[Нн]авык\s*[Шш]ахт[её]р[а]?\s*:\s*([^\s▫️]+(?:\s+[^\s▫️]+)?)',
+        'Охота': r'[🏹]*\s*[Нн]авык\s*[Оо]хот[ыа]\s*:\s*([^\s▫️]+(?:\s+[^\s▫️]+)?)',
+        'Кулинария': r'[🥨]*\s*[Нн]авык\s*[Кк]улинари[яи]\s*:\s*([^\s▫️]+(?:\s+[^\s▫️]+)?)',
+        'Алхимия': r'[🧪🌡]*\s*[Нн]авык\s*[Аа]лхими[яи]\s*:\s*([^\s▫️]+(?:\s+[^\s▫️]+)?)',
+        'Плавильщик': r'[🪔]*\s*[Нн]авык\s*[Пп]лавильщик[а]?\s*:\s*([^\s▫️]+(?:\s+[^\s▫️]+)?)',
+        'Фермер': r'[🌽]*\s*[Нн]авык\s*[Фф]ермер[а]?\s*:\s*([^\s▫️]+(?:\s+[^\s▫️]+)?)',
     }
 
     for skill, pattern in patterns.items():
         match = re.search(pattern, text, re.IGNORECASE)
         if match:
             level_text = match.group(1).strip()
-            # Преобразуем уровень: "Подмастерье 2" -> "ПМ2"
             converted_level = convert_level(level_text)
             skills[skill] = converted_level
 
@@ -1166,54 +1163,52 @@ def update_player_realm(user_tag, player_name, clan, skills, update_time):
 async def update_realm(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обновляет навыки игрока"""
 
-    # Шаг 1: проверка ответа на сообщение
     if not update.message.reply_to_message:
-        await update.message.reply_text("❌ Ответьте на сообщение с навыками")
+        await update.message.reply_text(
+            "❌ Ответьте на сообщение с навыками командой /update_me",
+            parse_mode="HTML"
+        )
         return
-    await update.message.reply_text("✅ Шаг 1 пройден: ответ на сообщение есть")
 
-    # Шаг 2: парсинг навыков
     skills_text = update.message.reply_to_message.text
     skills = parse_skills_from_text(skills_text)
 
     if not skills:
-        await update.message.reply_text("❌ Не удалось распознать навыки")
+        await update.message.reply_text(
+            "❌ Не удалось распознать навыки.\n\n"
+            "Убедитесь, что сообщение содержит строки вида:\n"
+            "«Навык Крафтера: Подмастерье 2»",
+            parse_mode="HTML"
+        )
         return
-    await update.message.reply_text(f"✅ Шаг 2 пройден: навыки распознаны: {skills}")
 
-    # Шаг 3: получаем информацию об игроке
     user = update.effective_user
     user_tag = f"@{user.username}" if user.username else None
 
     if not user_tag:
-        await update.message.reply_text("❌ У вас нет username")
+        await update.message.reply_text(
+            "❌ У вас нет username в Telegram.\n\n"
+            "Установите username в настройках Telegram.",
+            parse_mode="HTML"
+        )
         return
-    await update.message.reply_text(f"✅ Шаг 3 пройден: тег {user_tag}, имя {user.first_name}")
 
     player_name = user.first_name
     clan = "Анархия"
 
-    # Шаг 4: подключение к таблице
-    try:
-        ws = get_realm_worksheet()
-        if ws is None:
-            await update.message.reply_text("❌ get_realm_worksheet() вернул None")
-            return
-        await update.message.reply_text("✅ Шаг 4 пройден: подключение к таблице успешно")
-    except Exception as e:
-        await update.message.reply_text(f"❌ Ошибка подключения: {e}")
-        return
-
-    # Шаг 5: сохранение
     success = update_player_realm(user_tag, player_name, clan, skills, datetime.now())
 
     if success:
-        response = f"✅ Навыки {player_name} сохранены!\n\n"
+        response = f"✅ <b>Навыки {player_name} успешно обновлены!</b>\n\n"
         for skill, level in skills.items():
             response += f"  • {skill}: {level}\n"
+        response += f"\n📅 Дата обновления: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
         await update.message.reply_text(response, parse_mode="HTML")
     else:
-        await update.message.reply_text("❌ Ошибка сохранения. Проверьте логи Render.")
+        await update.message.reply_text(
+            "❌ Ошибка сохранения. Сообщите администратору.",
+            parse_mode="HTML"
+        )
 
 
 def get_realm_worksheet():
