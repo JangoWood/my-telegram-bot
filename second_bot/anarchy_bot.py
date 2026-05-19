@@ -1127,14 +1127,14 @@ def update_player_realm(user_tag, player_name, clan, skills, update_time):
             user_tag,
             player_name,
             clan,
-            skills.get('Крафтер', ''),
-            skills.get('Рыбалка', ''),
-            skills.get('Шахтёр', ''),
-            skills.get('Охота', ''),
-            skills.get('Кулинария', ''),
-            skills.get('Алхимия', ''),
-            skills.get('Плавильщик', ''),
-            skills.get('Фермер', ''),
+            skills.get('⚒️Крафтер', ''),
+            skills.get('🎣Рыбалка', ''),
+            skills.get('⛏️Шахтёр', ''),
+            skills.get('🏹Охота', ''),
+            skills.get('🥨Кулинария', ''),
+            skills.get('🧪🌡Алхимия', ''),
+            skills.get('🪔Плавильщик', ''),
+            skills.get('🌽Фермер', ''),
             now
         ]
 
@@ -1283,7 +1283,7 @@ async def clan_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if success:
         response = f"✅ <b>Навыки сохранены!</b>\n"
         response += f"🎮 Игровой ник: {nickname}\n"
-        response += f"🏛️ Клан: {clan}\n\n"
+        response += f"📯 Клан: {clan}\n\n"
         for skill, level in skills.items():
             response += f"  • {skill}: {level}\n"
         response += f"\n📅 Дата: {now_moscow.strftime('%Y-%m-%d %H:%M:%S')}"
