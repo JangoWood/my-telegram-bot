@@ -933,23 +933,30 @@ def get_all_players_from_realm():
 async def get_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Показывает специализации игрока из таблицы Ремесло"""
 
+    # ДИАГНОСТИКА
+    print("=" * 50)
+    print(f"message.from_user: {update.message.from_user.username if update.message.from_user else 'None'}")
+    print(f"message.from_user.id: {update.message.from_user.id if update.message.from_user else 'None'}")
+    print(f"effective_user: {update.effective_user.username if update.effective_user else 'None'}")
+    print(f"effective_user.id: {update.effective_user.id if update.effective_user else 'None'}")
+    print(f"chat.id: {update.effective_chat.id if update.effective_chat else 'None'}")
+    print("=" * 50)
+
     user_tag = None
     is_self = False
 
-    # Вариант 1: указан аргумент (например, /prof Jango или /prof @username)
+    # Вариант 1: указан аргумент
     if context.args:
         arg = ' '.join(context.args).strip()
         if arg.startswith('@'):
             user_tag = arg
         else:
-            # Если ввели имя без @, пробуем найти по имени в таблице
             player_data = get_player_realm_by_name(arg)
             if player_data:
                 user_tag = player_data['tag']
             else:
                 await update.message.reply_text(
-                    f"❌ Игрок с именем '{arg}' не найден в таблице Ремесло.\n\n"
-                    f"Проверьте правильность имени или используйте @username.",
+                    f"❌ Игрок с именем '{arg}' не найден в таблице Ремесло.",
                     parse_mode="HTML"
                 )
                 return
@@ -961,40 +968,20 @@ async def get_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_tag = f"@{replied_user.username}" if replied_user.username else None
         is_self = (replied_user.id == update.effective_user.id)
 
-    # Вариант 3: без аргументов и без ответа — показываем отправителя команды
+    # Вариант 3: без аргументов — показываем отправителя
     else:
-        # ИСПРАВЛЕНО: используем message.from_user вместо effective_user
         sender = update.message.from_user
         user_tag = f"@{sender.username}" if sender.username else None
         is_self = True
 
+        # ДИАГНОСТИКА
+        print(f"Вариант 3: user_tag = {user_tag}, sender.username = {sender.username}")
+
     if not user_tag:
         await update.message.reply_text(
-            "❌ У пользователя нет username в Telegram.\n"
-            "Попросите его установить username в настройках Telegram.",
+            "❌ У пользователя нет username в Telegram.",
             parse_mode="HTML"
         )
-        return
-
-    # Загружаем данные из таблицы Ремесло
-    player_data = get_player_realm_from_sheet(user_tag)
-
-    if not player_data:
-        if is_self:
-            await update.message.reply_text(
-                f"❌ Ваш профиль не найден в таблице Ремесло.\n\n"
-                f"📝 <b>Чтобы добавиться:</b>\n"
-                f"1. Отправьте сообщение со своими навыками\n"
-                f"2. Ответьте на него: /update_me\n\n"
-                f"💡 После этого ваши данные будут сохранены.",
-                parse_mode="HTML"
-            )
-        else:
-            await update.message.reply_text(
-                f"❌ Профиль {user_tag} не найден в таблице Ремесло.\n\n"
-                f"Возможно, игрок ещё не обновил свои навыки через /update_me",
-                parse_mode="HTML"
-            )
         return
 
     # Форматируем вывод
