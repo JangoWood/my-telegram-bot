@@ -937,9 +937,13 @@ async def get_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     is_self = False
     player_data = None
 
-    # Вариант 1: указан аргумент (например, /prof Jango или /prof @username)
+    # Собираем диагностическую информацию
+    debug_info = []
+
+    # Вариант 1: указан аргумент
     if context.args:
         arg = ' '.join(context.args).strip()
+        debug_info.append(f"Аргумент: {arg}")
         if arg.startswith('@'):
             user_tag = arg
         else:
@@ -957,26 +961,43 @@ async def get_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Вариант 2: ответ на сообщение
     elif update.message.reply_to_message:
         replied_user = update.message.reply_to_message.from_user
+        debug_info.append(
+            f"Ответ на сообщение от: {replied_user.username if replied_user.username else 'без username'}")
         user_tag = f"@{replied_user.username}" if replied_user.username else None
         is_self = (replied_user.id == update.effective_user.id)
 
-    # Вариант 3: без аргументов — показываем того, кто написал команду
+    # Вариант 3: без аргументов
     else:
-        # Получаем username из message.from_user (тот, кто реально отправил)
+        debug_info.append("Без аргументов, пробуем определить отправителя")
+
+        # Пробуем разные способы
         sender = update.message.from_user
+        debug_info.append(f"message.from_user: {sender.username if sender and sender.username else 'None'}")
+        debug_info.append(f"message.from_user.id: {sender.id if sender else 'None'}")
+
+        effective = update.effective_user
+        debug_info.append(f"effective_user: {effective.username if effective and effective.username else 'None'}")
+        debug_info.append(f"effective_user.id: {effective.id if effective else 'None'}")
+
+        # Берём username
         if sender and sender.username:
             user_tag = f"@{sender.username}"
+            debug_info.append(f"Выбран user_tag из message.from_user: {user_tag}")
+        elif effective and effective.username:
+            user_tag = f"@{effective.username}"
+            debug_info.append(f"Выбран user_tag из effective_user: {user_tag}")
         else:
-            # Fallback на effective_user
-            user = update.effective_user
-            if user and user.username:
-                user_tag = f"@{user.username}"
+            user_tag = None
+            debug_info.append("Не удалось получить username")
+
         is_self = True
 
     if not user_tag:
+        debug_text = "\n".join(debug_info)
         await update.message.reply_text(
-            "❌ У вас нет username в Telegram.\n"
-            "Установите username в настройках Telegram.",
+            f"❌ Не удалось определить ваш username.\n\n"
+            f"📋 <b>Диагностика:</b>\n<code>{debug_text}</code>\n\n"
+            f"Установите username в настройках Telegram.",
             parse_mode="HTML"
         )
         return
@@ -986,17 +1007,12 @@ async def get_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
         player_data = get_player_realm_from_sheet(user_tag)
 
     if not player_data:
-        if is_self:
-            await update.message.reply_text(
-                f"❌ Ваш профиль не найден в таблице Ремесло.\n\n"
-                f"📝 Чтобы добавиться: ответьте на сообщение с навыками командой /update_me",
-                parse_mode="HTML"
-            )
-        else:
-            await update.message.reply_text(
-                f"❌ Профиль {user_tag} не найден в таблице Ремесло.",
-                parse_mode="HTML"
-            )
+        debug_text = "\n".join(debug_info)
+        await update.message.reply_text(
+            f"❌ Профиль {user_tag} не найден в таблице Ремесло.\n\n"
+            f"📋 <b>Диагностика:</b>\n<code>{debug_text}</code>",
+            parse_mode="HTML"
+        )
         return
 
     response = format_realm_profile(player_data)
