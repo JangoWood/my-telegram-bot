@@ -961,10 +961,11 @@ async def get_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_tag = f"@{replied_user.username}" if replied_user.username else None
         is_self = (replied_user.id == update.effective_user.id)
 
-    # Вариант 3: без аргументов и без ответа — показываем самого пользователя
+    # Вариант 3: без аргументов и без ответа — показываем отправителя команды
     else:
-        user = update.effective_user
-        user_tag = f"@{user.username}" if user.username else None
+        # ИСПРАВЛЕНО: используем message.from_user вместо effective_user
+        sender = update.message.from_user
+        user_tag = f"@{sender.username}" if sender.username else None
         is_self = True
 
     if not user_tag:
