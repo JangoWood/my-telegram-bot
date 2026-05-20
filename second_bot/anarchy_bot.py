@@ -1222,9 +1222,17 @@ def update_player_realm(user_tag, player_name, clan, skills, update_time):
 async def update_realm(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Шаг 1: получение навыков, запрос ника"""
 
+    # Если команда не в ответ на сообщение — показываем инструкцию
     if not update.message.reply_to_message:
         await update.message.reply_text(
-            "❌ Ответьте на сообщение с навыками командой /update_me",
+            "❌ <b>Как использовать /update_me</b>\n\n"
+            "1️⃣ Отправьте в чат сообщение со своими навыками (скопируйте из игры)\n"
+            "2️⃣ Нажмите «ответить» на это сообщение\n"
+            "3️⃣ Напишите /update_me\n\n"
+            "📝 <b>Пример сообщения с навыками:</b>\n"
+            "⚒ Навык Крафтера: Подмастерье 2\n"
+            "🎣 Навык Рыбалки: Подмастерье 1\n"
+            "...",
             parse_mode="HTML"
         )
         return
@@ -1271,14 +1279,15 @@ async def update_realm(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def handle_nickname(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Шаг 2: получаем игровой ник от пользователя"""
+
+    # Игнорируем команды
+    if update.message.text and update.message.text.startswith('/'):
+        return
+
     user_id = update.effective_user.id
 
     if user_id not in user_sessions:
-        # Если сессии нет, возможно пользователь уже завершил процесс
-        await update.message.reply_text(
-            "❌ Активная сессия не найдена.\n\n"
-            "Начните заново: /update_me (ответом на сообщение с навыками)"
-        )
+        # Не показываем ошибку, если сессии нет — просто игнорируем
         return
 
     nickname = update.message.text.strip()
