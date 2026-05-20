@@ -786,13 +786,13 @@ async def inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def spec_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Поиск игроков по специализации с возможностью фильтрации по уровню"""
+    """Поиск игроков по специализации из таблицы Ремесло"""
     if not context.args:
         await update.message.reply_text(
             "🔍 <b>Поиск по специализации</b>\n\n"
             "Примеры:\n"
-            "  /f алхимия — все алхимики\n"
-            "  /f алхимия ГМ4 — только ГМ4\n"
+            "  /f крафтер — все крафтеры\n"
+            "  /f крафтер ГМ4 — только ГМ4\n"
             "  /f кулинария ПМ3 — только ПМ3\n\n"
             "📋 <b>Доступные специализации и синонимы:</b>\n"
             "  • крафтер / крафт / к\n"
@@ -812,132 +812,122 @@ async def spec_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
     level_filter = context.args[1].upper() if len(context.args) > 1 else None
 
     synonyms = {
-        'крафтер': 2, 'крафт': 2, 'к': 2,
-        'рыбалка': 3, 'рыба': 3, 'р': 3,
-        'шахтёр': 4, 'шахта': 4, 'ш': 4,
-        'охота': 5, 'охотник': 5, 'о': 5,
-        'кулинария': 6, 'еда': 6, 'кухня': 6, 'кул': 6,
-        'алхимия': 7, 'алхим': 7, 'алх': 7, 'а': 7,
-        'плавильщик': 8, 'плавка': 8, 'пл': 8,
-        'фермер': 9, 'ферма': 9, 'ф': 9,
+        'крафтер': 'Крафтер', 'крафт': 'Крафтер', 'к': 'Крафтер',
+        'рыбалка': 'Рыбалка', 'рыба': 'Рыбалка', 'р': 'Рыбалка',
+        'шахтёр': 'Шахтёр', 'шахта': 'Шахтёр', 'ш': 'Шахтёр',
+        'охота': 'Охота', 'охотник': 'Охота', 'о': 'Охота',
+        'кулинария': 'Кулинария', 'еда': 'Кулинария', 'кухня': 'Кулинария', 'кул': 'Кулинария',
+        'алхимия': 'Алхимия', 'алхим': 'Алхимия', 'алх': 'Алхимия', 'а': 'Алхимия',
+        'плавильщик': 'Плавильщик', 'плавка': 'Плавильщик', 'пл': 'Плавильщик',
+        'фермер': 'Фермер', 'ферма': 'Фермер', 'ф': 'Фермер',
     }
 
-    col_index = None
-    for key, index in synonyms.items():
-        if search_input == key or (len(search_input) > 1 and key.startswith(search_input)):
-            col_index = index
-            break
-
-    spec_names = {
-        2: 'КРАФТЕР',
-        3: 'РЫБАЛКА',
-        4: 'ШАХТЁР',
-        5: 'ОХОТА',
-        6: 'КУЛИНАРИЯ',
-        7: 'АЛХИМИЯ',
-        8: 'ПЛАВИЛЬЩИК',
-        9: 'ФЕРМЕР'
-    }
-
-    if col_index is None:
+    skill_name = synonyms.get(search_input)
+    if not skill_name:
         await update.message.reply_text(
             f"❌ Специализация '{search_input}' не найдена.\n\n"
-            f"📋 <b>Доступные синонимы:</b>\n"
-            f"  • крафтер / крафт / к\n"
-            f"  • рыбалка / рыба / р\n"
-            f"  • шахтёр / шахта / ш\n"
-            f"  • охота / охотник / о\n"
-            f"  • кулинария / еда / кухня / кул\n"
-            f"  • алхимия / алхим / алх / а\n"
-            f"  • плавильщик / плавка / пл\n"
-            f"  • фермер / ферма / ф",
+            f"📋 <b>Доступные:</b> крафтер, рыбалка, шахтёр, охота, кулинария, алхимия, плавильщик, фермер",
             parse_mode="HTML"
         )
         return
 
-    try:
-        url = f'https://docs.google.com/spreadsheets/d/e/2PACX-1vQhxznVeD5jD268Xb5x9crTJe0Di5Ra0OeSfqn_O_GA0plGpQHd8RFUg1GLlAnHgQx45XlklE1IVub9/pub?gid={CW_SHEET_GID}&output=csv'
-        response = requests.get(url, timeout=15)
-        response.raise_for_status()
-        response.encoding = 'utf-8'
+    # Загружаем данные из таблицы Ремесло
+    all_players = get_all_players_from_realm()
 
-        csv_file = StringIO(response.text)
-        reader = csv.reader(csv_file)
-        data = list(reader)
+    if not all_players:
+        await update.message.reply_text("❌ Нет данных в таблице Ремесло")
+        return
 
-        if not data:
-            await update.message.reply_text("❌ Нет данных")
-            return
+    # Группируем игроков по уровню
+    levels = {}
 
-        # Группируем игроков по уровню
-        levels = {}
+    for player in all_players:
+        level = player['skills'].get(skill_name, '')
+        if not level or level == '-':
+            continue
 
-        for row in data[1:]:  # Пропускаем заголовки
-            if not row or len(row) < col_index + 1:
-                continue
+        if level_filter and level.upper() != level_filter:
+            continue
 
-            name = row[1].strip() if len(row) > 1 else ""  # Имя в колонке 1
-            if not name:
-                continue
+        if level not in levels:
+            levels[level] = []
+        levels[level].append(player['name'])
 
-            level = row[col_index].strip() if row[col_index] else "—"
-            if not level or level == "-":
-                continue
+    if not levels:
+        filter_text = f" с уровнем {level_filter}" if level_filter else ""
+        await update.message.reply_text(f"❌ Нет игроков по специализации '{skill_name}'{filter_text}")
+        return
 
-            if level_filter and level.upper() != level_filter:
-                continue
+    # Сортировка уровней
+    def sort_key(level):
+        order = {'Э': 1, 'ГМ': 2, 'М': 3, 'ПМ': 4, 'У': 5}
+        if level[:2] in order:
+            prefix = level[:2]
+            num_start = 2
+        elif level[:1] in order:
+            prefix = level[:1]
+            num_start = 1
+        else:
+            return (99, 0)
+        try:
+            num = int(level[num_start:]) if len(level) > num_start else 0
+        except:
+            num = 0
+        return (order.get(prefix, 99), -num)
 
-            if level not in levels:
-                levels[level] = []
-            levels[level].append(name)
+    sorted_levels = sorted(levels.keys(), key=sort_key)
 
-        if not levels:
-            filter_text = f" с уровнем {level_filter}" if level_filter else ""
-            await update.message.reply_text(
-                f"❌ Нет игроков по специализации '{spec_names[col_index]}'{filter_text}"
-            )
-            return
+    filter_text = f" {level_filter}" if level_filter else ""
+    response = f"🔍 <b>Поиск по специализации: {skill_name}{filter_text}</b>\n\n"
 
-        # Сортировка уровней: Э > ГМ > М > ПМ > У, внутри группы по убыванию номера
-        def sort_key(level):
-            order = {'Э': 1, 'ГМ': 2, 'М': 3, 'ПМ': 4, 'У': 5}
+    for level in sorted_levels:
+        players = sorted(levels[level], key=str.lower)
+        response += f"<b>{level}</b> ({len(players)}): {', '.join(players)}\n"
 
-            if level[:2] in order:
-                prefix = level[:2]
-                num_start = 2
-            elif level[:1] in order:
-                prefix = level[:1]
-                num_start = 1
-            else:
-                return (99, 0)
-
-            try:
-                num = int(level[num_start:]) if len(level) > num_start else 0
-            except:
-                num = 0
-
-            return (order[prefix], -num)
-
-        sorted_levels = sorted(levels.keys(), key=sort_key)
-
-        spec_name = spec_names[col_index]
-        filter_text = f" {level_filter}" if level_filter else ""
-        response = f"🔍 <b>Поиск по специализации: {spec_name}{filter_text}</b>\n\n"
-
-        for level in sorted_levels:
-            players = sorted(levels[level], key=str.lower)
-            response += f"<b>{level}</b> ({len(players)}): {', '.join(players)}\n"
-
-            if len(response) > 4000:
-                await update.message.reply_text(response, parse_mode="HTML")
-                response = ""
-
-        if response:
+        if len(response) > 4000:
             await update.message.reply_text(response, parse_mode="HTML")
+            response = ""
 
+    if response:
+        await update.message.reply_text(response, parse_mode="HTML")
+
+
+def get_all_players_from_realm():
+    """Получает всех игроков из таблицы Ремесло"""
+    try:
+        ws = get_realm_worksheet()
+        if ws is None:
+            print("❌ Не удалось подключиться к таблице Ремесло")
+            return None
+
+        all_data = ws.get_all_values()
+        if len(all_data) < 2:
+            return []
+
+        players = []
+        for row in all_data[1:]:  # Пропускаем заголовки
+            if not row or len(row) < 3:
+                continue
+            if row[0] and row[1]:  # Есть тег и имя
+                players.append({
+                    'tag': row[0],
+                    'name': row[1],
+                    'clan': row[2],
+                    'skills': {
+                        'Крафтер': row[3] if len(row) > 3 else '',
+                        'Рыбалка': row[4] if len(row) > 4 else '',
+                        'Шахтёр': row[5] if len(row) > 5 else '',
+                        'Охота': row[6] if len(row) > 6 else '',
+                        'Кулинария': row[7] if len(row) > 7 else '',
+                        'Алхимия': row[8] if len(row) > 8 else '',
+                        'Плавильщик': row[9] if len(row) > 9 else '',
+                        'Фермер': row[10] if len(row) > 10 else '',
+                    }
+                })
+        return players
     except Exception as e:
-        await update.message.reply_text(f"❌ Ошибка: {e}")
-
+        print(f"Ошибка получения данных из таблицы Ремесло: {e}")
+        return None
 
 async def get_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Показывает специализации игрока из таблицы Ремесло"""
