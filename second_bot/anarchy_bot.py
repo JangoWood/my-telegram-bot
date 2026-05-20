@@ -937,17 +937,7 @@ async def get_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     is_self = False
     player_data = None
 
-    # ДИАГНОСТИКА — пишем в логи Render
-    print("=== DIAGNOSTIC START ===")
-    print(f"context.args: {context.args}")
-    print(f"reply_to_message: {update.message.reply_to_message}")
-    print(f"message.from_user: {update.message.from_user.username if update.message.from_user else 'None'}")
-    print(f"message.from_user.id: {update.message.from_user.id if update.message.from_user else 'None'}")
-    print(f"effective_user: {update.effective_user.username if update.effective_user else 'None'}")
-    print(f"effective_user.id: {update.effective_user.id if update.effective_user else 'None'}")
-    print("=== DIAGNOSTIC END ===")
-
-    # Вариант 1: указан аргумент
+    # Вариант 1: указан аргумент (например, /prof Jango или /prof @username)
     if context.args:
         arg = ' '.join(context.args).strip()
         if arg.startswith('@'):
@@ -970,18 +960,17 @@ async def get_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_tag = f"@{replied_user.username}" if replied_user.username else None
         is_self = (replied_user.id == update.effective_user.id)
 
-    # Вариант 3: без аргументов — показываем отправителя
+    # Вариант 3: без аргументов — показываем того, кто написал команду
     else:
-        # Пробуем получить username разными способами
-        if update.message.from_user and update.message.from_user.username:
-            user_tag = f"@{update.message.from_user.username}"
-            print(f"Попытка 1: user_tag из message.from_user = {user_tag}")
-        elif update.effective_user and update.effective_user.username:
-            user_tag = f"@{update.effective_user.username}"
-            print(f"Попытка 2: user_tag из effective_user = {user_tag}")
+        # Получаем username из message.from_user (тот, кто реально отправил)
+        sender = update.message.from_user
+        if sender and sender.username:
+            user_tag = f"@{sender.username}"
         else:
-            user_tag = None
-            print(f"Попытка 3: не удалось получить username")
+            # Fallback на effective_user
+            user = update.effective_user
+            if user and user.username:
+                user_tag = f"@{user.username}"
         is_self = True
 
     if not user_tag:
