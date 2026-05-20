@@ -934,14 +934,9 @@ async def get_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Показывает специализации игрока из таблицы Ремесло"""
 
     user_tag = None
-    player_data = None
+    is_self = False
 
-    # Проверяем, есть ли упоминание бота в команде
-    bot_username = context.bot.username
-    command_text = update.message.text or ""
-    has_bot_mention = f"@{bot_username}" in command_text
-
-    # Вариант 1: указан аргумент
+    # Вариант 1: указан аргумент (@username или имя игрока)
     if context.args:
         arg = ' '.join(context.args).strip()
         if arg.startswith('@'):
@@ -952,48 +947,51 @@ async def get_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 user_tag = player_data['tag']
             else:
                 await update.message.reply_text(
-                    f"❌ Игрок с именем '{arg}' не найден.",
+                    f"❌ Игрок с именем '{arg}' не найден в таблице Ремесло.",
                     parse_mode="HTML"
                 )
                 return
 
-    # Вариант 2: ответ на сообщение (только если нет упоминания бота и ответ реальный)
-    elif update.message.reply_to_message and not has_bot_mention:
-        replied_msg = update.message.reply_to_message
-        replied_user = replied_msg.from_user
+    # Вариант 2: ответ на сообщение (но только если это не команда и не @l1b_b1l)
+    elif update.message.reply_to_message:
+        replied_user = update.message.reply_to_message.from_user
 
-        # Если отвечаем на команду — игнорируем
-        if replied_msg.text and replied_msg.text.startswith('/'):
-            await update.message.reply_text(
-                "❓ <b>Как использовать /prof</b>\n\n"
-                "• /prof @username\n"
-                "• /prof ИмяИгрока\n"
-                "• Ответьте на сообщение игрока (не на команду) и напишите /prof",
-                parse_mode="HTML"
-            )
-            return
-
-        if replied_user and replied_user.username:
+        # Проверяем, не отвечаем ли мы на проблемного пользователя
+        if replied_user.username == 'l1b_b1l':
+            # Если отвечаем на @l1b_b1l — игнорируем, показываем свой профиль
+            sender = update.message.from_user
+            if sender and sender.username:
+                user_tag = f"@{sender.username}"
+                is_self = True
+            else:
+                await update.message.reply_text(
+                    "❓ Используйте /prof @username или ответьте на сообщение игрока с username",
+                    parse_mode="HTML"
+                )
+                return
+        elif replied_user and replied_user.username:
             user_tag = f"@{replied_user.username}"
         else:
             await update.message.reply_text(
-                f"❌ У пользователя нет username.",
+                f"❌ У пользователя нет username.\n"
+                f"Попросите его установить username в настройках Telegram.",
                 parse_mode="HTML"
             )
             return
 
-    # Вариант 3: нет аргументов — показываем инструкцию
+    # Вариант 3: без аргументов и без ответа — показываем отправителя команды
     else:
-        await update.message.reply_text(
-            "❓ <b>Как использовать команду /prof</b>\n\n"
-            "📝 <b>Варианты:</b>\n"
-            "  • <code>/prof @username</code> — показать профиль по тегу\n"
-            "  • <code>/prof ИмяИгрока</code> — показать профиль по игровому имени\n"
-            "  • Ответьте на сообщение игрока и напишите <code>/prof</code>\n\n"
-            "💡 Чтобы добавить свой профиль: ответьте на сообщение с навыками командой <code>/update_me</code>",
-            parse_mode="HTML"
-        )
-        return
+        sender = update.message.from_user
+        if sender and sender.username:
+            user_tag = f"@{sender.username}"
+            is_self = True
+        else:
+            await update.message.reply_text(
+                "❌ У вас нет username в Telegram.\n"
+                "Установите username в настройках Telegram.",
+                parse_mode="HTML"
+            )
+            return
 
     if not user_tag:
         await update.message.reply_text(
@@ -1002,13 +1000,22 @@ async def get_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
+    # Загружаем данные из таблицы Ремесло
     player_data = get_player_realm_from_sheet(user_tag)
 
     if not player_data:
-        await update.message.reply_text(
-            f"❌ Профиль {user_tag} не найден в таблице Ремесло.",
-            parse_mode="HTML"
-        )
+        if is_self:
+            await update.message.reply_text(
+                f"❌ Ваш профиль не найден в таблице Ремесло.\n\n"
+                f"📝 Чтобы добавиться: ответьте на сообщение с навыками командой /update_me",
+                parse_mode="HTML"
+            )
+        else:
+            await update.message.reply_text(
+                f"❌ Профиль {user_tag} не найден в таблице Ремесло.\n\n"
+                f"Возможно, игрок ещё не обновил свои навыки через /update_me",
+                parse_mode="HTML"
+            )
         return
 
     response = format_realm_profile(player_data)
