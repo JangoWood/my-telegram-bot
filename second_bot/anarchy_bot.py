@@ -929,20 +929,40 @@ def get_all_players_from_realm():
         print(f"Ошибка получения данных из таблицы Ремесло: {e}")
         return None
 
+
 async def get_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Показывает специализации игрока из таблицы Ремесло"""
 
-    # Определяем, чей профиль показывать
     user_tag = None
     is_self = False
 
-    # Вариант 1: ответ на сообщение
-    if update.message.reply_to_message:
+    # Вариант 1: указан аргумент (например, /prof Jango или /prof @username)
+    if context.args:
+        arg = ' '.join(context.args).strip()
+        if arg.startswith('@'):
+            user_tag = arg
+        else:
+            # Если ввели имя без @, пробуем найти по имени в таблице
+            player_data = get_player_realm_by_name(arg)
+            if player_data:
+                user_tag = player_data['tag']
+            else:
+                await update.message.reply_text(
+                    f"❌ Игрок с именем '{arg}' не найден в таблице Ремесло.\n\n"
+                    f"Проверьте правильность имени или используйте @username.",
+                    parse_mode="HTML"
+                )
+                return
+        is_self = False
+
+    # Вариант 2: ответ на сообщение
+    elif update.message.reply_to_message:
         replied_user = update.message.reply_to_message.from_user
         user_tag = f"@{replied_user.username}" if replied_user.username else None
         is_self = (replied_user.id == update.effective_user.id)
+
+    # Вариант 3: без аргументов и без ответа — показываем самого пользователя
     else:
-        # Вариант 2: команда без ответа — показываем самого пользователя
         user = update.effective_user
         user_tag = f"@{user.username}" if user.username else None
         is_self = True
@@ -980,6 +1000,36 @@ async def get_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     response = format_realm_profile(player_data)
     await update.message.reply_text(response, parse_mode="HTML")
 
+def get_player_realm_by_name(player_name):
+    """Ищет игрока в таблице Ремесло по имени"""
+    try:
+        ws = get_realm_worksheet()
+        if ws is None:
+            return None
+
+        all_data = ws.get_all_values()
+        for row in all_data[1:]:  # Пропускаем заголовки
+            if len(row) > 1 and row[1].lower() == player_name.lower():
+                return {
+                    'tag': row[0],
+                    'name': row[1],
+                    'clan': row[2],
+                    'skills': {
+                        'Крафтер': row[3] if len(row) > 3 else '',
+                        'Рыбалка': row[4] if len(row) > 4 else '',
+                        'Шахтёр': row[5] if len(row) > 5 else '',
+                        'Охота': row[6] if len(row) > 6 else '',
+                        'Кулинария': row[7] if len(row) > 7 else '',
+                        'Алхимия': row[8] if len(row) > 8 else '',
+                        'Плавильщик': row[9] if len(row) > 9 else '',
+                        'Фермер': row[10] if len(row) > 10 else '',
+                    },
+                    'updated': row[11] if len(row) > 11 else ''
+                }
+        return None
+    except Exception as e:
+        print(f"Ошибка поиска игрока по имени {player_name}: {e}")
+        return None
 
 def get_player_realm_from_sheet(user_tag):
     """Получает данные игрока из таблицы Ремесло по тегу"""
