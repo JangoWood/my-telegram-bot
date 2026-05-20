@@ -934,10 +934,9 @@ async def get_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Показывает специализации игрока из таблицы Ремесло"""
 
     user_tag = None
-    is_self = False
     player_data = None
 
-    # Вариант 1: указан аргумент
+    # Вариант 1: указан аргумент (например, /prof Jango или /prof @username)
     if context.args:
         arg = ' '.join(context.args).strip()
         if arg.startswith('@'):
@@ -948,56 +947,54 @@ async def get_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 user_tag = player_data['tag']
             else:
                 await update.message.reply_text(
-                    f"❌ Игрок с именем '{arg}' не найден в таблице Ремесло.",
+                    f"❌ Игрок с именем '{arg}' не найден в таблице Ремесло.\n\n"
+                    f"Проверьте правильность имени или используйте @username.",
                     parse_mode="HTML"
                 )
                 return
-        is_self = False
 
-    # Вариант 2: ответ на сообщение
+    # Вариант 2: ответ на сообщение (показываем профиль автора сообщения)
     elif update.message.reply_to_message:
         replied_user = update.message.reply_to_message.from_user
-        # Проверяем, есть ли у отвеченного пользователя username
         if replied_user.username:
-            # Если отвечаем на сообщение с username — показываем его профиль
             user_tag = f"@{replied_user.username}"
-            is_self = False
         else:
-            # Если у отвеченного пользователя нет username — игнорируем ответ, показываем свой
-            sender = update.message.from_user
-            user_tag = f"@{sender.username}" if sender and sender.username else None
-            is_self = True
+            await update.message.reply_text(
+                f"❌ У пользователя нет username.\n"
+                f"Попросите его установить username в настройках Telegram.",
+                parse_mode="HTML"
+            )
+            return
 
-    # Вариант 3: без аргументов и без ответа
+    # Вариант 3: нет аргументов и нет ответа — показываем инструкцию
     else:
-        sender = update.message.from_user
-        user_tag = f"@{sender.username}" if sender and sender.username else None
-        is_self = True
-
-    if not user_tag:
         await update.message.reply_text(
-            "❌ У вас нет username в Telegram.\n"
-            "Установите username в настройках Telegram.",
+            "❓ <b>Как использовать команду /prof</b>\n\n"
+            "📝 <b>Варианты:</b>\n"
+            "  • <code>/prof @username</code> — показать профиль по тегу\n"
+            "  • <code>/prof ИмяИгрока</code> — показать профиль по игровому имени\n"
+            "  • Ответьте на сообщение игрока и напишите <code>/prof</code>\n\n"
+            "💡 Чтобы добавить свой профиль: ответьте на сообщение с навыками командой <code>/update_me</code>",
             parse_mode="HTML"
         )
         return
 
-    # Загружаем данные
-    if player_data is None:
-        player_data = get_player_realm_from_sheet(user_tag)
+    if not user_tag:
+        await update.message.reply_text(
+            "❌ Не удалось определить пользователя.",
+            parse_mode="HTML"
+        )
+        return
+
+    # Загружаем данные из таблицы Ремесло
+    player_data = get_player_realm_from_sheet(user_tag)
 
     if not player_data:
-        if is_self:
-            await update.message.reply_text(
-                f"❌ Ваш профиль не найден в таблице Ремесло.\n\n"
-                f"📝 Чтобы добавиться: ответьте на сообщение с навыками командой /update_me",
-                parse_mode="HTML"
-            )
-        else:
-            await update.message.reply_text(
-                f"❌ Профиль {user_tag} не найден в таблице Ремесло.",
-                parse_mode="HTML"
-            )
+        await update.message.reply_text(
+            f"❌ Профиль {user_tag} не найден в таблице Ремесло.\n\n"
+            f"Возможно, игрок ещё не обновил свои навыки через /update_me",
+            parse_mode="HTML"
+        )
         return
 
     response = format_realm_profile(player_data)
