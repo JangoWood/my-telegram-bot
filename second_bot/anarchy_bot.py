@@ -19,6 +19,16 @@ from google.oauth2.service_account import Credentials
 import pytz
 from telegram.ext import MessageHandler, filters
 
+# Белый список чатов (ID чатов, где бот работает)
+ALLOWED_CHATS = [
+    -1001234567890,  # Чат 1 (например, группа "Анархия")
+    -1009876543210,  # Чат 2 (например, группа "Наследие")
+]
+
+def is_chat_allowed(chat_id):
+    """Проверяет, разрешён ли чат"""
+    return chat_id in ALLOWED_CHATS
+
 # Загружаем переменные из .env в корне проекта
 env_path = Path(__file__).parent.parent / '.env'
 load_dotenv(env_path)
@@ -53,6 +63,27 @@ def run_flask():
     port = int(os.environ.get("PORT", 10000))
     flask_app.run(host='0.0.0.0', port=port)
 
+
+def chat_restricted(func):
+    """Декоратор: команда работает только в разрешённых чатах"""
+
+    async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs):
+        chat_id = update.effective_chat.id
+
+        if not is_chat_allowed(chat_id):
+            # В личных сообщениях — подсказка
+            if update.effective_chat.type == 'private':
+                await update.message.reply_text(
+                    "🤖 <b>Этот бот работает только в групповых чатах.</b>\n\n"
+                    "Для получения доступа обратитесь к администратору.",
+                    parse_mode="HTML"
+                )
+            # В группах — просто игнорируем (молчим)
+            return
+
+        return await func(update, context, *args, **kwargs)
+
+    return wrapper
 
 async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обрабатывает нажатия на кнопки выбора грейда"""
@@ -392,7 +423,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode="HTML"
     )
 
-
+@chat_restricted
 async def get_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Показывает данные из таблицы для указанного грейда"""
 
@@ -476,7 +507,7 @@ async def get_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if response:
         await update.message.reply_text(response, parse_mode="HTML")
 
-
+@chat_restricted
 async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Показывает статистику для выбранного грейда"""
 
@@ -580,7 +611,7 @@ async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(response, parse_mode="HTML")
 
-
+@chat_restricted
 async def find(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Ищет игрока в объединённых данных с двух листов"""
     if not context.args:
@@ -647,7 +678,7 @@ async def find(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # ==================== СПЕЦИАЛИЗАЦИИ (лист с GID 279368796) ====================
-
+@chat_restricted
 async def spec(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Показывает таблицу специализаций игроков (/s)"""
     try:
@@ -784,7 +815,7 @@ async def inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Отправляем результаты
     await update.inline_query.answer(found, cache_time=0)
 
-
+@chat_restricted
 async def spec_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Поиск игроков по специализации из таблицы Ремесло"""
     if not context.args:
@@ -929,7 +960,7 @@ def get_all_players_from_realm():
         print(f"Ошибка получения данных из таблицы Ремесло: {e}")
         return None
 
-
+@chat_restricted
 async def get_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Показывает специализации игрока из таблицы Ремесло"""
 
@@ -1440,6 +1471,17 @@ def get_realm_worksheet():
         print(f"Ошибка подключения к таблице навыков: {e}")
         return None
 
+async def chat_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Показывает ID текущего чата"""
+    chat = update.effective_chat
+    await update.message.reply_text(
+        f"📋 <b>Информация о чате</b>\n\n"
+        f"🆔 ID чата: <code>{chat.id}</code>\n"
+        f"📝 Название: {chat.title or 'Личный чат'}\n"
+        f"📌 Тип: {chat.type}",
+        parse_mode="HTML"
+    )
+
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Показывает список всех команд бота"""
     help_text = """
@@ -1515,6 +1557,8 @@ def main():
     app.add_handler(CallbackQueryHandler(clan_callback, pattern="^clan_"))
     app.add_handler(CallbackQueryHandler(button_callback))  # без паттерна - обрабатывает всё остальное
 
+    app.add_handler(CommandHandler("chat_id", chat_id))
+
     print("✅ Бот запущен и готов к работе!")
     app.run_polling()
 
@@ -1524,3 +1568,6 @@ if __name__ == '__main__':
     threading.Thread(target=run_flask, daemon=True).start()
     # Запускаем бота
     main()
+
+
+    # тут я такой сижу и пишу код
