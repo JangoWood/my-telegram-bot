@@ -732,24 +732,6 @@ async def spec(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обрабатывает инлайн-запросы (@bot_name текст) — сразу показываем результат"""
 
-    # Проверяем, разрешён ли чат для инлайн-запросов
-    chat_id = update.inline_query.chat_id
-    if not is_chat_allowed(chat_id):
-        results = [
-            InlineQueryResultArticle(
-                id="restricted",
-                title="⛔ Бот работает только в игровых чатах",
-                description="Обратитесь к администратору для получения доступа",
-                input_message_content=InputTextMessageContent(
-                    "⛔ <b>Этот бот работает только в игровых чатах.</b>\n\n"
-                    "Обратитесь к администратору для получения доступа.",
-                    parse_mode="HTML"
-                )
-            )
-        ]
-        await update.inline_query.answer(results, cache_time=0)
-        return
-
     query = update.inline_query.query.strip().lower()
 
     if not query:
