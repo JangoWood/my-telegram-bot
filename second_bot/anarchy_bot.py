@@ -728,7 +728,7 @@ async def spec(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         await update.message.reply_text(f"❌ Ошибка: {e}")
 
-
+@chat_restricted
 async def inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обрабатывает инлайн-запросы (@bot_name текст) — сразу показываем результат"""
 
