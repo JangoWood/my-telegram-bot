@@ -731,10 +731,28 @@ async def spec(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обрабатывает инлайн-запросы (@bot_name текст) — сразу показываем результат"""
+
+    # Проверяем, разрешён ли чат для инлайн-запросов
+    chat_id = update.inline_query.chat_id
+    if not is_chat_allowed(chat_id):
+        results = [
+            InlineQueryResultArticle(
+                id="restricted",
+                title="⛔ Бот работает только в игровых чатах",
+                description="Обратитесь к администратору для получения доступа",
+                input_message_content=InputTextMessageContent(
+                    "⛔ <b>Этот бот работает только в игровых чатах.</b>\n\n"
+                    "Обратитесь к администратору для получения доступа.",
+                    parse_mode="HTML"
+                )
+            )
+        ]
+        await update.inline_query.answer(results, cache_time=0)
+        return
+
     query = update.inline_query.query.strip().lower()
 
     if not query:
-        # Если запрос пустой, показываем подсказку
         results = [
             InlineQueryResultArticle(
                 id="help",
@@ -768,9 +786,7 @@ async def inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not name or name.lower() == 'состав':
             continue
 
-        # Проверяем, содержит ли имя поисковую строку
         if query in name.lower():
-            # Формируем красивый ответ для отправки
             date_start = headers[1].strip() if len(headers) > 1 else "??"
             date_end = headers[2].strip() if len(headers) > 2 else "??"
             points = row[3].strip() if len(row) > 3 else "0"
@@ -787,7 +803,6 @@ async def inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if minus and minus not in ['0', '', '-']:
                 text += f"\n⚠️ минус: {minus}"
 
-            # Создаём результат
             result = InlineQueryResultArticle(
                 id=f"player_{name}",
                 title=f"🤟🏼 {name}",
@@ -799,7 +814,6 @@ async def inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if len(found) >= 20:
                 break
 
-    # Если ничего не найдено
     if not found:
         results = [
             InlineQueryResultArticle(
@@ -812,31 +826,7 @@ async def inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.inline_query.answer(results, cache_time=0)
         return
 
-    # Отправляем результаты
     await update.inline_query.answer(found, cache_time=0)
-
-@chat_restricted
-async def spec_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Поиск игроков по специализации из таблицы Ремесло"""
-    if not context.args:
-        await update.message.reply_text(
-            "🔍 <b>Поиск по специализации</b>\n\n"
-            "Примеры:\n"
-            "  /f крафтер — все крафтеры\n"
-            "  /f крафтер ГМ4 — только ГМ4\n"
-            "  /f кулинария ПМ3 — только ПМ3\n\n"
-            "📋 <b>Доступные специализации и синонимы:</b>\n"
-            "  • крафтер / крафт / к\n"
-            "  • рыбалка / рыба / р\n"
-            "  • шахтёр / шахта / ш\n"
-            "  • охота / охотник / о\n"
-            "  • кулинария / еда / кухня / кул\n"
-            "  • алхимия / алхим / алх / а\n"
-            "  • плавильщик / плавка / пл\n"
-            "  • фермер / ферма / ф",
-            parse_mode="HTML"
-        )
-        return
 
     # Разбираем аргументы
     search_input = context.args[0].lower()
