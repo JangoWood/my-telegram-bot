@@ -636,14 +636,12 @@ async def find(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     search = ' '.join(context.args).lower().strip()
 
-    # Используем объединённые данные с сохранением заголовков
     combined_data = get_combined_table_data()
 
     if not combined_data:
         await update.message.reply_text("❌ Нет данных для поиска")
         return
 
-    # Поиск всех совпадений (с дублями, если есть)
     found_items = []
 
     for item in combined_data:
@@ -661,11 +659,18 @@ async def find(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     response = f"🔎 <b>Найдено {len(found_items)} результатов:</b>\n\n"
 
+    # Названия листов для отображения
+    sheet_names = {
+        'main': '📊 Анархия',
+        'second': '📊 Наследие Анархии',
+        'third': '📊 Крылья Анархии'
+    }
+
     for item in found_items:
         row = item['row']
         headers = item['headers']
+        source = item['source']
 
-        # Берём даты из ЗАГОЛОВКОВ найденной строки
         date_start = headers[1].strip() if headers and len(headers) > 1 else "??"
         date_end = headers[2].strip() if headers and len(headers) > 2 else "??"
 
@@ -675,7 +680,10 @@ async def find(update: Update, context: ContextTypes.DEFAULT_TYPE):
         total = row[5].strip() if len(row) > 5 else "0"
         minus = row[6].strip() if len(row) > 6 else ""
 
-        response += f"🤟🏼 <b>{player_name}</b>\n"
+        # Добавляем название листа
+        sheet_label = sheet_names.get(source, f'📊 {source}')
+
+        response += f"🤟🏼 <b>{player_name}</b> — {sheet_label}\n"
         response += f"  📅 {date_start} – {date_end}: ⚔️ {points} очков, 💰 {coins} монет"
         if total and total not in ['0', '']:
             response += f", 📦 итог: {total}"
