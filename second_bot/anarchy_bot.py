@@ -626,7 +626,7 @@ async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 @chat_restricted
 async def find(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Ищет игрока в объединённых данных с двух листов"""
+    """Ищет игрока в объединённых данных с трёх листов"""
     if not context.args:
         await update.message.reply_text(
             "ℹ️ Укажите имя игрока для поиска. Пример: /find pa3ym",
@@ -636,45 +636,59 @@ async def find(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     search = ' '.join(context.args).lower().strip()
 
-    # Используем объединённые данные с двух листов
-    data, headers = get_combined_table_data()
+    # Используем объединённые данные с сохранением заголовков
+    combined_data = get_combined_table_data()
 
-    if not data:
+    if not combined_data:
         await update.message.reply_text("❌ Нет данных для поиска")
         return
 
-    # Поиск только в первом столбце (имя игрока)
-    found_rows = []
-    for row in data:
-        if not row:
-            continue
+    # Поиск с группировкой по имени (берём запись с максимальными очками)
+    best_results = {}  # key: имя, value: {'row': row, 'headers': headers, 'points': points}
+
+    for item in combined_data:
+        row = item['row']
+        headers = item['headers']
         name = row[0].strip().lower() if row[0] else ""
         if not name:
             continue
 
         if search in name:
-            found_rows.append(row)
-            if len(found_rows) >= 20:
-                break
+            # Парсим очки
+            try:
+                points = float(row[3].replace(',', '.')) if row[3] else 0
+            except:
+                points = 0
 
-    if not found_rows:
+            # Сохраняем лучшую запись (с максимальными очками)
+            if name not in best_results or points > best_results[name]['points']:
+                best_results[name] = {
+                    'row': row,
+                    'headers': headers,
+                    'points': points
+                }
+
+    if not best_results:
         await update.message.reply_text(f"❌ Игрок '{search}' не найден")
         return
 
-    # Определяем даты (если есть, иначе стандартные)
-    date_start = headers[1].strip() if headers and len(headers) > 1 else "??"
-    date_end = headers[2].strip() if headers and len(headers) > 2 else "??"
+    response = f"🔎 <b>Найдено {len(best_results)} результатов:</b>\n\n"
 
-    response = f"🔎 <b>Найдено {len(found_rows)} результатов:</b>\n\n"
+    for name, data in best_results.items():
+        row = data['row']
+        headers = data['headers']
 
-    for row in found_rows:
-        name = row[0].strip() if row[0] else "???"
+        # Берём даты из ЗАГОЛОВКОВ найденной строки
+        date_start = headers[1].strip() if headers and len(headers) > 1 else "??"
+        date_end = headers[2].strip() if headers and len(headers) > 2 else "??"
+
+        player_name = row[0].strip() if row[0] else "???"
         points = row[3].strip() if len(row) > 3 else "0"
         coins = row[4].strip() if len(row) > 4 else "0"
         total = row[5].strip() if len(row) > 5 else "0"
         minus = row[6].strip() if len(row) > 6 else ""
 
-        response += f"🤟🏼 <b>{name}</b>\n"
+        response += f"🤟🏼 <b>{player_name}</b>\n"
         response += f"  📅 {date_start} – {date_end}: ⚔️ {points} очков, 💰 {coins} монет"
         if total and total not in ['0', '']:
             response += f", 📦 итог: {total}"
@@ -688,7 +702,6 @@ async def find(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if response:
         await update.message.reply_text(response, parse_mode="HTML")
-
 
 # ==================== СПЕЦИАЛИЗАЦИИ (лист с GID 279368796) ====================
 @chat_restricted
