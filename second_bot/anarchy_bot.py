@@ -643,40 +643,27 @@ async def find(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ Нет данных для поиска")
         return
 
-    # Поиск с группировкой по имени (берём запись с максимальными очками)
-    best_results = {}  # key: имя, value: {'row': row, 'headers': headers, 'points': points}
+    # Поиск всех совпадений (с дублями, если есть)
+    found_items = []
 
     for item in combined_data:
         row = item['row']
-        headers = item['headers']
         name = row[0].strip().lower() if row[0] else ""
         if not name:
             continue
 
         if search in name:
-            # Парсим очки
-            try:
-                points = float(row[3].replace(',', '.')) if row[3] else 0
-            except:
-                points = 0
+            found_items.append(item)
 
-            # Сохраняем лучшую запись (с максимальными очками)
-            if name not in best_results or points > best_results[name]['points']:
-                best_results[name] = {
-                    'row': row,
-                    'headers': headers,
-                    'points': points
-                }
-
-    if not best_results:
+    if not found_items:
         await update.message.reply_text(f"❌ Игрок '{search}' не найден")
         return
 
-    response = f"🔎 <b>Найдено {len(best_results)} результатов:</b>\n\n"
+    response = f"🔎 <b>Найдено {len(found_items)} результатов:</b>\n\n"
 
-    for name, data in best_results.items():
-        row = data['row']
-        headers = data['headers']
+    for item in found_items:
+        row = item['row']
+        headers = item['headers']
 
         # Берём даты из ЗАГОЛОВКОВ найденной строки
         date_start = headers[1].strip() if headers and len(headers) > 1 else "??"
