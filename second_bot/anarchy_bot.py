@@ -1620,6 +1620,49 @@ def get_enemy_from_next_fight(fights, player_nick):
                 return player1
     return None
 
+def parse_player_actions(text, enemy_name):
+    """
+    Извлекает из лога:
+    - использованные приёмы
+    - удары (куда бил)
+    - полученные удары (куда получал)
+    """
+    result = {
+        'combos': [],
+        'hits': [],
+        'received': [],
+    }
+
+    lines = text.split('\n')
+    for i, line in enumerate(lines):
+        # Ищем приёмы
+        if f'{enemy_name}' in line and 'использует комбинацию' in line:
+            result['combos'].append(line.strip())
+
+        # Ищем удары (куда бил)
+        if f'{enemy_name} бил(а) в:' in line:
+            # Собираем следующие строки (пока есть цифры)
+            j = i + 1
+            while j < len(lines) and re.match(r'\s*\d+\)', lines[j]):
+                result['hits'].append(lines[j].strip())
+                j += 1
+
+        # Ищем полученные удары (куда получал)
+        if f'{enemy_name} получал(а) удары в:' in line:
+            j = i + 1
+            while j < len(lines) and re.match(r'\s*\d+\)', lines[j]):
+                result['received'].append(lines[j].strip())
+                j += 1
+
+    return result
+
+def extract_player_name(line):
+    """Извлекает чистое имя игрока из полной строки"""
+    match = re.search(r'([А-Яа-яA-Za-z0-9_]+)\s*🔸', line)
+    if match:
+        return match.group(1)
+    return None
+
 async def test_parse(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Проверяем, есть ли ответ на сообщение
     if not update.message.reply_to_message:
@@ -1672,9 +1715,43 @@ async def test_parse(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     fights = parse_next_fight(text)
     if fights:
-        enemy = get_enemy_from_next_fight(fights, player_nick)
-        if enemy:
-            msg += f"\n⚔️ Следующий ход соперника: {enemy}\n"
+        enemy_line = get_enemy_from_next_fight(fights, player_nick)
+        if enemy_line:
+            # Извлекаем чистое имя соперника
+            enemy_name = extract_player_name(enemy_line)
+            msg += f"\n⚔️ Следующий ход соперника: {enemy_line}\n"
+
+            # Парсим действия соперника
+            actions = parse_player_actions(text, enemy_name)
+            if actions:
+                if actions['combos']:
+                    msg += "\n📋 Использованные приёмы:\n"
+                    for combo in actions['combos']:
+                        msg += f"  {combo}\n"
+                if actions['hits']:
+                    msg += "\n🎯 Удары соперника:\n"
+                    for hit in actions['hits']:
+                        msg += f"  {hit}\n"
+                if actions['received']:
+                    msg += "\n🛡️ Полученные удары:\n"
+                    for rec in actions['received']:
+                        msg += f"  {rec}\n"
+
+    # Парсинг деталей соперника
+    actions = parse_player_actions(text, enemy_name)
+    if actions:
+        if actions['combos']:
+            msg += "\n📋 Использованные приёмы:\n"
+            for combo in actions['combos']:
+                msg += f"  {combo}\n"
+        if actions['hits']:
+            msg += "\n🎯 Удары соперника:\n"
+            for hit in actions['hits']:
+                msg += f"  {hit}\n"
+        if actions['received']:
+            msg += "\n🛡️ Полученные удары:\n"
+            for rec in actions['received']:
+                msg += f"  {rec}\n"
 
     await update.message.reply_text(msg)
 
