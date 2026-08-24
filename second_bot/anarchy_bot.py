@@ -1740,6 +1740,7 @@ def parse_enemy_stats(text, enemy_name):
 
     return stats
 
+
 async def test_parse(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Проверяем, есть ли ответ на сообщение
     if not update.message.reply_to_message:
@@ -1822,61 +1823,62 @@ async def test_parse(update: Update, context: ContextTypes.DEFAULT_TYPE):
             enemy_name = extract_player_name(enemy_line)
             msg += f"\n⚔️ Следующий ход соперника: {enemy_line}\n"
 
-            # Парсим действия соперника
-            actions = parse_player_actions(text, enemy_name)
+            # === НОВЫЙ БЛОК: сохраняем действия для ВСЕХ игроков ===
+            # 1. Собираем всех игроков из лога (защитники + нападающие)
+            all_players = defenders + attackers
 
-            # Инициализируем хранилище для этого соперника
-            if enemy_name not in session['enemy_stats_by_name']:
-                session['enemy_stats_by_name'][enemy_name] = {
-                    'swords': 0, 'shields': 0, 'crits': 0,
-                    'evades': 0, 'counters': 0, 'misses': 0,
-                }
-            if enemy_name not in session['enemy_hits_by_name']:
-                session['enemy_hits_by_name'][enemy_name] = []
-            if enemy_name not in session['enemy_received_by_name']:
-                session['enemy_received_by_name'][enemy_name] = []
+            # 2. Для каждого игрока парсим его действия
+            for player in all_players:
+                player_name = player['name']
 
-            # Сохраняем удары
-            if actions.get('hits'):
-                session['enemy_hits_by_name'][enemy_name].extend(actions['hits'])
-            if actions.get('received'):
-                session['enemy_received_by_name'][enemy_name].extend(actions['received'])
+                # Инициализируем, если ещё нет
+                if player_name not in session['enemy_hits_by_name']:
+                    session['enemy_hits_by_name'][player_name] = []
+                if player_name not in session['enemy_received_by_name']:
+                    session['enemy_received_by_name'][player_name] = []
+                if player_name not in session['enemy_stats_by_name']:
+                    session['enemy_stats_by_name'][player_name] = {
+                        'swords': 0, 'shields': 0, 'crits': 0,
+                        'evades': 0, 'counters': 0, 'misses': 0,
+                    }
 
-            # Вывод приёмов
-            if actions.get('combos'):
-                msg += "\n📋 Использованные приёмы:\n"
-                for combo in actions['combos']:
-                    msg += f"  {combo}\n"
+                # Парсим действия для этого игрока
+                player_actions = parse_player_actions(text, player_name)
+                player_stats = parse_enemy_stats(text, player_name)
 
-            # Статистика за текущий ход
-            enemy_stats = parse_enemy_stats(text, enemy_name)
+                # Сохраняем удары
+                if player_actions.get('hits'):
+                    session['enemy_hits_by_name'][player_name].extend(player_actions['hits'])
+                if player_actions.get('received'):
+                    session['enemy_received_by_name'][player_name].extend(player_actions['received'])
 
-            # Обновляем накопленную статистику для этого соперника
-            if enemy_stats:
-                stats = session['enemy_stats_by_name'][enemy_name]
-                stats['swords'] += enemy_stats['swords']
-                stats['shields'] += enemy_stats['shields']
-                stats['crits'] += enemy_stats['crits']
-                stats['evades'] += enemy_stats['evades']
-                stats['counters'] += enemy_stats['counters']
-                stats['misses'] += enemy_stats['misses']
+                # Сохраняем статистику
+                if player_stats:
+                    stats = session['enemy_stats_by_name'][player_name]
+                    stats['swords'] += player_stats['swords']
+                    stats['shields'] += player_stats['shields']
+                    stats['crits'] += player_stats['crits']
+                    stats['evades'] += player_stats['evades']
+                    stats['counters'] += player_stats['counters']
+                    stats['misses'] += player_stats['misses']
 
-                # Вывод накопленной статистики
-                msg += f"\n📊 Накопленная статистика соперника ({enemy_name}):\n"
-                msg += f"  🗡 {stats['swords']}  🛡 {stats['shields']}  🥊 {stats['crits']}  ⚡️ {stats['evades']}  🤺 {stats['counters']}  🌬 {stats['misses']}\n"
-
-            # Вывод накопленных ударов
-            if session['enemy_hits_by_name'][enemy_name]:
+            # === ВЫВОД ДЛЯ ТЕКУЩЕГО СОПЕРНИКА ===
+            if enemy_name in session['enemy_hits_by_name']:
                 msg += f"\n🎯 Удары соперника ({enemy_name}):\n"
                 for i, hit in enumerate(session['enemy_hits_by_name'][enemy_name], 1):
                     icon = "🛡" if hit['block'] else "🗡"
                     msg += f"  {i}) {hit['part']} ({icon})\n"
 
-            if session['enemy_received_by_name'][enemy_name]:
+            if enemy_name in session['enemy_received_by_name']:
                 msg += f"\n🛡️ Полученные удары ({enemy_name}):\n"
                 for i, rec in enumerate(session['enemy_received_by_name'][enemy_name], 1):
                     icon = "🛡" if rec['block'] else "🗡"
                     msg += f"  {i}) {rec['part']} ({icon})\n"
+
+            if enemy_name in session['enemy_stats_by_name']:
+                stats = session['enemy_stats_by_name'][enemy_name]
+                msg += f"\n📊 Накопленная статистика соперника ({enemy_name}):\n"
+                msg += f"  🗡 {stats['swords']}  🛡 {stats['shields']}  🥊 {stats['crits']}  ⚡️ {stats['evades']}  🤺 {stats['counters']}  🌬 {stats['misses']}\n"
 
     await update.message.reply_text(msg)
 
