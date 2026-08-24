@@ -1625,6 +1625,7 @@ def parse_player_actions(text, enemy_name):
         'combos': [],
         'hits': [],
         'received': [],
+        'blocks': [],  # ← новая категория
     }
 
     lines = text.split('\n')
@@ -1636,8 +1637,6 @@ def parse_player_actions(text, enemy_name):
 
         # 2. Удары соперника (ОН бьёт)
         if enemy_name in line and 'бьет в' in line:
-            # Проверяем, что он бьёт, а не его бьют
-            # Строка: "... Sutcliffe бьет в грудь по ..." → он бьёт
             if 'по' in line:
                 parts = line.split('по')
                 if len(parts) > 0 and enemy_name in parts[0]:
@@ -1646,13 +1645,20 @@ def parse_player_actions(text, enemy_name):
                         result['hits'].append(match.group(1).strip())
                         continue
             else:
-                # Если нет "по", значит просто удар без указания цели
                 match = re.search(r'бьет в ([^,\.]+?)(?:\s|,|\.|по)', line)
                 if match:
                     result['hits'].append(match.group(1).strip())
                     continue
 
-        # 3. Полученные удары (в НЕГО бьют)
+        # 3. Блоки соперника (ОН ставит блок)
+        if enemy_name in line and 'попадает в блок' in line:
+            # Пример: "... бьет в пояс по Sutcliffe. И попадает в блок"
+            match = re.search(r'бьет в ([^,\.]+?)(?:\s|,|\.|по)', line)
+            if match:
+                result['blocks'].append(match.group(1).strip())
+            continue
+
+        # 4. Полученные удары (в НЕГО бьют)
         if enemy_name in line and 'по' in line and 'бьет в' in line:
             parts = line.split('по')
             if len(parts) > 1 and enemy_name in parts[1]:
@@ -1737,13 +1743,16 @@ async def test_parse(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 msg += f"  {combo}\n"
         if actions['hits']:
             msg += "\n🎯 Удары соперника:\n"
-            # Убираем дубли
             unique_hits = list(dict.fromkeys(actions['hits']))
             for i, hit in enumerate(unique_hits, 1):
                 msg += f"  {i}) {hit}\n"
+        if actions['blocks']:
+            msg += "\n🛡️ Блоки соперника:\n"
+            unique_blocks = list(dict.fromkeys(actions['blocks']))
+            for i, block in enumerate(unique_blocks, 1):
+                msg += f"  {i}) {block}\n"
         if actions['received']:
             msg += "\n🛡️ Полученные удары:\n"
-            # Убираем дубли
             unique_received = list(dict.fromkeys(actions['received']))
             for i, rec in enumerate(unique_received, 1):
                 msg += f"  {i}) {rec}\n"
