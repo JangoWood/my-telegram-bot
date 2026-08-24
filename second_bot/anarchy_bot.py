@@ -18,6 +18,7 @@ import gspread
 from google.oauth2.service_account import Credentials
 import pytz
 from telegram.ext import MessageHandler, filters
+import re
 
 # Загружаем переменные из .env в корне проекта
 env_path = Path(__file__).parent.parent / '.env'
@@ -1555,6 +1556,55 @@ async def stop_cw(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "До новых боёв!"
     )
 
+def is_log(text):
+    """Проверяет, похоже ли сообщение на лог боя"""
+    return "Ход" in text
+
+def parse_turn(text):
+    match = re.search(r'Ход\s*(\d+)', text)
+    if match:
+        return int(match.group(1))
+    return None
+
+def parse_team(line):
+    match = re.search(r'([^:]+)\s*💔\s*\((\d+)/(\d+)\)', line)
+    if match:
+        return {
+            'name': match.group(1).strip(),
+            'hp': int(match.group(2)),
+            'max_hp': int(match.group(3)),
+        }
+    return None
+
+async def test_parse(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Проверяем, есть ли ответ на сообщение
+    if not update.message.reply_to_message:
+        await update.message.reply_text(
+            "❌ Ответь на сообщение с логом боя командой /test_parse"
+        )
+        return
+
+    text = update.message.reply_to_message.text
+    if not text:
+        await update.message.reply_text("❌ В сообщении нет текста.")
+        return
+
+    # Парсим номер хода
+    turn = parse_turn(text)
+    msg = f"🔍 Номер хода: {turn}\n\n"
+
+    # Парсим команды
+    for line in text.split('\n'):
+        if 'Нападающие' in line or 'Защитники' in line:
+            team = parse_team(line)
+            if team:
+                msg += f"📊 {team['name']}: ❤️ {team['hp']}/{team['max_hp']}\n"
+
+    if turn is None and not any('Нападающие' in line or 'Защитники' in line for line in text.split('\n')):
+        msg += "\n⚠️ Не удалось распознать номер хода или команды."
+
+    await update.message.reply_text(msg)
+
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Показывает список всех команд бота"""
     help_text = """
@@ -1634,6 +1684,7 @@ def main():
 
     app.add_handler(CommandHandler("start_cw", start_cw))
     app.add_handler(CommandHandler("stop_cw", stop_cw))
+    app.add_handler(CommandHandler("test_parse", test_parse))
 
     print("✅ Бот запущен и готов к работе!")
     app.run_polling()
