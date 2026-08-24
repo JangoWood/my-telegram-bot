@@ -1777,10 +1777,13 @@ async def test_parse(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     defenders = []
     attackers = []
-    current_team = None  # 'defenders' или 'attackers'
+    current_team = None
 
     for line in text.split('\n'):
-        # Определяем текущую команду
+        # Останавливаемся перед "Следующий ход"
+        if 'Следующий ход:' in line:
+            break
+
         if 'Защитники' in line:
             current_team = 'defenders'
             continue
@@ -1788,7 +1791,6 @@ async def test_parse(update: Update, context: ContextTypes.DEFAULT_TYPE):
             current_team = 'attackers'
             continue
 
-        # Если мы внутри какой-то команды и строка похожа на игрока
         if current_team and '❤️' in line and '🔸' in line:
             player = parse_player(line)
             if player:
