@@ -1601,20 +1601,8 @@ def parse_next_fight(text):
             in_next = True
             continue
         if in_next and line.strip():
-            # Ищем пару "vs"
-            match = re.search(r'vs\s+', line)
-            if match:
-                # Простое разделение по " vs "
-                parts = line.split('vs')
-                if len(parts) == 2:
-                    # Извлекаем имя первого и второго игрока
-                    p1_match = re.search(r'([А-Яа-яA-Za-z0-9_]+)\s*🔸', parts[0])
-                    p2_match = re.search(r'([А-Яа-яA-Za-z0-9_]+)\s*🔸', parts[1])
-                    if p1_match and p2_match:
-                        fights.append({
-                            'player1': p1_match.group(1),
-                            'player2': p2_match.group(1),
-                        })
+            # Сохраняем всю строку целиком
+            fights.append(line.strip())
         if in_next and not line.strip():
             break
     return fights
