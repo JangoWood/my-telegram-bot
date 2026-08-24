@@ -1632,6 +1632,17 @@ async def test_parse(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ В сообщении нет текста.")
         return
 
+    # Получаем ник из сессии
+    user_id = update.effective_user.id
+    session = cw_sessions.get(user_id)
+    if not session:
+        await update.message.reply_text(
+            "❌ Ты не в режиме советника. Используй /start_cw <ник>"
+        )
+        return
+
+    player_nick = session['player_nick']
+
     # Парсим номер хода
     turn = parse_turn(text)
     msg = f"🔍 Номер хода: {turn}\n\n"
@@ -1660,7 +1671,7 @@ async def test_parse(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     fights = parse_next_fight(text)
     if fights:
-        first_fight = fights[0]  # Берём только первую пару
+        first_fight = fights[0]
         parts = first_fight.split(' vs ')
         if len(parts) == 2:
             player1 = parts[0].strip()
