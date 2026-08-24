@@ -1527,7 +1527,7 @@ async def start_cw(update: Update, context: ContextTypes.DEFAULT_TYPE):
         'last_turn': 0,
         'logs': [],
         'stats': {},
-        'enemy_stats': {  # ← добавляем
+        'enemy_stats': {
             'swords': 0,
             'shields': 0,
             'crits': 0,
@@ -1535,6 +1535,8 @@ async def start_cw(update: Update, context: ContextTypes.DEFAULT_TYPE):
             'counters': 0,
             'misses': 0,
         },
+        'enemy_hits': [],  # ← список ударов соперника
+        'enemy_received': [],  # ← список полученных ударов
         'started_at': datetime.now(),
     }
 
@@ -1846,7 +1848,19 @@ async def test_parse(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     for i, rec in enumerate(actions['received'], 1):
                         icon = "🛡" if rec['block'] else "🗡"
                         msg += f"  {i}) {rec['part']} ({icon})\n"
+            # === ДОБАВИТЬ ЭТОТ БЛОК ===
+            # Сохраняем удары в сессию
+            if actions['hits']:
+                session['enemy_hits'].extend(actions['hits'])
+            if actions['received']:
+                session['enemy_received'].extend(actions['received'])
+            # ===========================
 
+            if actions:
+                if actions['combos']:
+                    msg += "\n📋 Использованные приёмы:\n"
+                    for combo in actions['combos']:
+                        msg += f"  {combo}\n"
             # Статистика соперника (текущий ход)
             enemy_stats = parse_enemy_stats(text, enemy_name)
             if enemy_stats:
