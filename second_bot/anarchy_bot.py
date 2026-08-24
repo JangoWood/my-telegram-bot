@@ -1635,24 +1635,30 @@ def parse_player_actions(text, enemy_name):
 
     lines = text.split('\n')
     for i, line in enumerate(lines):
-        # Ищем приёмы
+        # Ищем приёмы (комбинации)
         if f'{enemy_name}' in line and 'использует комбинацию' in line:
             result['combos'].append(line.strip())
 
-        # Ищем удары (куда бил)
-        if f'{enemy_name} бил(а) в:' in line:
-            # Собираем следующие строки (пока есть цифры)
-            j = i + 1
-            while j < len(lines) and re.match(r'\s*\d+\)', lines[j]):
-                result['hits'].append(lines[j].strip())
-                j += 1
+        # Ищем удары соперника: строка содержит имя соперника и "бьет в"
+        if enemy_name in line and 'бьет в' in line:
+            # Извлекаем часть тела
+            # Пример: "бьет в ноги по ..." → "ноги"
+            match = re.search(r'бьет в ([^,\.]+?)(?:\s|,|\.|по)', line)
+            if match:
+                target = match.group(1).strip()
+                result['hits'].append(target)
 
-        # Ищем полученные удары (куда получал)
-        if f'{enemy_name} получал(а) удары в:' in line:
-            j = i + 1
-            while j < len(lines) and re.match(r'\s*\d+\)', lines[j]):
-                result['received'].append(lines[j].strip())
-                j += 1
+        # Ищем полученные удары: строка содержит имя соперника и "по"
+        # Например: "... бьет в голову по ☃️💝🌚 🧝‍♂️️Анердис ..."
+        if enemy_name in line and 'по' in line and 'бьет в' in line:
+            # Проверяем, что соперник получает удар (он упоминается после "по")
+            parts = line.split('по')
+            if len(parts) > 1 and enemy_name in parts[1]:
+                # Извлекаем часть тела, куда били
+                match = re.search(r'бьет в ([^,\.]+?)(?:\s|,|\.|по)', line)
+                if match:
+                    target = match.group(1).strip()
+                    result['received'].append(target)
 
     return result
 
