@@ -1496,6 +1496,65 @@ async def chat_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode="HTML"
     )
 
+# Хранилище сессий CW
+cw_sessions = {}
+
+async def start_cw(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+
+    # Проверка: уже в режиме
+    if user_id in cw_sessions:
+        await update.message.reply_text(
+            "❌ Ты уже в режиме советника.\n"
+            "Используй /stop_cw, чтобы выйти."
+        )
+        return
+
+    # Проверка: указан ли ник
+    if not context.args:
+        await update.message.reply_text(
+            "❌ Укажи свой игровой ник.\n"
+            "Пример: /start_cw Jango"
+        )
+        return
+
+    player_nick = context.args[0].strip()
+
+    # Создаём сессию
+    cw_sessions[user_id] = {
+        'player_nick': player_nick,
+        'last_turn': 0,
+        'logs': [],
+        'stats': {},
+        'started_at': datetime.now(),
+    }
+
+    await update.message.reply_text(
+        f"✅ Режим советника активирован!\n"
+        f"Игрок: {player_nick}\n\n"
+        f"Присылай логи боя, содержащие слово «Ход».\n"
+        f"Я буду анализировать их по порядку."
+    )
+
+
+async def stop_cw(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+
+    if user_id not in cw_sessions:
+        await update.message.reply_text(
+            "❌ Ты не в режиме советника.\n"
+            "Используй /start_cw <ник>, чтобы начать."
+        )
+        return
+
+    # Удаляем сессию
+    del cw_sessions[user_id]
+
+    await update.message.reply_text(
+        "❌ Режим советника завершён.\n"
+        "До новых боёв!"
+    )
+
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Показывает список всех команд бота"""
     help_text = """
@@ -1572,6 +1631,9 @@ def main():
     app.add_handler(CallbackQueryHandler(button_callback))  # без паттерна - обрабатывает всё остальное
 
     app.add_handler(CommandHandler("chat_id", chat_id))
+
+    app.add_handler(CommandHandler("start_cw", start_cw))
+    app.add_handler(CommandHandler("stop_cw", stop_cw))
 
     print("✅ Бот запущен и готов к работе!")
     app.run_polling()
