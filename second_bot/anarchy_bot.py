@@ -1665,6 +1665,19 @@ async def test_parse(update: Update, context: ContextTypes.DEFAULT_TYPE):
         for f in fights:
             msg += f"  {f['player1']} vs {f['player2']}\n"
 
+    fights = parse_next_fight(text)
+    if fights:
+        first_fight = fights[0]  # Берём только первую пару
+        parts = first_fight.split(' vs ')
+        if len(parts) == 2:
+            player1 = parts[0].strip()
+            player2 = parts[1].strip()
+            if player_nick in player1:
+                enemy = player2
+            else:
+                enemy = player1
+            msg += f"\n⚔️ Следующий ход соперника: {enemy}\n"
+
     await update.message.reply_text(msg)
 
 
