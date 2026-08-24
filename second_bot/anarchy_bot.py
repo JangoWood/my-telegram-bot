@@ -1775,37 +1775,26 @@ async def test_parse(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if turn is None and not any('Нападающие' in line or 'Защитники' in line for line in text.split('\n')):
         msg += "\n⚠️ Не удалось распознать номер хода или команды."
 
-    # Разделяем защитников и нападающих
     defenders = []
     attackers = []
+    current_team = None  # 'defenders' или 'attackers'
 
-    if 'Нападающие' in text:
-        parts = text.split('Нападающие')
-        defenders_text = parts[0]
-        attackers_text = parts[1]
-    else:
-        defenders_text = text
-        attackers_text = ""
+    for line in text.split('\n'):
+        # Определяем текущую команду
+        if 'Защитники' in line:
+            current_team = 'defenders'
+            continue
+        if 'Нападающие' in line:
+            current_team = 'attackers'
+            continue
 
-    # Парсим защитников (только до "Нападающие")
-    if 'Нападающие' in text:
-        defenders_text = text.split('Нападающие')[0]
-    else:
-        defenders_text = text
-
-    for line in defenders_text.split('\n'):
-        if '❤️' in line and '🔸' in line:
+        # Если мы внутри какой-то команды и строка похожа на игрока
+        if current_team and '❤️' in line and '🔸' in line:
             player = parse_player(line)
             if player:
-                defenders.append(player)
-
-    # Парсим нападающих (после "Нападающие")
-    if 'Нападающие' in text:
-        attackers_text = text.split('Нападающие')[1]
-        for line in attackers_text.split('\n'):
-            if '❤️' in line and '🔸' in line:
-                player = parse_player(line)
-                if player:
+                if current_team == 'defenders':
+                    defenders.append(player)
+                else:
                     attackers.append(player)
 
     # Вывод защитников (только те, кто в defenders)
