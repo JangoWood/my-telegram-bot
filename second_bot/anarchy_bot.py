@@ -1789,31 +1789,30 @@ async def test_parse(update: Update, context: ContextTypes.DEFAULT_TYPE):
             enemy_name = extract_player_name(enemy_line)
             msg += f"\n⚔️ Следующий ход соперника: {enemy_line}\n"
 
-    # Парсинг деталей соперника
-    actions = parse_player_actions(text, enemy_name)
-    if actions:
-        if actions['combos']:
-            msg += "\n📋 Использованные приёмы:\n"
-            for combo in actions['combos']:
-                msg += f"  {combo}\n"
-        # Удары соперника (ОН бьёт)
-        if actions['hits']:
-            msg += "\n🎯 Удары соперника:\n"
-            for i, hit in enumerate(actions['hits'], 1):
-                icon = "🛡" if hit['block'] else "🗡"
-                msg += f"  {i}) {hit['part']} ({icon})\n"
+            # Парсинг деталей соперника
+            actions = parse_player_actions(text, enemy_name)
+            if actions:
+                if actions['combos']:
+                    msg += "\n📋 Использованные приёмы:\n"
+                    for combo in actions['combos']:
+                        msg += f"  {combo}\n"
+                if actions['hits']:
+                    msg += "\n🎯 Удары соперника:\n"
+                    for i, hit in enumerate(actions['hits'], 1):
+                        icon = "🛡" if hit['block'] else "🗡"
+                        msg += f"  {i}) {hit['part']} ({icon})\n"
+                if actions['received']:
+                    msg += "\n🛡️ Полученные удары:\n"
+                    for i, rec in enumerate(actions['received'], 1):
+                        icon = "🛡" if rec['block'] else "🗡"
+                        msg += f"  {i}) {rec['part']} ({icon})\n"
 
-        # Полученные удары (в НЕГО бьют)
-        if actions['received']:
-            msg += "\n🛡️ Полученные удары:\n"
-            for i, rec in enumerate(actions['received'], 1):
-                icon = "🛡" if rec['block'] else "🗡"
-                msg += f"  {i}) {rec['part']} ({icon})\n"
-        # Статистика соперника
-        enemy_stats = parse_enemy_stats(text, enemy_name)
-        if enemy_stats:
-            msg += "\n📊 Статистика соперника:\n"
-            msg += f"  🗡 {enemy_stats['swords']}  🛡 {enemy_stats['shields']}  🥊 {enemy_stats['crits']}  ⚡️ {enemy_stats['evades']}  🤺 {enemy_stats['counters']}  🌬 {enemy_stats['misses']}\n"
+            # Статистика соперника
+            enemy_stats = parse_enemy_stats(text, enemy_name)
+            if enemy_stats:
+                msg += "\n📊 Статистика соперника:\n"
+                msg += f"  🗡 {enemy_stats['swords']}  🛡 {enemy_stats['shields']}  🥊 {enemy_stats['crits']}  ⚡️ {enemy_stats['evades']}  🤺 {enemy_stats['counters']}  🌬 {enemy_stats['misses']}\n"
+
     await update.message.reply_text(msg)
 
 
