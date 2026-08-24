@@ -1593,6 +1593,32 @@ def parse_player(line):
         }
     return None
 
+def parse_next_fight(text):
+    fights = []
+    in_next = False
+    for line in text.split('\n'):
+        if 'Следующий ход:' in line:
+            in_next = True
+            continue
+        if in_next and line.strip():
+            # Ищем пару "vs"
+            match = re.search(r'vs\s+', line)
+            if match:
+                # Простое разделение по " vs "
+                parts = line.split('vs')
+                if len(parts) == 2:
+                    # Извлекаем имя первого и второго игрока
+                    p1_match = re.search(r'([А-Яа-яA-Za-z0-9_]+)\s*🔸', parts[0])
+                    p2_match = re.search(r'([А-Яа-яA-Za-z0-9_]+)\s*🔸', parts[1])
+                    if p1_match and p2_match:
+                        fights.append({
+                            'player1': p1_match.group(1),
+                            'player2': p2_match.group(1),
+                        })
+        if in_next and not line.strip():
+            break
+    return fights
+
 async def test_parse(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Проверяем, есть ли ответ на сообщение
     if not update.message.reply_to_message:
@@ -1631,6 +1657,13 @@ async def test_parse(update: Update, context: ContextTypes.DEFAULT_TYPE):
         msg += "\n👥 Игроки:\n"
         for p in players[:4]:
             msg += f"  {p['emoji_prefix']} {p['role_emoji']}{p['name']} (ур. {p['level']}) ❤️ {p['hp']}/{p['max_hp']}\n"
+
+    # Парсинг следующего хода
+    fights = parse_next_fight(text)
+    if fights:
+        msg += "\n⚔️ Следующий ход:\n"
+        for f in fights:
+            msg += f"  {f['player1']} vs {f['player2']}\n"
 
     await update.message.reply_text(msg)
 
