@@ -1621,12 +1621,6 @@ def get_enemy_from_next_fight(fights, player_nick):
     return None
 
 def parse_player_actions(text, enemy_name):
-    """
-    Извлекает из лога:
-    - использованные приёмы
-    - удары (куда бил)
-    - полученные удары (куда получал)
-    """
     result = {
         'combos': [],
         'hits': [],
@@ -1640,23 +1634,32 @@ def parse_player_actions(text, enemy_name):
             result['combos'].append(line.strip())
             continue
 
-        # 2. Удары соперника (он бьёт)
-        if enemy_name in line and 'бьет в' in line and 'по' not in line:
-            # Пример: "Sutcliffe бьет в грудь по ..."
-            match = re.search(r'бьет в ([^,\.]+?)(?:\s|,|\.|по)', line)
-            if match:
-                result['hits'].append(match.group(1).strip())
-            continue
+        # 2. Удары соперника (ОН бьёт)
+        if enemy_name in line and 'бьет в' in line:
+            # Проверяем, что он бьёт, а не его бьют
+            # Строка: "... Sutcliffe бьет в грудь по ..." → он бьёт
+            if 'по' in line:
+                parts = line.split('по')
+                if len(parts) > 0 and enemy_name in parts[0]:
+                    match = re.search(r'бьет в ([^,\.]+?)(?:\s|,|\.|по)', line)
+                    if match:
+                        result['hits'].append(match.group(1).strip())
+                        continue
+            else:
+                # Если нет "по", значит просто удар без указания цели
+                match = re.search(r'бьет в ([^,\.]+?)(?:\s|,|\.|по)', line)
+                if match:
+                    result['hits'].append(match.group(1).strip())
+                    continue
 
-        # 3. Полученные удары (в него бьют)
+        # 3. Полученные удары (в НЕГО бьют)
         if enemy_name in line and 'по' in line and 'бьет в' in line:
-            # Пример: "... бьет в пояс по Sutcliffe ..."
             parts = line.split('по')
             if len(parts) > 1 and enemy_name in parts[1]:
                 match = re.search(r'бьет в ([^,\.]+?)(?:\s|,|\.|по)', line)
                 if match:
                     result['received'].append(match.group(1).strip())
-            continue
+                continue
 
     return result
 
