@@ -1608,9 +1608,10 @@ def parse_next_fight(text):
     return fights
 
 def get_enemy_from_next_fight(fights, player_nick):
-    """Возвращает полную строку соперника из первой пары, где есть player_nick"""
     for line in fights:
-        parts = line.split(' vs ')
+        # Убираем номер в начале (например, "1. " или "2. ")
+        clean_line = re.sub(r'^\d+\.\s*', '', line)
+        parts = clean_line.split(' vs ')
         if len(parts) == 2:
             player1 = parts[0].strip()
             player2 = parts[1].strip()
