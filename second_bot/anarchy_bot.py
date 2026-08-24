@@ -1700,13 +1700,12 @@ def parse_enemy_stats(text, enemy_name):
 
     lines = text.split('\n')
     for line in lines:
-        # Только строки, где есть имя соперника
         if enemy_name not in line:
             continue
 
         # 🗡 Попадания (удар не в блок)
-        if 'бьет' in line and 'наносит' in line and 'урона' in line:
-            if 'блок' not in line:
+        if 'бьет' in line and 'наносит' in line:
+            if 'блок' not in line and 'попадает в блок' not in line:
                 stats['swords'] += 1
 
         # 🛡 Блоки (соперник ставит блок)
@@ -1726,7 +1725,7 @@ def parse_enemy_stats(text, enemy_name):
             stats['counters'] += 1
 
         # 🌬 Промахи / блоки (когда удар соперника попал в блок)
-        if enemy_name in line and 'бьет' in line and 'блок' in line:
+        if enemy_name in line and 'бьет' in line and ('блок' in line or 'попадает в блок' in line):
             stats['misses'] += 1
 
     return stats
