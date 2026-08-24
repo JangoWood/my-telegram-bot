@@ -1623,9 +1623,9 @@ def get_enemy_from_next_fight(fights, player_nick):
 def parse_player_actions(text, enemy_name):
     result = {
         'combos': [],
-        'hits': [],
-        'received': [],
-        'blocks': [],
+        'hits': [],       # список словарей: {'part': 'грудь', 'block': False/True}
+        'received': [],   # список словарей: {'part': 'грудь', 'block': False/True}
+        'blocks': [],     # пока не используем, можно убрать
     }
 
     lines = text.split('\n')
@@ -1642,28 +1642,35 @@ def parse_player_actions(text, enemy_name):
                 if len(parts) > 0 and enemy_name in parts[0]:
                     match = re.search(r'бьет в ([^,\.]+?)(?:\s|,|\.|по)', line)
                     if match:
-                        result['hits'].append(match.group(1).strip())
+                        # Проверяем, был ли блок
+                        is_block = 'попадает в блок' in line or 'блок' in line
+                        result['hits'].append({
+                            'part': match.group(1).strip(),
+                            'block': is_block
+                        })
                         continue
             else:
                 match = re.search(r'бьет в ([^,\.]+?)(?:\s|,|\.|по)', line)
                 if match:
-                    result['hits'].append(match.group(1).strip())
+                    is_block = 'попадает в блок' in line or 'блок' in line
+                    result['hits'].append({
+                        'part': match.group(1).strip(),
+                        'block': is_block
+                    })
                     continue
 
-        # 3. Блоки соперника (ОН ставит блок)
-        if enemy_name in line and 'попадает в блок' in line:
-            match = re.search(r'в ([^,\.]+?)(?:\s|,|\.|по)', line)
-            if match:
-                result['blocks'].append(match.group(1).strip())
-            continue
-
-        # 4. Полученные удары (в НЕГО бьют)
+        # 3. Полученные удары (в НЕГО бьют)
         if enemy_name in line and 'по' in line and 'бьет в' in line:
             parts = line.split('по')
             if len(parts) > 1 and enemy_name in parts[1]:
                 match = re.search(r'бьет в ([^,\.]+?)(?:\s|,|\.|по)', line)
                 if match:
-                    result['received'].append(match.group(1).strip())
+                    # Проверяем, был ли блок
+                    is_block = 'попадает в блок' in line or 'блок' in line
+                    result['received'].append({
+                        'part': match.group(1).strip(),
+                        'block': is_block
+                    })
                 continue
 
     return result
@@ -1740,21 +1747,19 @@ async def test_parse(update: Update, context: ContextTypes.DEFAULT_TYPE):
             msg += "\n📋 Использованные приёмы:\n"
             for combo in actions['combos']:
                 msg += f"  {combo}\n"
+        # Удары соперника (ОН бьёт)
         if actions['hits']:
             msg += "\n🎯 Удары соперника:\n"
-            unique_hits = list(dict.fromkeys(actions['hits']))
-            for i, hit in enumerate(unique_hits, 1):
-                msg += f"  {i}) {hit}\n"
-        if actions['blocks']:
-            msg += "\n🛡️ Блоки соперника:\n"
-            unique_blocks = list(dict.fromkeys(actions['blocks']))
-            for i, block in enumerate(unique_blocks, 1):
-                msg += f"  {i}) {block}\n"
+            for i, hit in enumerate(actions['hits'], 1):
+                icon = "🛡" if hit['block'] else "🗡"
+                msg += f"  {i}) {hit['part']} ({icon})\n"
+
+        # Полученные удары (в НЕГО бьют)
         if actions['received']:
             msg += "\n🛡️ Полученные удары:\n"
-            unique_received = list(dict.fromkeys(actions['received']))
-            for i, rec in enumerate(unique_received, 1):
-                msg += f"  {i}) {rec}\n"
+            for i, rec in enumerate(actions['received'], 1):
+                icon = "🛡" if rec['block'] else "🗡"
+                msg += f"  {i}) {rec['part']} ({icon})\n"
 
     await update.message.reply_text(msg)
 
