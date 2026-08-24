@@ -1787,28 +1787,35 @@ async def test_parse(update: Update, context: ContextTypes.DEFAULT_TYPE):
         defenders_text = text
         attackers_text = ""
 
-    # Парсим защитников
+    # Парсим защитников (только до "Нападающие")
+    if 'Нападающие' in text:
+        defenders_text = text.split('Нападающие')[0]
+    else:
+        defenders_text = text
+
     for line in defenders_text.split('\n'):
         if '❤️' in line and '🔸' in line:
             player = parse_player(line)
             if player:
                 defenders.append(player)
 
-    # Парсим нападающих
-    for line in attackers_text.split('\n'):
-        if '❤️' in line and '🔸' in line:
-            player = parse_player(line)
-            if player:
-                attackers.append(player)
+    # Парсим нападающих (после "Нападающие")
+    if 'Нападающие' in text:
+        attackers_text = text.split('Нападающие')[1]
+        for line in attackers_text.split('\n'):
+            if '❤️' in line and '🔸' in line:
+                player = parse_player(line)
+                if player:
+                    attackers.append(player)
 
-    # Вывод защитников
+    # Вывод защитников (только те, кто в defenders)
     if defenders:
         msg += "\n🛡️ Защитники:\n"
         for p in defenders:
             hp_percent = round(p['hp'] / p['max_hp'] * 100)
             msg += f"  {p['emoji_prefix']} {p['role_emoji']}{p['name']} 🔸{p['level']} ❤️({p['hp']}/{p['max_hp']}) {hp_percent}%\n"
 
-    # Вывод нападающих
+    # Вывод нападающих (только те, кто в attackers)
     if attackers:
         msg += "\n⚔️ Нападающие:\n"
         for p in attackers:
