@@ -1658,13 +1658,6 @@ async def test_parse(update: Update, context: ContextTypes.DEFAULT_TYPE):
         for p in players[:4]:
             msg += f"  {p['emoji_prefix']} {p['role_emoji']}{p['name']} (ур. {p['level']}) ❤️ {p['hp']}/{p['max_hp']}\n"
 
-    # Парсинг следующего хода
-    fights = parse_next_fight(text)
-    if fights:
-        msg += "\n⚔️ Следующий ход:\n"
-        for f in fights:
-            msg += f"  {f['player1']} vs {f['player2']}\n"
-
     fights = parse_next_fight(text)
     if fights:
         first_fight = fights[0]  # Берём только первую пару
