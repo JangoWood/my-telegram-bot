@@ -1634,31 +1634,29 @@ def parse_player_actions(text, enemy_name):
     }
 
     lines = text.split('\n')
-    for i, line in enumerate(lines):
-        # Ищем приёмы (комбинации)
-        if f'{enemy_name}' in line and 'использует комбинацию' in line:
+    for line in lines:
+        # 1. Приёмы
+        if enemy_name in line and 'использует комбинацию' in line:
             result['combos'].append(line.strip())
+            continue
 
-        # Ищем удары соперника: строка содержит имя соперника и "бьет в"
-        if enemy_name in line and 'бьет в' in line:
-            # Извлекаем часть тела
-            # Пример: "бьет в ноги по ..." → "ноги"
+        # 2. Удары соперника (он бьёт)
+        if enemy_name in line and 'бьет в' in line and 'по' not in line:
+            # Пример: "Sutcliffe бьет в грудь по ..."
             match = re.search(r'бьет в ([^,\.]+?)(?:\s|,|\.|по)', line)
             if match:
-                target = match.group(1).strip()
-                result['hits'].append(target)
+                result['hits'].append(match.group(1).strip())
+            continue
 
-        # Ищем полученные удары: строка содержит имя соперника и "по"
-        # Например: "... бьет в голову по ☃️💝🌚 🧝‍♂️️Анердис ..."
+        # 3. Полученные удары (в него бьют)
         if enemy_name in line and 'по' in line and 'бьет в' in line:
-            # Проверяем, что соперник получает удар (он упоминается после "по")
+            # Пример: "... бьет в пояс по Sutcliffe ..."
             parts = line.split('по')
             if len(parts) > 1 and enemy_name in parts[1]:
-                # Извлекаем часть тела, куда били
                 match = re.search(r'бьет в ([^,\.]+?)(?:\s|,|\.|по)', line)
                 if match:
-                    target = match.group(1).strip()
-                    result['received'].append(target)
+                    result['received'].append(match.group(1).strip())
+            continue
 
     return result
 
