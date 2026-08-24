@@ -1607,6 +1607,19 @@ def parse_next_fight(text):
             break
     return fights
 
+def get_enemy_from_next_fight(fights, player_nick):
+    """Возвращает полную строку соперника из первой пары, где есть player_nick"""
+    for line in fights:
+        parts = line.split(' vs ')
+        if len(parts) == 2:
+            player1 = parts[0].strip()
+            player2 = parts[1].strip()
+            if player_nick in player1:
+                return player2
+            elif player_nick in player2:
+                return player1
+    return None
+
 async def test_parse(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Проверяем, есть ли ответ на сообщение
     if not update.message.reply_to_message:
@@ -1659,15 +1672,8 @@ async def test_parse(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     fights = parse_next_fight(text)
     if fights:
-        first_fight = fights[0]
-        parts = first_fight.split(' vs ')
-        if len(parts) == 2:
-            player1 = parts[0].strip()
-            player2 = parts[1].strip()
-            if player_nick in player1:
-                enemy = player2
-            else:
-                enemy = player1
+        enemy = get_enemy_from_next_fight(fights, player_nick)
+        if enemy:
             msg += f"\n⚔️ Следующий ход соперника: {enemy}\n"
 
     await update.message.reply_text(msg)
