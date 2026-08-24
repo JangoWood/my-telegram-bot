@@ -1679,6 +1679,58 @@ def extract_player_name(line):
         return match.group(1)
     return None
 
+def parse_enemy_stats(text, enemy_name):
+    """
+    Собирает статистику для соперника за текущий ход:
+    🗡 — попадания (удары не в блок)
+    🛡 — блоки
+    🥊 — критические удары
+    ⚡️ — уклонения
+    🤺 — контрудары
+    🌬 — промахи / попадания в блок
+    """
+    stats = {
+        'swords': 0,    # 🗡
+        'shields': 0,   # 🛡
+        'crits': 0,     # 🥊
+        'evades': 0,    # ⚡️
+        'counters': 0,  # 🤺
+        'misses': 0,    # 🌬
+    }
+
+    lines = text.split('\n')
+    for line in lines:
+        # Только строки, где есть имя соперника
+        if enemy_name not in line:
+            continue
+
+        # 🗡 Попадания (удар не в блок)
+        if 'бьет' in line and 'наносит' in line and 'урона' in line:
+            if 'блок' not in line:
+                stats['swords'] += 1
+
+        # 🛡 Блоки (соперник ставит блок)
+        if 'попадает в блок' in line and 'бьет' in line:
+            stats['shields'] += 1
+
+        # 🥊 Критические удары
+        if 'критическим ударом' in line:
+            stats['crits'] += 1
+
+        # ⚡️ Уклонения
+        if 'увернулся' in line:
+            stats['evades'] += 1
+
+        # 🤺 Контрудары
+        if 'контрудар' in line:
+            stats['counters'] += 1
+
+        # 🌬 Промахи / блоки (когда удар соперника попал в блок)
+        if enemy_name in line and 'бьет' in line and 'блок' in line:
+            stats['misses'] += 1
+
+    return stats
+
 async def test_parse(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Проверяем, есть ли ответ на сообщение
     if not update.message.reply_to_message:
