@@ -1527,16 +1527,9 @@ async def start_cw(update: Update, context: ContextTypes.DEFAULT_TYPE):
         'last_turn': 0,
         'logs': [],
         'stats': {},
-        'enemy_stats': {
-            'swords': 0,
-            'shields': 0,
-            'crits': 0,
-            'evades': 0,
-            'counters': 0,
-            'misses': 0,
-        },
-        'enemy_hits': [],  # ← список ударов соперника
-        'enemy_received': [],  # ← список полученных ударов
+        'enemy_stats_by_name': {},  # ← теперь словарь по имени
+        'enemy_hits_by_name': {},  # ← теперь словарь по имени
+        'enemy_received_by_name': {},  # ← теперь словарь по имени
         'started_at': datetime.now(),
     }
 
@@ -1785,22 +1778,20 @@ async def test_parse(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if turn is None and not any('Нападающие' in line or 'Защитники' in line for line in text.split('\n')):
         msg += "\n⚠️ Не удалось распознать номер хода или команды."
 
+    # Парсим защитников и нападающих
     defenders = []
     attackers = []
     current_team = None
 
     for line in text.split('\n'):
-        # Останавливаемся перед "Следующий ход"
         if 'Следующий ход:' in line:
             break
-
         if 'Защитники' in line:
             current_team = 'defenders'
             continue
         if 'Нападающие' in line:
             current_team = 'attackers'
             continue
-
         if current_team and '❤️' in line and '🔸' in line:
             player = parse_player(line)
             if player:
@@ -1809,73 +1800,83 @@ async def test_parse(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 else:
                     attackers.append(player)
 
-    # Вывод защитников (только те, кто в defenders)
+    # Вывод защитников
     if defenders:
         msg += "\n🛡️ Защитники:\n"
         for p in defenders:
             hp_percent = round(p['hp'] / p['max_hp'] * 100)
             msg += f"  {p['emoji_prefix']} {p['role_emoji']}{p['name']} 🔸{p['level']} ❤️({p['hp']}/{p['max_hp']}) {hp_percent}%\n"
 
-    # Вывод нападающих (только те, кто в attackers)
+    # Вывод нападающих
     if attackers:
         msg += "\n⚔️ Нападающие:\n"
         for p in attackers:
             hp_percent = round(p['hp'] / p['max_hp'] * 100)
             msg += f"  {p['emoji_prefix']} {p['role_emoji']}{p['name']} 🔸{p['level']} ❤️({p['hp']}/{p['max_hp']}) {hp_percent}%\n"
 
+    # Следующий ход
     fights = parse_next_fight(text)
     if fights:
         enemy_line = get_enemy_from_next_fight(fights, player_nick)
         if enemy_line:
-            # Извлекаем чистое имя соперника
             enemy_name = extract_player_name(enemy_line)
             msg += f"\n⚔️ Следующий ход соперника: {enemy_line}\n"
 
-            # Парсинг деталей соперника
+            # Парсим действия соперника
             actions = parse_player_actions(text, enemy_name)
-            if actions:
-                if actions['combos']:
-                    msg += "\n📋 Использованные приёмы:\n"
-                    for combo in actions['combos']:
-                        msg += f"  {combo}\n"
-                if actions['hits']:
-                    msg += "\n🎯 Удары соперника:\n"
-                    for i, hit in enumerate(actions['hits'], 1):
-                        icon = "🛡" if hit['block'] else "🗡"
-                        msg += f"  {i}) {hit['part']} ({icon})\n"
-                if actions['received']:
-                    msg += "\n🛡️ Полученные удары:\n"
-                    for i, rec in enumerate(actions['received'], 1):
-                        icon = "🛡" if rec['block'] else "🗡"
-                        msg += f"  {i}) {rec['part']} ({icon})\n"
-            # === ДОБАВИТЬ ЭТОТ БЛОК ===
-            # Сохраняем удары в сессию
-            if actions['hits']:
-                session['enemy_hits'].extend(actions['hits'])
-            if actions['received']:
-                session['enemy_received'].extend(actions['received'])
-            # ===========================
 
-            if actions:
-                if actions['combos']:
-                    msg += "\n📋 Использованные приёмы:\n"
-                    for combo in actions['combos']:
-                        msg += f"  {combo}\n"
-            # Статистика соперника (текущий ход)
+            # Инициализируем хранилище для этого соперника
+            if enemy_name not in session['enemy_stats_by_name']:
+                session['enemy_stats_by_name'][enemy_name] = {
+                    'swords': 0, 'shields': 0, 'crits': 0,
+                    'evades': 0, 'counters': 0, 'misses': 0,
+                }
+            if enemy_name not in session['enemy_hits_by_name']:
+                session['enemy_hits_by_name'][enemy_name] = []
+            if enemy_name not in session['enemy_received_by_name']:
+                session['enemy_received_by_name'][enemy_name] = []
+
+            # Сохраняем удары
+            if actions.get('hits'):
+                session['enemy_hits_by_name'][enemy_name].extend(actions['hits'])
+            if actions.get('received'):
+                session['enemy_received_by_name'][enemy_name].extend(actions['received'])
+
+            # Вывод приёмов
+            if actions.get('combos'):
+                msg += "\n📋 Использованные приёмы:\n"
+                for combo in actions['combos']:
+                    msg += f"  {combo}\n"
+
+            # Статистика за текущий ход
             enemy_stats = parse_enemy_stats(text, enemy_name)
-            if enemy_stats:
-                # Обновляем накопленную статистику в сессии
-                session['enemy_stats']['swords'] += enemy_stats['swords']
-                session['enemy_stats']['shields'] += enemy_stats['shields']
-                session['enemy_stats']['crits'] += enemy_stats['crits']
-                session['enemy_stats']['evades'] += enemy_stats['evades']
-                session['enemy_stats']['counters'] += enemy_stats['counters']
-                session['enemy_stats']['misses'] += enemy_stats['misses']
 
-                # Выводим накопленную статистику
-                es = session['enemy_stats']
-                msg += "\n📊 Накопленная статистика соперника:\n"
-                msg += f"  🗡 {es['swords']}  🛡 {es['shields']}  🥊 {es['crits']}  ⚡️ {es['evades']}  🤺 {es['counters']}  🌬 {es['misses']}\n"
+            # Обновляем накопленную статистику для этого соперника
+            if enemy_stats:
+                stats = session['enemy_stats_by_name'][enemy_name]
+                stats['swords'] += enemy_stats['swords']
+                stats['shields'] += enemy_stats['shields']
+                stats['crits'] += enemy_stats['crits']
+                stats['evades'] += enemy_stats['evades']
+                stats['counters'] += enemy_stats['counters']
+                stats['misses'] += enemy_stats['misses']
+
+                # Вывод накопленной статистики
+                msg += f"\n📊 Накопленная статистика соперника ({enemy_name}):\n"
+                msg += f"  🗡 {stats['swords']}  🛡 {stats['shields']}  🥊 {stats['crits']}  ⚡️ {stats['evades']}  🤺 {stats['counters']}  🌬 {stats['misses']}\n"
+
+            # Вывод накопленных ударов
+            if session['enemy_hits_by_name'][enemy_name]:
+                msg += f"\n🎯 Удары соперника ({enemy_name}):\n"
+                for i, hit in enumerate(session['enemy_hits_by_name'][enemy_name], 1):
+                    icon = "🛡" if hit['block'] else "🗡"
+                    msg += f"  {i}) {hit['part']} ({icon})\n"
+
+            if session['enemy_received_by_name'][enemy_name]:
+                msg += f"\n🛡️ Полученные удары ({enemy_name}):\n"
+                for i, rec in enumerate(session['enemy_received_by_name'][enemy_name], 1):
+                    icon = "🛡" if rec['block'] else "🗡"
+                    msg += f"  {i}) {rec['part']} ({icon})\n"
 
     await update.message.reply_text(msg)
 
