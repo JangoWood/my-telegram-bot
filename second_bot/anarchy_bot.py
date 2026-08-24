@@ -1576,6 +1576,23 @@ def parse_team(line):
         }
     return None
 
+def parse_player(line):
+    # Пример: "1. 💝🤟🏾 🧝‍♂️️kiot 🔸33 ❤️(5699/5699)"
+    match = re.search(
+        r'^\d+\.\s*([^\s]+)\s+([^\s]+?)([А-Яа-яA-Za-z0-9_]+)\s*🔸(\d+)\s*❤️\((\d+)/(\d+)\)',
+        line
+    )
+    if match:
+        return {
+            'emoji_prefix': match.group(1),   # 💝🤟🏾
+            'role_emoji': match.group(2),     # 🧝‍♂️️
+            'name': match.group(3),           # kiot
+            'level': int(match.group(4)),     # 33
+            'hp': int(match.group(5)),        # 5699
+            'max_hp': int(match.group(6)),    # 5699
+        }
+    return None
+
 async def test_parse(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Проверяем, есть ли ответ на сообщение
     if not update.message.reply_to_message:
@@ -1603,7 +1620,21 @@ async def test_parse(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if turn is None and not any('Нападающие' in line or 'Защитники' in line for line in text.split('\n')):
         msg += "\n⚠️ Не удалось распознать номер хода или команды."
 
+    # Парсинг игроков
+    players = []
+    for line in text.split('\n'):
+        player = parse_player(line)
+        if player:
+            players.append(player)
+
+    if players:
+        msg += "\n👥 Игроки:\n"
+        for p in players[:4]:
+            msg += f"  {p['emoji_prefix']} {p['role_emoji']}{p['name']} (ур. {p['level']}) ❤️ {p['hp']}/{p['max_hp']}\n"
+
     await update.message.reply_text(msg)
+
+
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Показывает список всех команд бота"""
