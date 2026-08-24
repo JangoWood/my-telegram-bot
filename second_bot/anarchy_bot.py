@@ -1775,17 +1775,43 @@ async def test_parse(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if turn is None and not any('Нападающие' in line or 'Защитники' in line for line in text.split('\n')):
         msg += "\n⚠️ Не удалось распознать номер хода или команды."
 
-    # Парсинг игроков
-    players = []
-    for line in text.split('\n'):
+    # Разделяем защитников и нападающих
+    defenders = []
+    attackers = []
+
+    if 'Нападающие' in text:
+        parts = text.split('Нападающие')
+        defenders_text = parts[0]
+        attackers_text = parts[1]
+    else:
+        defenders_text = text
+        attackers_text = ""
+
+    # Парсим защитников
+    for line in defenders_text.split('\n'):
         player = parse_player(line)
         if player:
-            players.append(player)
+            defenders.append(player)
 
-    if players:
-        msg += "\n👥 Игроки:\n"
-        for p in players[:4]:
-            msg += f"  {p['emoji_prefix']} {p['role_emoji']}{p['name']} (ур. {p['level']}) ❤️ {p['hp']}/{p['max_hp']}\n"
+    # Парсим нападающих
+    for line in attackers_text.split('\n'):
+        player = parse_player(line)
+        if player:
+            attackers.append(player)
+
+    # Вывод защитников
+    if defenders:
+        msg += "\n🛡️ Защитники:\n"
+        for p in defenders:
+            hp_percent = round(p['hp'] / p['max_hp'] * 100)
+            msg += f"  {p['emoji_prefix']} {p['role_emoji']}{p['name']} 🔸{p['level']} ❤️({p['hp']}/{p['max_hp']}) {hp_percent}%\n"
+
+    # Вывод нападающих
+    if attackers:
+        msg += "\n⚔️ Нападающие:\n"
+        for p in attackers:
+            hp_percent = round(p['hp'] / p['max_hp'] * 100)
+            msg += f"  {p['emoji_prefix']} {p['role_emoji']}{p['name']} 🔸{p['level']} ❤️({p['hp']}/{p['max_hp']}) {hp_percent}%\n"
 
     fights = parse_next_fight(text)
     if fights:
