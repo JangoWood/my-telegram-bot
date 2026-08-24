@@ -1789,15 +1789,17 @@ async def test_parse(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Парсим защитников
     for line in defenders_text.split('\n'):
-        player = parse_player(line)
-        if player:
-            defenders.append(player)
+        if '❤️' in line and '🔸' in line:
+            player = parse_player(line)
+            if player:
+                defenders.append(player)
 
     # Парсим нападающих
     for line in attackers_text.split('\n'):
-        player = parse_player(line)
-        if player:
-            attackers.append(player)
+        if '❤️' in line and '🔸' in line:
+            player = parse_player(line)
+            if player:
+                attackers.append(player)
 
     # Вывод защитников
     if defenders:
