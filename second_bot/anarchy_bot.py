@@ -1809,7 +1809,11 @@ async def test_parse(update: Update, context: ContextTypes.DEFAULT_TYPE):
             for i, rec in enumerate(actions['received'], 1):
                 icon = "🛡" if rec['block'] else "🗡"
                 msg += f"  {i}) {rec['part']} ({icon})\n"
-
+        # Статистика соперника
+        enemy_stats = parse_enemy_stats(text, enemy_name)
+        if enemy_stats:
+            msg += "\n📊 Статистика соперника:\n"
+            msg += f"  🗡 {enemy_stats['swords']}  🛡 {enemy_stats['shields']}  🥊 {enemy_stats['crits']}  ⚡️ {enemy_stats['evades']}  🤺 {enemy_stats['counters']}  🌬 {enemy_stats['misses']}\n"
     await update.message.reply_text(msg)
 
 
