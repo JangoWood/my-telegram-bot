@@ -1728,22 +1728,6 @@ async def test_parse(update: Update, context: ContextTypes.DEFAULT_TYPE):
             enemy_name = extract_player_name(enemy_line)
             msg += f"\n⚔️ Следующий ход соперника: {enemy_line}\n"
 
-            # Парсим действия соперника
-            actions = parse_player_actions(text, enemy_name)
-            if actions:
-                if actions['combos']:
-                    msg += "\n📋 Использованные приёмы:\n"
-                    for combo in actions['combos']:
-                        msg += f"  {combo}\n"
-                if actions['hits']:
-                    msg += "\n🎯 Удары соперника:\n"
-                    for hit in actions['hits']:
-                        msg += f"  {hit}\n"
-                if actions['received']:
-                    msg += "\n🛡️ Полученные удары:\n"
-                    for rec in actions['received']:
-                        msg += f"  {rec}\n"
-
     # Парсинг деталей соперника
     actions = parse_player_actions(text, enemy_name)
     if actions:
