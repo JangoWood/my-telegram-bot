@@ -1660,12 +1660,12 @@ def parse_player_actions(text, enemy_name):
                     continue
 
         # 3. Полученные удары (в НЕГО бьют)
-        if enemy_name in line and 'по' in line and 'бьет в' in line:
-            parts = line.split('по')
+        if enemy_name in line and 'бьет' in line and '❤️' in line:
+            # Проверяем, что имя соперника есть в строке после "бьет"
+            parts = line.split('бьет')
             if len(parts) > 1 and enemy_name in parts[1]:
-                match = re.search(r'бьет в ([^,\.]+?)(?:\s|,|\.|по)', line)
+                match = re.search(r'бьет [^,\.]+? в ([^,\.]+?)(?:\s|,|\.|по)', line)
                 if match:
-                    # Проверяем, был ли блок
                     is_block = 'попадает в блок' in line or 'блок' in line
                     result['received'].append({
                         'part': match.group(1).strip(),
