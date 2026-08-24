@@ -1527,6 +1527,14 @@ async def start_cw(update: Update, context: ContextTypes.DEFAULT_TYPE):
         'last_turn': 0,
         'logs': [],
         'stats': {},
+        'enemy_stats': {  # ← добавляем
+            'swords': 0,
+            'shields': 0,
+            'crits': 0,
+            'evades': 0,
+            'counters': 0,
+            'misses': 0,
+        },
         'started_at': datetime.now(),
     }
 
@@ -1839,11 +1847,21 @@ async def test_parse(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         icon = "🛡" if rec['block'] else "🗡"
                         msg += f"  {i}) {rec['part']} ({icon})\n"
 
-            # Статистика соперника
+            # Статистика соперника (текущий ход)
             enemy_stats = parse_enemy_stats(text, enemy_name)
             if enemy_stats:
-                msg += "\n📊 Статистика соперника:\n"
-                msg += f"  🗡 {enemy_stats['swords']}  🛡 {enemy_stats['shields']}  🥊 {enemy_stats['crits']}  ⚡️ {enemy_stats['evades']}  🤺 {enemy_stats['counters']}  🌬 {enemy_stats['misses']}\n"
+                # Обновляем накопленную статистику в сессии
+                session['enemy_stats']['swords'] += enemy_stats['swords']
+                session['enemy_stats']['shields'] += enemy_stats['shields']
+                session['enemy_stats']['crits'] += enemy_stats['crits']
+                session['enemy_stats']['evades'] += enemy_stats['evades']
+                session['enemy_stats']['counters'] += enemy_stats['counters']
+                session['enemy_stats']['misses'] += enemy_stats['misses']
+
+                # Выводим накопленную статистику
+                es = session['enemy_stats']
+                msg += "\n📊 Накопленная статистика соперника:\n"
+                msg += f"  🗡 {es['swords']}  🛡 {es['shields']}  🥊 {es['crits']}  ⚡️ {es['evades']}  🤺 {es['counters']}  🌬 {es['misses']}\n"
 
     await update.message.reply_text(msg)
 
