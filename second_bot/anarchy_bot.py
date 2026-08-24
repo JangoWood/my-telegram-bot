@@ -1625,7 +1625,7 @@ def parse_player_actions(text, enemy_name):
         'combos': [],
         'hits': [],
         'received': [],
-        'blocks': [],  # ← новая категория
+        'blocks': [],
     }
 
     lines = text.split('\n')
@@ -1650,10 +1650,9 @@ def parse_player_actions(text, enemy_name):
                     result['hits'].append(match.group(1).strip())
                     continue
 
-        # 3. Блоки соперника (ОН ставит блок)
+        # 3. Блоки соперника (ОН ставит блок) — ищем имя соперника в строке (может быть с эмодзи)
         if enemy_name in line and 'попадает в блок' in line:
-            # Пример: "... бьет в пояс по Sutcliffe. И попадает в блок"
-            match = re.search(r'бьет в ([^,\.]+?)(?:\s|,|\.|по)', line)
+            match = re.search(r'бьет ([^,\.]+?)(?:\s|,|\.|по)', line)
             if match:
                 result['blocks'].append(match.group(1).strip())
             continue
