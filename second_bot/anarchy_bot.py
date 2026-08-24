@@ -1650,9 +1650,9 @@ def parse_player_actions(text, enemy_name):
                     result['hits'].append(match.group(1).strip())
                     continue
 
-        # 3. Блоки соперника (ОН ставит блок) — ищем имя соперника в строке (может быть с эмодзи)
+        # 3. Блоки соперника (ОН ставит блок)
         if enemy_name in line and 'попадает в блок' in line:
-            match = re.search(r'бьет ([^,\.]+?)(?:\s|,|\.|по)', line)
+            match = re.search(r'в ([^,\.]+?)(?:\s|,|\.|по)', line)
             if match:
                 result['blocks'].append(match.group(1).strip())
             continue
