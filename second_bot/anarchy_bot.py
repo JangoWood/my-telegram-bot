@@ -1753,12 +1753,16 @@ async def test_parse(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 msg += f"  {combo}\n"
         if actions['hits']:
             msg += "\n🎯 Удары соперника:\n"
-            for hit in actions['hits']:
-                msg += f"  {hit}\n"
+            # Убираем дубли
+            unique_hits = list(dict.fromkeys(actions['hits']))
+            for i, hit in enumerate(unique_hits, 1):
+                msg += f"  {i}) {hit}\n"
         if actions['received']:
             msg += "\n🛡️ Полученные удары:\n"
-            for rec in actions['received']:
-                msg += f"  {rec}\n"
+            # Убираем дубли
+            unique_received = list(dict.fromkeys(actions['received']))
+            for i, rec in enumerate(unique_received, 1):
+                msg += f"  {i}) {rec}\n"
 
     await update.message.reply_text(msg)
 
