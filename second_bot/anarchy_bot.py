@@ -1627,97 +1627,79 @@ def get_enemy_from_next_fight(fights, player_nick):
 def parse_player_actions(text, enemy_name):
     result = {
         'combos': [],
+        'skills': [],
         'hits': [],
         'received': [],
-        'blocks': [],
+        'missed_turns': [],
     }
 
     lines = text.split('\n')
     for line in lines:
-        # 1. Приёмы (с парсингом названия, ресурсов и количества)
-        if enemy_name in line and 'использует комбинацию' in line:
-            # Извлекаем название и ресурсы
-            # Пример: "☃️💝🌚 👸 Esdes 🔸34 использует комбинацию Клятва силы I (🛡1🌬1)"
-            match = re.search(r'использует комбинацию\s+([^(]+)\(([^)]+)\)', line)
-            if match:
-                name = match.group(1).strip()
-                resources = match.group(2).strip()
-            else:
-                name = line.strip()
-                resources = ""
+        if enemy_name not in line:
+            continue
 
-            usage = ""
+        # 1. Пропуск хода
+        if 'пропускает удар' in line:
+            result['missed_turns'].append(line.strip())
+            continue
+
+        # 2. Приёмы (с количеством использований)
+        if 'использует комбинацию' in line:
+            combo_text = line.strip()
             # Ищем следующую строку с "Кол-во использований:"
             for next_line in lines[lines.index(line) + 1:]:
                 if 'Кол-во использований:' in next_line:
-                    usage_match = re.search(r'Кол-во использований:\s*(\d+/\d+)', next_line)
-                    if usage_match:
-                        usage = usage_match.group(1)
+                    combo_text += " " + next_line.strip()
                     break
                 if not next_line.strip() or 'использует комбинацию' in next_line or 'бьет' in next_line:
                     break
-
-            result['combos'].append({
-                'name': name,
-                'resources': resources,
-                'usage': usage
-            })
+            result['combos'].append(combo_text)
             continue
 
-        # 2. Удары соперника (ОН бьёт)
-        if enemy_name in line and 'бьет' in line:
-            # Проверяем, что это не полученный удар
-            is_hit = True
-            if 'по' in line:
-                parts = line.split('по')
-                if len(parts) > 1 and enemy_name in parts[1]:
-                    is_hit = False
+        # 3. Навыки (с 💫)
+        if '💫' in line:
+            result['skills'].append(line.strip())
+            continue
 
-            if is_hit:
-                match = re.search(r'бьет\s+в\s+([^,\.]+?)(?:\s|,|\.|по)', line)
-                if match:
-                    is_block = 'попадает в блок' in line or 'блок' in line
-                    result['hits'].append({
-                        'part': match.group(1).strip(),
-                        'block': is_block
-                    })
-
-        # 3. Полученные удары (в НЕГО бьют)
-        if enemy_name in line and 'бьет' in line:
-            # Проверяем, что enemy_name находится ПОСЛЕ 'бьет' (это значит, что по нему бьют)
-            beat_pos = line.find('бьет')
-            if beat_pos != -1:
-                # Если enemy_name есть в части после 'бьет'
-                if enemy_name in line[beat_pos:]:
-                    # Проверяем, что это не удар соперника (когда он сам бьёт)
-                    # Для этого проверяем, что перед 'бьет' нет enemy_name
-                    if enemy_name not in line[:beat_pos]:
-                        match = re.search(r'\s+в\s+([^,\.]+?)(?:\s|,|\.|по)', line[beat_pos:])
-                        if match:
-                            is_block = 'попадает в блок' in line or 'блок' in line
-                            result['received'].append({
-                                'part': match.group(1).strip(),
-                                'block': is_block
-                            })
-                        else:
-                            match2 = re.search(r'бьет\s+[^,\.]+\s+([^,\.]+?)(?:\s|,|\.|по)', line[beat_pos:])
-                            if match2:
-                                is_block = 'попадает в блок' in line or 'блок' in line
-                                result['received'].append({
-                                    'part': match2.group(1).strip(),
-                                    'block': is_block
-                                })
+        # 4. Удары и полученные удары
+        if 'бьет' in line:
+            parts = line.split('бьет')
+            if len(parts) < 2:
                 continue
 
-    """
-    # === ДИАГНОСТИКА ===
-    if enemy_name == 'Sutcliffe':
-        print(f"🔍 Sutcliffe: hits={len(result['hits'])}, received={len(result['received'])}")
-        for h in result['hits']:
-            print(f"   hit: {h}")
-        for r in result['received']:
-            print(f"   received: {r}")
-    """
+            left = parts[0]   # кто бьёт
+            right = parts[1]  # кого бьют + часть тела
+
+            # Определяем часть тела
+            match = re.search(r'в\s+([^,\.]+?)(?:\s|,|\.|по)', right)
+            part = match.group(1).strip() if match else "неизвестно"
+
+            # Определяем результат
+            is_block = 'попадает в блок' in line or 'блок' in line or 'Противник заблокировал' in line
+            is_crit = 'критическим ударом' in line
+            is_evade = 'увернулся' in line
+            is_counter = 'контрудар' in line
+
+            # Если соперник в левой части — он бьёт
+            if enemy_name in left:
+                result['hits'].append({
+                    'part': part,
+                    'block': is_block,
+                    'crit': is_crit,
+                    'evade': is_evade,
+                    'counter': is_counter,
+                })
+
+            # Если соперник в правой части — по нему бьют
+            if enemy_name in right:
+                result['received'].append({
+                    'part': part,
+                    'block': is_block,
+                    'crit': is_crit,
+                    'evade': is_evade,
+                    'counter': is_counter,
+                })
+
     return result
 
 def extract_player_name(line):
@@ -1941,12 +1923,12 @@ async def test_parse(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if actions.get('combos'):
                 msg += "\n📋 Использованные приемы:\n"
                 for combo in actions['combos']:
-                    if combo.get('resources') and combo.get('usage'):
-                        msg += f"  {combo['name']} ({combo['resources']}) : {combo['usage']}\n"
-                    elif combo.get('usage'):
-                        msg += f"  {combo['name']} : {combo['usage']}\n"
-                    else:
-                        msg += f"  {combo['name']}\n"
+                    msg += f"  {combo}\n"
+
+            if actions.get('skills'):
+                msg += "\n💫 Использованные навыки:\n"
+                for skill in actions['skills']:
+                    msg += f"  {skill}\n"
 
             # === СОХРАНЯЕМ ДЕЙСТВИЯ ДЛЯ ВСЕХ ИГРОКОВ ===
             all_players = defenders + attackers
