@@ -1649,7 +1649,6 @@ def parse_player_actions(text, enemy_name):
                     is_hit = False
 
             if is_hit:
-                # Ищем часть тела после "бьет в"
                 match = re.search(r'бьет\s+в\s+([^,\.]+?)(?:\s|,|\.|по)', line)
                 if match:
                     is_block = 'попадает в блок' in line or 'блок' in line
@@ -1661,17 +1660,18 @@ def parse_player_actions(text, enemy_name):
 
         # 3. Полученные удары (в НЕГО бьют)
         if enemy_name in line and 'бьет' in line:
-            if 'по' in line:
-                parts = line.split('по')
-                if len(parts) > 1 and enemy_name in parts[1]:
-                    match = re.search(r'бьет\s+в\s+([^,\.]+?)(?:\s|,|\.|по)', line)
-                    if match:
-                        is_block = 'попадает в блок' in line or 'блок' in line
-                        result['received'].append({
-                            'part': match.group(1).strip(),
-                            'block': is_block
-                        })
-                    continue
+            # Проверяем, что имя соперника есть в строке после "бьет"
+            parts = line.split('бьет')
+            if len(parts) > 1 and enemy_name in parts[1]:
+                # Ищем часть тела: после "бьет" идёт имя соперника, потом "в" и часть тела
+                match = re.search(r'бьет\s+[^,\.]+\s+в\s+([^,\.]+?)(?:\s|,|\.|по)', line)
+                if match:
+                    is_block = 'попадает в блок' in line or 'блок' in line
+                    result['received'].append({
+                        'part': match.group(1).strip(),
+                        'block': is_block
+                    })
+                continue
 
     return result
 
