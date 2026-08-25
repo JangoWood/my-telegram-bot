@@ -1706,15 +1706,14 @@ def parse_enemy_stats(text, enemy_name):
         if enemy_name not in line:
             continue
 
-        # 🗡 Попадания (только когда соперник бьёт)
-        if enemy_name in line and 'бьет' in line and 'наносит' in line:
-            if 'блок' not in line and 'попадает в блок' not in line:
-                # Проверяем, что это именно удар соперника, а не удар по нему
-                if 'по' in line:
-                    parts = line.split('по')
-                    if len(parts) > 0 and enemy_name in parts[0]:
-                        stats['swords'] += 1
-                else:
+        # 🗡 Попадания (только когда соперник сам бьёт)
+        if 'бьет' in line and 'наносит' in line:
+            # Проверяем, что enemy_name находится до того, как появляется "бьет"
+            # или enemy_name является субъектом действия
+            parts = line.split('бьет')
+            if len(parts) > 0 and enemy_name in parts[0]:
+                # Это удар соперника
+                if 'блок' not in line and 'попадает в блок' not in line:
                     stats['swords'] += 1
 
         # 🛡 Блоки (соперник ставит блок)
@@ -1734,12 +1733,9 @@ def parse_enemy_stats(text, enemy_name):
             stats['counters'] += 1
 
         # 🌬 Промахи / блоки (когда удар соперника попал в блок)
-        if enemy_name in line and 'бьет' in line and ('блок' in line or 'попадает в блок' in line):
-            if 'по' in line:
-                parts = line.split('по')
-                if len(parts) > 0 and enemy_name in parts[0]:
-                    stats['misses'] += 1
-            else:
+        if 'бьет' in line and ('блок' in line or 'попадает в блок' in line):
+            parts = line.split('бьет')
+            if len(parts) > 0 and enemy_name in parts[0]:
                 stats['misses'] += 1
 
     return stats
