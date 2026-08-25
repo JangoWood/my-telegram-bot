@@ -1660,24 +1660,25 @@ def parse_player_actions(text, enemy_name):
 
         # 3. Полученные удары (в НЕГО бьют)
         if enemy_name in line and 'бьет' in line:
-            print(f"🔍 Проверяем строку на полученный удар: {line[:100]}...")  # ← ДОБАВИТЬ
+            # Диагностика в ответ бота
+            result['combos'].append(f"🔍 Диагностика: {line[:80]}...")
+
             parts = line.split('бьет')
-            print(f"   parts[0]: {parts[0][:50]}... parts[1]: {parts[1][:50]}...")  # ← ДОБАВИТЬ
             if len(parts) > 1 and enemy_name in parts[1]:
-                print(f"   ✅ enemy_name найден в parts[1]")  # ← ДОБАВИТЬ
+                result['combos'].append(f"   ✅ enemy_name найден в parts[1]")
                 match = re.search(r'бьет\s+[^,\.]+\s+в\s+([^,\.]+?)(?:\s|,|\.|по)', line)
                 if match:
-                    print(f"   ✅ Найдена часть тела: {match.group(1)}")  # ← ДОБАВИТЬ
+                    result['combos'].append(f"   ✅ Часть тела: {match.group(1)}")
                     is_block = 'попадает в блок' in line or 'блок' in line
                     result['received'].append({
                         'part': match.group(1).strip(),
                         'block': is_block
                     })
                 else:
-                    print(f"   ❌ Не удалось найти часть тела")  # ← ДОБАВИТЬ
-                continue
+                    result['combos'].append(f"   ❌ Не найдена часть тела")
             else:
-                print(f"   ❌ enemy_name НЕ найден в parts[1]")  # ← ДОБАВИТЬ
+                result['combos'].append(f"   ❌ enemy_name НЕ в parts[1]: {parts[1][:50] if len(parts) > 1 else 'None'}")
+            continue
 
     return result
 
