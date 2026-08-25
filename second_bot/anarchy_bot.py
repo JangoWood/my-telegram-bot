@@ -1807,6 +1807,10 @@ async def test_parse(update: Update, context: ContextTypes.DEFAULT_TYPE):
         for p in defenders:
             hp_percent = round(p['hp'] / p['max_hp'] * 100)
             msg += f"  {p['emoji_prefix']} {p['role_emoji']}{p['name']} 🔸{p['level']} ❤️({p['hp']}/{p['max_hp']}) {hp_percent}%\n"
+            # === ДОБАВИТЬ ЭТУ СТРОКУ ===
+            stats = session['enemy_stats_by_name'].get(p['name'], {})
+            if stats:
+                msg += f"  🗡{stats.get('swords', 0)}🛡{stats.get('shields', 0)}🥊{stats.get('crits', 0)}⚡️{stats.get('evades', 0)}🤺{stats.get('counters', 0)}🌬{stats.get('misses', 0)}\n"
 
     # Вывод нападающих
     if attackers:
@@ -1814,6 +1818,10 @@ async def test_parse(update: Update, context: ContextTypes.DEFAULT_TYPE):
         for p in attackers:
             hp_percent = round(p['hp'] / p['max_hp'] * 100)
             msg += f"  {p['emoji_prefix']} {p['role_emoji']}{p['name']} 🔸{p['level']} ❤️({p['hp']}/{p['max_hp']}) {hp_percent}%\n"
+            # === ДОБАВИТЬ ЭТУ СТРОКУ ===
+            stats = session['enemy_stats_by_name'].get(p['name'], {})
+            if stats:
+                msg += f"  🗡{stats.get('swords', 0)}🛡{stats.get('shields', 0)}🥊{stats.get('crits', 0)}⚡️{stats.get('evades', 0)}🤺{stats.get('counters', 0)}🌬{stats.get('misses', 0)}\n"
 
     # Следующий ход
     fights = parse_next_fight(text)
