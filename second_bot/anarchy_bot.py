@@ -1660,26 +1660,29 @@ def parse_player_actions(text, enemy_name):
 
         # 3. Полученные удары (в НЕГО бьют)
         if enemy_name in line and 'бьет' in line:
+            # Проверяем, что enemy_name находится ПОСЛЕ 'бьет' (это значит, что по нему бьют)
             beat_pos = line.find('бьет')
             if beat_pos != -1:
+                # Если enemy_name есть в части после 'бьет'
                 if enemy_name in line[beat_pos:]:
-                    # Ищем часть тела после 'в' (с пробелом или без)
-                    match = re.search(r'\s+в\s+([^,\.]+?)(?:\s|,|\.|по)', line[beat_pos:])
-                    if match:
-                        is_block = 'попадает в блок' in line or 'блок' in line
-                        result['received'].append({
-                            'part': match.group(1).strip(),
-                            'block': is_block
-                        })
-                    else:
-                        # Если не нашли 'в', пробуем найти часть тела после пробела
-                        match2 = re.search(r'бьет\s+[^,\.]+\s+([^,\.]+?)(?:\s|,|\.|по)', line[beat_pos:])
-                        if match2:
+                    # Проверяем, что это не удар соперника (когда он сам бьёт)
+                    # Для этого проверяем, что перед 'бьет' нет enemy_name
+                    if enemy_name not in line[:beat_pos]:
+                        match = re.search(r'\s+в\s+([^,\.]+?)(?:\s|,|\.|по)', line[beat_pos:])
+                        if match:
                             is_block = 'попадает в блок' in line or 'блок' in line
                             result['received'].append({
-                                'part': match2.group(1).strip(),
+                                'part': match.group(1).strip(),
                                 'block': is_block
                             })
+                        else:
+                            match2 = re.search(r'бьет\s+[^,\.]+\s+([^,\.]+?)(?:\s|,|\.|по)', line[beat_pos:])
+                            if match2:
+                                is_block = 'попадает в блок' in line or 'блок' in line
+                                result['received'].append({
+                                    'part': match2.group(1).strip(),
+                                    'block': is_block
+                                })
                 continue
 
     """
