@@ -1836,6 +1836,27 @@ async def test_parse(update: Update, context: ContextTypes.DEFAULT_TYPE):
             enemy_name = extract_player_name(enemy_line)
             msg += f"\n⚔️ Следующий ход соперника: {enemy_line}\n"
 
+            # === ДИАГНОСТИКА ДЛЯ ПОЛУЧЕННЫХ УДАРОВ ===
+            msg += "\n🔍 Диагностика полученных ударов:\n"
+            for line in text.split('\n'):
+                if 'бьет' in line and enemy_name in line:
+                    msg += f"  Строка: {line[:120]}\n"
+                    if 'по' in line:
+                        parts = line.split('по')
+                        msg += f"    'по' есть в строке\n"
+                        msg += f"    enemy_name в parts[0]: {enemy_name in parts[0]}\n"
+                        msg += f"    enemy_name в parts[1]: {enemy_name in parts[1] if len(parts) > 1 else False}\n"
+                    else:
+                        msg += f"    'по' НЕТ в строке\n"
+                    # Проверяем, есть ли часть тела
+                    match = re.search(r'бьет\s+[^,\.]+\s+в\s+([^,\.]+?)(?:\s|,|\.|по)', line)
+                    if match:
+                        msg += f"    Часть тела: {match.group(1)}\n"
+                    else:
+                        msg += f"    Часть тела НЕ найдена\n"
+                    msg += f"    enemy_name в строке: {enemy_name in line}\n"
+                    msg += f"    'бьет' в строке: {'бьет' in line}\n"
+
             # === ПАРСИМ ДЕЙСТВИЯ СОПЕРНИКА ===
             actions = parse_player_actions(text, enemy_name)
 
@@ -1878,9 +1899,6 @@ async def test_parse(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     stats['evades'] += player_stats['evades']
                     stats['counters'] += player_stats['counters']
                     stats['misses'] += player_stats['misses']
-
-                    # === ДИАГНОСТИКА (в ответ бота) ===
-                    msg += f"\n🔍 {player_name}: 🗡{player_stats['swords']} 🛡{player_stats['shields']} 🥊{player_stats['crits']} ⚡️{player_stats['evades']} 🤺{player_stats['counters']} 🌬{player_stats['misses']}\n"
 
             # === ВЫВОД ДЛЯ ТЕКУЩЕГО СОПЕРНИКА ===
             if enemy_name in session['enemy_hits_by_name']:
