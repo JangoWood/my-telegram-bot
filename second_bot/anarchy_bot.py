@@ -1660,8 +1660,8 @@ def parse_player_actions(text, enemy_name):
 
         # 3. Полученные удары (в НЕГО бьют)
         if enemy_name in line and 'бьет' in line:
-            # Проверяем, что имя соперника есть в строке после "бьет"
-            parts = line.split('бьет')
+            # Проверяем, что имя соперника находится после "бьет"
+            parts = line.split('бьет', 1)  # split только по первому вхождению
             if len(parts) > 1 and enemy_name in parts[1]:
                 match = re.search(r'бьет\s+[^,\.]+\s+в\s+([^,\.]+?)(?:\s|,|\.|по)', line)
                 if match:
