@@ -1627,9 +1627,9 @@ def get_enemy_from_next_fight(fights, player_nick):
 def parse_player_actions(text, enemy_name):
     result = {
         'combos': [],
-        'hits': [],       # список словарей: {'part': 'грудь', 'block': False/True}
-        'received': [],   # список словарей: {'part': 'грудь', 'block': False/True}
-        'blocks': [],     # пока не используем, можно убрать
+        'hits': [],
+        'received': [],
+        'blocks': [],
     }
 
     lines = text.split('\n')
@@ -1657,34 +1657,21 @@ def parse_player_actions(text, enemy_name):
                         'part': match.group(1).strip(),
                         'block': is_block
                     })
-                    continue
-
-                # Если нет "бьет в", ищем "бьет" + пробел + часть тела
-                # Например: "бьет грудь" (без "в")
-                match = re.search(r'бьет\s+([^,\.]+?)(?:\s|,|\.|по)', line)
-                if match:
-                    part = match.group(1).strip()
-                    # Проверяем, что это не эмодзи и не имя
-                    if not any(c in part for c in ['🎄', '👑', '💝', '🌚', '🧝', '🤴', '👸', '🧟', '⚡️', '❤️', '🔸']):
-                        is_block = 'попадает в блок' in line or 'блок' in line
-                        result['hits'].append({
-                            'part': part,
-                            'block': is_block
-                        })
                 continue
 
         # 3. Полученные удары (в НЕГО бьют)
-        if enemy_name in line and 'бьет' in line and '❤️' in line:
-            parts = line.split('бьет')
-            if len(parts) > 1 and enemy_name in parts[1]:
-                match = re.search(r'бьет\s+в\s+([^,\.]+?)(?:\s|,|\.|по)', line)
-                if match:
-                    is_block = 'попадает в блок' in line or 'блок' in line
-                    result['received'].append({
-                        'part': match.group(1).strip(),
-                        'block': is_block
-                    })
-                continue
+        if enemy_name in line and 'бьет' in line:
+            if 'по' in line:
+                parts = line.split('по')
+                if len(parts) > 1 and enemy_name in parts[1]:
+                    match = re.search(r'бьет\s+в\s+([^,\.]+?)(?:\s|,|\.|по)', line)
+                    if match:
+                        is_block = 'попадает в блок' in line or 'блок' in line
+                        result['received'].append({
+                            'part': match.group(1).strip(),
+                            'block': is_block
+                        })
+                    continue
 
     return result
 
