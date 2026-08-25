@@ -1930,6 +1930,17 @@ async def test_parse(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 for skill in actions['skills']:
                     msg += f"  {skill}\n"
 
+            # === ДИАГНОСТИКА parse_player_actions для всех игроков ===
+            msg += "\n🔍 Диагностика parse_player_actions:\n"
+            for player in defenders + attackers:
+                pname = player['name']
+                actions = parse_player_actions(text, pname)
+                msg += f"  {pname}: hits={len(actions.get('hits', []))}, received={len(actions.get('received', []))}, combos={len(actions.get('combos', []))}, skills={len(actions.get('skills', []))}\n"
+                if actions.get('hits'):
+                    msg += f"    hits: {actions['hits']}\n"
+                if actions.get('received'):
+                    msg += f"    received: {actions['received']}\n"
+
             # === СОХРАНЯЕМ ДЕЙСТВИЯ ДЛЯ ВСЕХ ИГРОКОВ ===
             all_players = defenders + attackers
 
@@ -1971,15 +1982,18 @@ async def test_parse(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     if combo.get('resources'):
                         subtract_combo_resources(stats, combo['resources'])
 
-            # === ДИАГНОСТИКА: проверяем, что сохранилось в сессии ===
-            if enemy_name == 'Sutcliffe':
-                msg += f"\n🔍 Диагностика Sutcliffe в сессии:\n"
-                msg += f"  hits: {len(session['enemy_hits_by_name'].get('Sutcliffe', []))}\n"
-                for h in session['enemy_hits_by_name'].get('Sutcliffe', []):
-                    msg += f"    {h}\n"
-                msg += f"  received: {len(session['enemy_received_by_name'].get('Sutcliffe', []))}\n"
-                for r in session['enemy_received_by_name'].get('Sutcliffe', []):
-                    msg += f"    {r}\n"
+            # === ДИАГНОСТИКА: проверяем, что сохранилось в сессии для всех игроков ===
+            msg += "\n🔍 Диагностика сессии (все игроки):\n"
+            all_players = defenders + attackers
+            for player in all_players:
+                pname = player['name']
+                hits = session['enemy_hits_by_name'].get(pname, [])
+                received = session['enemy_received_by_name'].get(pname, [])
+                msg += f"  {pname}: hits={len(hits)}, received={len(received)}\n"
+                if hits:
+                    msg += f"    hits: {hits}\n"
+                if received:
+                    msg += f"    received: {received}\n"
 
             # === ВЫВОД ДЛЯ ТЕКУЩЕГО СОПЕРНИКА ===
             if enemy_name in session['enemy_hits_by_name']:
