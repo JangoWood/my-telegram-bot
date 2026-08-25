@@ -1693,12 +1693,12 @@ def parse_enemy_stats(text, enemy_name):
     🌬 — промахи / попадания в блок
     """
     stats = {
-        'swords': 0,    # 🗡
-        'shields': 0,   # 🛡
-        'crits': 0,     # 🥊
-        'evades': 0,    # ⚡️
-        'counters': 0,  # 🤺
-        'misses': 0,    # 🌬
+        'swords': 0,
+        'shields': 0,
+        'crits': 0,
+        'evades': 0,
+        'counters': 0,
+        'misses': 0,
     }
 
     lines = text.split('\n')
@@ -1706,10 +1706,16 @@ def parse_enemy_stats(text, enemy_name):
         if enemy_name not in line:
             continue
 
-        # 🗡 Попадания (удар не в блок)
-        if 'бьет' in line and 'наносит' in line:
+        # 🗡 Попадания (только когда соперник бьёт)
+        if enemy_name in line and 'бьет' in line and 'наносит' in line:
             if 'блок' not in line and 'попадает в блок' not in line:
-                stats['swords'] += 1
+                # Проверяем, что это именно удар соперника, а не удар по нему
+                if 'по' in line:
+                    parts = line.split('по')
+                    if len(parts) > 0 and enemy_name in parts[0]:
+                        stats['swords'] += 1
+                else:
+                    stats['swords'] += 1
 
         # 🛡 Блоки (соперник ставит блок)
         if 'попадает в блок' in line and 'бьет' in line:
@@ -1728,15 +1734,13 @@ def parse_enemy_stats(text, enemy_name):
             stats['counters'] += 1
 
         # 🌬 Промахи / блоки (когда удар соперника попал в блок)
-        if enemy_name in line and 'бьет в' in line:
-            if 'блок' in line or 'попадает в блок' in line:
-                # Проверяем, что это именно удар соперника
-                if 'по' in line:
-                    parts = line.split('по')
-                    if len(parts) > 0 and enemy_name in parts[0]:
-                        stats['misses'] += 1
-                else:
+        if enemy_name in line and 'бьет' in line and ('блок' in line or 'попадает в блок' in line):
+            if 'по' in line:
+                parts = line.split('по')
+                if len(parts) > 0 and enemy_name in parts[0]:
                     stats['misses'] += 1
+            else:
+                stats['misses'] += 1
 
     return stats
 
