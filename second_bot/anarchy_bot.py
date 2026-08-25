@@ -2002,7 +2002,13 @@ async def test_parse(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 msg += f"\n📊 Накопленная статистика соперника ({enemy_name}):\n"
                 msg += f"  🗡 {stats['swords']}  🛡 {stats['shields']}  🥊 {stats['crits']}  ⚡️ {stats['evades']}  🤺 {stats['counters']}  🌬 {stats['misses']}\n"
 
-    await update.message.reply_text(msg, parse_mode="HTML")
+    # Разбиваем сообщение на части по 4000 символов
+    if len(msg) > 4000:
+        parts = [msg[i:i + 4000] for i in range(0, len(msg), 4000)]
+        for part in parts:
+            await update.message.reply_text(part, parse_mode="HTML")
+    else:
+        await update.message.reply_text(msg, parse_mode="HTML")
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
