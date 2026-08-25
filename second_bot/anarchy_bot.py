@@ -1681,6 +1681,8 @@ def parse_player_actions(text, enemy_name):
                                 'block': is_block
                             })
                 continue
+
+    """
     # === ДИАГНОСТИКА ===
     if enemy_name == 'Sutcliffe':
         print(f"🔍 Sutcliffe: hits={len(result['hits'])}, received={len(result['received'])}")
@@ -1688,7 +1690,7 @@ def parse_player_actions(text, enemy_name):
             print(f"   hit: {h}")
         for r in result['received']:
             print(f"   received: {r}")
-
+    """
     return result
 
 def extract_player_name(line):
@@ -1868,7 +1870,7 @@ async def test_parse(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             # === ПАРСИМ ДЕЙСТВИЯ СОПЕРНИКА ===
             actions = parse_player_actions(text, enemy_name)
-
+            """
             # === ДИАГНОСТИКА ===
             msg += f"\n🔍 Диагностика parse_player_actions для {enemy_name}:\n"
             msg += f"  hits: {len(actions.get('hits', []))}\n"
@@ -1877,7 +1879,7 @@ async def test_parse(update: Update, context: ContextTypes.DEFAULT_TYPE):
             msg += f"  received: {len(actions.get('received', []))}\n"
             for r in actions.get('received', []):
                 msg += f"    {r}\n"
-
+            """
             # === ВЫВОД ПРИЁМОВ ===
             if actions.get('combos'):
                 msg += "\n📋 Использованные приемы:\n"
