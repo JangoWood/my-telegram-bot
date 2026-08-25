@@ -1660,16 +1660,26 @@ def parse_player_actions(text, enemy_name):
 
         # 3. Полученные удары (в НЕГО бьют)
         if enemy_name in line and 'бьет' in line:
-            # Проверяем, что имя соперника находится после "бьет"
-            parts = line.split('бьет', 1)  # split только по первому вхождению
-            if len(parts) > 1 and enemy_name in parts[1]:
-                match = re.search(r'бьет\s+[^,\.]+\s+в\s+([^,\.]+?)(?:\s|,|\.|по)', line)
-                if match:
-                    is_block = 'попадает в блок' in line or 'блок' in line
-                    result['received'].append({
-                        'part': match.group(1).strip(),
-                        'block': is_block
-                    })
+            beat_pos = line.find('бьет')
+            if beat_pos != -1:
+                if enemy_name in line[beat_pos:]:
+                    # Ищем часть тела после 'в' (с пробелом или без)
+                    match = re.search(r'\s+в\s+([^,\.]+?)(?:\s|,|\.|по)', line[beat_pos:])
+                    if match:
+                        is_block = 'попадает в блок' in line or 'блок' in line
+                        result['received'].append({
+                            'part': match.group(1).strip(),
+                            'block': is_block
+                        })
+                    else:
+                        # Если не нашли 'в', пробуем найти часть тела после пробела
+                        match2 = re.search(r'бьет\s+[^,\.]+\s+([^,\.]+?)(?:\s|,|\.|по)', line[beat_pos:])
+                        if match2:
+                            is_block = 'попадает в блок' in line or 'блок' in line
+                            result['received'].append({
+                                'part': match2.group(1).strip(),
+                                'block': is_block
+                            })
                 continue
     # === ДИАГНОСТИКА ===
     if enemy_name == 'Sutcliffe':
