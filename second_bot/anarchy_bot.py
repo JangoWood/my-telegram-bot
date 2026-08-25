@@ -1667,8 +1667,8 @@ def parse_player_actions(text, enemy_name):
             if len(parts) < 2:
                 continue
 
-            left = parts[0]   # кто бьёт
-            right = parts[1]  # кого бьют + часть тела
+            left = parts[0].strip()   # кто бьёт
+            right = parts[1].strip()  # кого бьют + часть тела
 
             # Определяем часть тела
             match = re.search(r'в\s+([^,\.]+?)(?:\s|,|\.|по)', right)
