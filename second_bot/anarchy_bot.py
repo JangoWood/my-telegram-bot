@@ -1866,7 +1866,9 @@ async def test_parse(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 if player_actions.get('received'):
                     session['enemy_received_by_name'][player_name].extend(player_actions['received'])
 
+                # Сохраняем статистику
                 if player_stats:
+                    print(f"🔍 {player_name}: {player_stats}")  # ← ДОБАВИТЬ ЭТУ СТРОКУ
                     stats = session['enemy_stats_by_name'][player_name]
                     stats['swords'] += player_stats['swords']
                     stats['shields'] += player_stats['shields']
