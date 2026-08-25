@@ -1634,9 +1634,34 @@ def parse_player_actions(text, enemy_name):
 
     lines = text.split('\n')
     for line in lines:
-        # 1. Приёмы
+        # 1. Приёмы (с парсингом названия, ресурсов и количества)
         if enemy_name in line and 'использует комбинацию' in line:
-            result['combos'].append(line.strip())
+            # Извлекаем название и ресурсы
+            # Пример: "☃️💝🌚 👸 Esdes 🔸34 использует комбинацию Клятва силы I (🛡1🌬1)"
+            match = re.search(r'использует комбинацию\s+([^(]+)\(([^)]+)\)', line)
+            if match:
+                name = match.group(1).strip()
+                resources = match.group(2).strip()
+            else:
+                name = line.strip()
+                resources = ""
+
+            usage = ""
+            # Ищем следующую строку с "Кол-во использований:"
+            for next_line in lines[lines.index(line) + 1:]:
+                if 'Кол-во использований:' in next_line:
+                    usage_match = re.search(r'Кол-во использований:\s*(\d+/\d+)', next_line)
+                    if usage_match:
+                        usage = usage_match.group(1)
+                    break
+                if not next_line.strip() or 'использует комбинацию' in next_line or 'бьет' in next_line:
+                    break
+
+            result['combos'].append({
+                'name': name,
+                'resources': resources,
+                'usage': usage
+            })
             continue
 
         # 2. Удары соперника (ОН бьёт)
@@ -1887,7 +1912,12 @@ async def test_parse(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if actions.get('combos'):
                 msg += "\n📋 Использованные приемы:\n"
                 for combo in actions['combos']:
-                    msg += f"  {combo}\n"
+                    if combo.get('resources') and combo.get('usage'):
+                        msg += f"  {combo['name']} ({combo['resources']}) : {combo['usage']}\n"
+                    elif combo.get('usage'):
+                        msg += f"  {combo['name']} : {combo['usage']}\n"
+                    else:
+                        msg += f"  {combo['name']}\n"
 
             # === СОХРАНЯЕМ ДЕЙСТВИЯ ДЛЯ ВСЕХ ИГРОКОВ ===
             all_players = defenders + attackers
