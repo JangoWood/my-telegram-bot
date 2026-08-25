@@ -1990,6 +1990,16 @@ async def test_parse(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     if combo.get('resources'):
                         subtract_combo_resources(stats, combo['resources'])
 
+            # === ДИАГНОСТИКА: проверяем, что сохранилось в сессии ===
+            if enemy_name == 'Sutcliffe':
+                msg += f"\n🔍 Диагностика Sutcliffe в сессии:\n"
+                msg += f"  hits: {len(session['enemy_hits_by_name'].get('Sutcliffe', []))}\n"
+                for h in session['enemy_hits_by_name'].get('Sutcliffe', []):
+                    msg += f"    {h}\n"
+                msg += f"  received: {len(session['enemy_received_by_name'].get('Sutcliffe', []))}\n"
+                for r in session['enemy_received_by_name'].get('Sutcliffe', []):
+                    msg += f"    {r}\n"
+
             # === ВЫВОД ДЛЯ ТЕКУЩЕГО СОПЕРНИКА ===
             if enemy_name in session['enemy_hits_by_name']:
                 msg += f"\n🎯 Удары соперника ({enemy_name}):\n"
