@@ -1786,6 +1786,36 @@ def parse_enemy_stats(text, enemy_name):
 
     return stats
 
+def subtract_combo_resources(stats, resources):
+    """Вычитает ресурсы из статистики игрока"""
+    if not resources:
+        return
+
+    # Ищем 🗡N, 🛡N, 🥊N, ⚡️N, 🤺N, 🌬N
+    swords = re.search(r'🗡(\d+)', resources)
+    shields = re.search(r'🛡(\d+)', resources)
+    crits = re.search(r'🥊(\d+)', resources)
+    evades = re.search(r'⚡️(\d+)', resources)
+    counters = re.search(r'🤺(\d+)', resources)
+    misses = re.search(r'🌬(\d+)', resources)
+
+    if swords:
+        stats['swords'] -= int(swords.group(1))
+    if shields:
+        stats['shields'] -= int(shields.group(1))
+    if crits:
+        stats['crits'] -= int(crits.group(1))
+    if evades:
+        stats['evades'] -= int(evades.group(1))
+    if counters:
+        stats['counters'] -= int(counters.group(1))
+    if misses:
+        stats['misses'] -= int(misses.group(1))
+
+    # Не даём уйти в минус
+    for key in stats:
+        if stats[key] < 0:
+            stats[key] = 0
 
 async def test_parse(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Проверяем, есть ли ответ на сообщение
@@ -1952,6 +1982,13 @@ async def test_parse(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     stats['evades'] += player_stats['evades']
                     stats['counters'] += player_stats['counters']
                     stats['misses'] += player_stats['misses']
+
+            # === ВЫЧИТАЕМ РЕСУРСЫ ИЗ СТАТИСТИКИ ТЕКУЩЕГО СОПЕРНИКА ===
+            if enemy_name in session['enemy_stats_by_name']:
+                stats = session['enemy_stats_by_name'][enemy_name]
+                for combo in actions.get('combos', []):
+                    if combo.get('resources'):
+                        subtract_combo_resources(stats, combo['resources'])
 
             # === ВЫВОД ДЛЯ ТЕКУЩЕГО СОПЕРНИКА ===
             if enemy_name in session['enemy_hits_by_name']:
