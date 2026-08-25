@@ -1930,17 +1930,6 @@ async def test_parse(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 for skill in actions['skills']:
                     msg += f"  {skill}\n"
 
-            # === ДИАГНОСТИКА parse_player_actions для всех игроков ===
-            msg += "\n🔍 Диагностика parse_player_actions:\n"
-            for player in defenders + attackers:
-                pname = player['name']
-                actions = parse_player_actions(text, pname)
-                msg += f"  {pname}: hits={len(actions.get('hits', []))}, received={len(actions.get('received', []))}, combos={len(actions.get('combos', []))}, skills={len(actions.get('skills', []))}\n"
-                if actions.get('hits'):
-                    msg += f"    hits: {actions['hits']}\n"
-                if actions.get('received'):
-                    msg += f"    received: {actions['received']}\n"
-
             # === СОХРАНЯЕМ ДЕЙСТВИЯ ДЛЯ ВСЕХ ИГРОКОВ ===
             all_players = defenders + attackers
 
