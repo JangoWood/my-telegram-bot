@@ -1660,25 +1660,17 @@ def parse_player_actions(text, enemy_name):
 
         # 3. Полученные удары (в НЕГО бьют)
         if enemy_name in line and 'бьет' in line:
-            # Диагностика в ответ бота
-            result['combos'].append(f"🔍 Диагностика: {line[:80]}...")
-
+            # Проверяем, что имя соперника есть в строке после "бьет"
             parts = line.split('бьет')
             if len(parts) > 1 and enemy_name in parts[1]:
-                result['combos'].append(f"   ✅ enemy_name найден в parts[1]")
                 match = re.search(r'бьет\s+[^,\.]+\s+в\s+([^,\.]+?)(?:\s|,|\.|по)', line)
                 if match:
-                    result['combos'].append(f"   ✅ Часть тела: {match.group(1)}")
                     is_block = 'попадает в блок' in line or 'блок' in line
                     result['received'].append({
                         'part': match.group(1).strip(),
                         'block': is_block
                     })
-                else:
-                    result['combos'].append(f"   ❌ Не найдена часть тела")
-            else:
-                result['combos'].append(f"   ❌ enemy_name НЕ в parts[1]: {parts[1][:50] if len(parts) > 1 else 'None'}")
-            continue
+                continue
 
     return result
 
