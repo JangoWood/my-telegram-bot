@@ -1868,7 +1868,6 @@ async def test_parse(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
                 # Сохраняем статистику
                 if player_stats:
-                    print(f"🔍 {player_name}: {player_stats}")  # ← ДОБАВИТЬ ЭТУ СТРОКУ
                     stats = session['enemy_stats_by_name'][player_name]
                     stats['swords'] += player_stats['swords']
                     stats['shields'] += player_stats['shields']
@@ -1876,6 +1875,9 @@ async def test_parse(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     stats['evades'] += player_stats['evades']
                     stats['counters'] += player_stats['counters']
                     stats['misses'] += player_stats['misses']
+
+                    # === ДИАГНОСТИКА (в ответ бота) ===
+                    msg += f"\n🔍 {player_name}: 🗡{player_stats['swords']} 🛡{player_stats['shields']} 🥊{player_stats['crits']} ⚡️{player_stats['evades']} 🤺{player_stats['counters']} 🌬{player_stats['misses']}\n"
 
             # === ВЫВОД ДЛЯ ТЕКУЩЕГО СОПЕРНИКА ===
             if enemy_name in session['enemy_hits_by_name']:
