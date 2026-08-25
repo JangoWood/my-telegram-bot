@@ -1646,7 +1646,6 @@ def parse_player_actions(text, enemy_name):
         # 2. Приёмы (с количеством использований)
         if 'использует комбинацию' in line:
             combo_text = line.strip()
-            # Ищем следующую строку с "Кол-во использований:"
             for next_line in lines[lines.index(line) + 1:]:
                 if 'Кол-во использований:' in next_line:
                     combo_text += " " + next_line.strip()
@@ -1691,7 +1690,8 @@ def parse_player_actions(text, enemy_name):
                 })
 
             # Если соперник в правой части — по нему бьют
-            if enemy_name in right:
+            # НО! Если это контрудар — пропускаем (это удар соперника)
+            if enemy_name in right and not is_counter:
                 result['received'].append({
                     'part': part,
                     'block': is_block,
