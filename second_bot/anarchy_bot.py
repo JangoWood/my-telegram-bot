@@ -1807,10 +1807,9 @@ async def test_parse(update: Update, context: ContextTypes.DEFAULT_TYPE):
         for p in defenders:
             hp_percent = round(p['hp'] / p['max_hp'] * 100)
             msg += f"  {p['emoji_prefix']} {p['role_emoji']}{p['name']} 🔸{p['level']} ❤️({p['hp']}/{p['max_hp']}) {hp_percent}%\n"
-            # === ДОБАВИТЬ ЭТУ СТРОКУ ===
             stats = session['enemy_stats_by_name'].get(p['name'], {})
             if stats:
-                msg += f"  🗡{stats.get('swords', 0)}🛡{stats.get('shields', 0)}🥊{stats.get('crits', 0)}⚡️{stats.get('evades', 0)}🤺{stats.get('counters', 0)}🌬{stats.get('misses', 0)}\n"
+                msg += f"  <code>🗡{stats.get('swords', 0)}🛡{stats.get('shields', 0)}🥊{stats.get('crits', 0)}⚡️{stats.get('evades', 0)}🤺{stats.get('counters', 0)}🌬{stats.get('misses', 0)}</code>\n"
 
     # Вывод нападающих
     if attackers:
@@ -1818,10 +1817,9 @@ async def test_parse(update: Update, context: ContextTypes.DEFAULT_TYPE):
         for p in attackers:
             hp_percent = round(p['hp'] / p['max_hp'] * 100)
             msg += f"  {p['emoji_prefix']} {p['role_emoji']}{p['name']} 🔸{p['level']} ❤️({p['hp']}/{p['max_hp']}) {hp_percent}%\n"
-            # === ДОБАВИТЬ ЭТУ СТРОКУ ===
             stats = session['enemy_stats_by_name'].get(p['name'], {})
             if stats:
-                msg += f"  🗡{stats.get('swords', 0)}🛡{stats.get('shields', 0)}🥊{stats.get('crits', 0)}⚡️{stats.get('evades', 0)}🤺{stats.get('counters', 0)}🌬{stats.get('misses', 0)}\n"
+                msg += f"  <code>🗡{stats.get('swords', 0)}🛡{stats.get('shields', 0)}🥊{stats.get('crits', 0)}⚡️{stats.get('evades', 0)}🤺{stats.get('counters', 0)}🌬{stats.get('misses', 0)}</code>\n"
 
     # Следующий ход
     fights = parse_next_fight(text)
@@ -1831,15 +1829,21 @@ async def test_parse(update: Update, context: ContextTypes.DEFAULT_TYPE):
             enemy_name = extract_player_name(enemy_line)
             msg += f"\n⚔️ Следующий ход соперника: {enemy_line}\n"
 
-            # === НОВЫЙ БЛОК: сохраняем действия для ВСЕХ игроков ===
-            # 1. Собираем всех игроков из лога (защитники + нападающие)
+            # === ПАРСИМ ДЕЙСТВИЯ СОПЕРНИКА ===
+            actions = parse_player_actions(text, enemy_name)
+
+            # === ВЫВОД ПРИЁМОВ ===
+            if actions.get('combos'):
+                msg += "\n📋 Использованные приемы:\n"
+                for combo in actions['combos']:
+                    msg += f"  {combo}\n"
+
+            # === СОХРАНЯЕМ ДЕЙСТВИЯ ДЛЯ ВСЕХ ИГРОКОВ ===
             all_players = defenders + attackers
 
-            # 2. Для каждого игрока парсим его действия
             for player in all_players:
                 player_name = player['name']
 
-                # Инициализируем, если ещё нет
                 if player_name not in session['enemy_hits_by_name']:
                     session['enemy_hits_by_name'][player_name] = []
                 if player_name not in session['enemy_received_by_name']:
@@ -1850,17 +1854,14 @@ async def test_parse(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         'evades': 0, 'counters': 0, 'misses': 0,
                     }
 
-                # Парсим действия для этого игрока
                 player_actions = parse_player_actions(text, player_name)
                 player_stats = parse_enemy_stats(text, player_name)
 
-                # Сохраняем удары
                 if player_actions.get('hits'):
                     session['enemy_hits_by_name'][player_name].extend(player_actions['hits'])
                 if player_actions.get('received'):
                     session['enemy_received_by_name'][player_name].extend(player_actions['received'])
 
-                # Сохраняем статистику
                 if player_stats:
                     stats = session['enemy_stats_by_name'][player_name]
                     stats['swords'] += player_stats['swords']
