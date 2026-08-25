@@ -1639,33 +1639,45 @@ def parse_player_actions(text, enemy_name):
             result['combos'].append(line.strip())
             continue
 
-        # 2. Удары соперника (ОН бьёт) — ищем 'бьет' (с 'в' или без)
+        # 2. Удары соперника (ОН бьёт)
         if enemy_name in line and 'бьет' in line:
-            # Проверяем, что это не полученный удар (когда по нему бьют)
-            # Если есть 'по' и enemy_name после 'по' — это полученный удар
+            # Проверяем, что это не полученный удар
             is_hit = True
             if 'по' in line:
                 parts = line.split('по')
                 if len(parts) > 1 and enemy_name in parts[1]:
-                    is_hit = False  # это полученный удар, а не его удар
+                    is_hit = False
 
             if is_hit:
-                # Ищем часть тела после 'бьет' или 'бьет в'
-                match = re.search(r'бьет\s*(?:в\s*)?([^,\.]+?)(?:\s|,|\.|по)', line)
+                # Ищем часть тела после "бьет в"
+                match = re.search(r'бьет\s+в\s+([^,\.]+?)(?:\s|,|\.|по)', line)
                 if match:
                     is_block = 'попадает в блок' in line or 'блок' in line
                     result['hits'].append({
                         'part': match.group(1).strip(),
                         'block': is_block
                     })
+                    continue
+
+                # Если нет "бьет в", ищем "бьет" + пробел + часть тела
+                # Например: "бьет грудь" (без "в")
+                match = re.search(r'бьет\s+([^,\.]+?)(?:\s|,|\.|по)', line)
+                if match:
+                    part = match.group(1).strip()
+                    # Проверяем, что это не эмодзи и не имя
+                    if not any(c in part for c in ['🎄', '👑', '💝', '🌚', '🧝', '🤴', '👸', '🧟', '⚡️', '❤️', '🔸']):
+                        is_block = 'попадает в блок' in line or 'блок' in line
+                        result['hits'].append({
+                            'part': part,
+                            'block': is_block
+                        })
                 continue
 
         # 3. Полученные удары (в НЕГО бьют)
         if enemy_name in line and 'бьет' in line and '❤️' in line:
-            # Проверяем, что имя соперника есть в строке после "бьет"
             parts = line.split('бьет')
             if len(parts) > 1 and enemy_name in parts[1]:
-                match = re.search(r'бьет\s*(?:в\s*)?([^,\.]+?)(?:\s|,|\.|по)', line)
+                match = re.search(r'бьет\s+в\s+([^,\.]+?)(?:\s|,|\.|по)', line)
                 if match:
                     is_block = 'попадает в блок' in line or 'блок' in line
                     result['received'].append({
