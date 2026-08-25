@@ -1889,8 +1889,7 @@ async def test_parse(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 msg += f"\n📊 Накопленная статистика соперника ({enemy_name}):\n"
                 msg += f"  🗡 {stats['swords']}  🛡 {stats['shields']}  🥊 {stats['crits']}  ⚡️ {stats['evades']}  🤺 {stats['counters']}  🌬 {stats['misses']}\n"
 
-    await update.message.reply_text(msg)
-
+    await update.message.reply_text(msg, parse_mode="HTML")
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
