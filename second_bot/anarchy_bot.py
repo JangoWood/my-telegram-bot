@@ -1656,7 +1656,7 @@ def parse_player_actions(text, enemy_name):
                         'part': match.group(1).strip(),
                         'block': is_block
                     })
-                continue
+
 
         # 3. Полученные удары (в НЕГО бьют)
         if enemy_name in line and 'бьет' in line:
