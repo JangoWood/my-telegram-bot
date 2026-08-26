@@ -1670,9 +1670,19 @@ def parse_player_actions(text, enemy_name):
             })
             continue
 
-        # 3. Навыки (с 💫)
-        if '💫' in line:
-            result['skills'].append(line.strip())
+        # 3. Навыки (с 💫) — с подсчётом использований
+        if '💫' in line and enemy_name in line:
+            # Извлекаем название навыка после 💫
+            match = re.search(r'💫\s*([^,\n]+)', line)
+            if match:
+                skill_name = match.group(1).strip()
+            else:
+                skill_name = line.strip()
+
+            result['skills'].append({
+                'name': skill_name,
+                'full_line': line.strip()
+            })
             continue
 
         # 4. Удары и полученные удары
@@ -1947,10 +1957,27 @@ async def test_parse(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 for combo in enemy_combos:
                     msg += f"  {combo['name']} : {combo['usage']}\n"
 
-            if actions.get('skills'):
+            # === ВЫВОД НАВЫКОВ (только для текущего соперника) ===
+            enemy_skills = []
+            skill_count = {}
+
+            for skill in actions.get('skills', []):
+                if isinstance(skill, dict) and skill.get('full_line'):
+                    if enemy_name in skill['full_line']:
+                        skill_name = skill['name']
+                        # Считаем, сколько раз встречается навык
+                        if skill_name not in skill_count:
+                            skill_count[skill_name] = 0
+                        skill_count[skill_name] += 1
+                        # Добавляем только один раз в список (для уникальности)
+                        if skill_name not in [s['name'] for s in enemy_skills]:
+                            enemy_skills.append(skill)
+
+            if enemy_skills:
                 msg += "\n💫 Использованные навыки:\n"
-                for skill in actions['skills']:
-                    msg += f"  {skill}\n"
+                for skill in enemy_skills:
+                    count = skill_count.get(skill['name'], 0)
+                    msg += f"  {skill['name']} ({count})\n"
 
             # === СОХРАНЯЕМ ДЕЙСТВИЯ ДЛЯ ВСЕХ ИГРОКОВ ===
             all_players = defenders + attackers
