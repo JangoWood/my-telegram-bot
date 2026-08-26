@@ -1920,9 +1920,15 @@ async def test_parse(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 msg += f"    {r}\n"
             """
             # === ВЫВОД ПРИЁМОВ ===
-            if actions.get('combos'):
+            # Фильтруем приёмы только для текущего соперника
+            enemy_combos = []
+            for combo in actions.get('combos', []):
+                if enemy_name in combo:
+                    enemy_combos.append(combo)
+
+            if enemy_combos:
                 msg += "\n📋 Использованные приемы:\n"
-                for combo in actions['combos']:
+                for combo in enemy_combos:
                     msg += f"  {combo}\n"
 
             if actions.get('skills'):
