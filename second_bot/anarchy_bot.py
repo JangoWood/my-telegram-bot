@@ -1968,6 +1968,9 @@ async def test_parse(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if enemy_name in session['enemy_stats_by_name']:
                 stats = session['enemy_stats_by_name'][enemy_name]
                 for combo in actions.get('combos', []):
+                    # Если combo — строка, пропускаем (не вычитаем)
+                    if isinstance(combo, str):
+                        continue
                     if combo.get('resources'):
                         subtract_combo_resources(stats, combo['resources'])
 
