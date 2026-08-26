@@ -1580,19 +1580,19 @@ def parse_team(line):
     return None
 
 def parse_player(line):
-    # Пример: "1. 💝🤟🏾 🧝‍♂️️kiot 🔸33 ❤️(5699/5699)"
     match = re.search(
         r'^\d+\.\s*([^\s]+)\s+([^\s]+?)([А-Яа-яA-Za-z0-9_]+)\s*🔸(\d+)\s*❤️\((\d+)/(\d+)\)',
         line
     )
     if match:
         return {
-            'emoji_prefix': match.group(1),   # 💝🤟🏾
-            'role_emoji': match.group(2),     # 🧝‍♂️️
-            'name': match.group(3),           # kiot
-            'level': int(match.group(4)),     # 33
-            'hp': int(match.group(5)),        # 5699
-            'max_hp': int(match.group(6)),    # 5699
+            'emoji_prefix': match.group(1),
+            'role_emoji': match.group(2),
+            'name': match.group(3),
+            'full_id': f"{match.group(1)} {match.group(2)}{match.group(3)} 🔸{match.group(4)}",
+            'level': int(match.group(4)),
+            'hp': int(match.group(5)),
+            'max_hp': int(match.group(6)),
         }
     return None
 
@@ -1882,6 +1882,14 @@ async def test_parse(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     defenders.append(player)
                 else:
                     attackers.append(player)
+
+    # === НАХОДИМ FULL_ID НАШЕГО ИГРОКА ===
+    player_full_id = player_nick  # запасной вариант
+    all_players = defenders + attackers
+    for player in all_players:
+        if player['name'] == player_nick:
+            player_full_id = player['full_id']
+            break
 
     # Вывод защитников
     if defenders:
