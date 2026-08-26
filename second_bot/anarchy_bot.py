@@ -1662,9 +1662,11 @@ def parse_player_actions(text, enemy_name):
                 if not next_line.strip() or 'использует комбинацию' in next_line or 'бьет' in next_line:
                     break
 
+            # Сохраняем полную строку для фильтрации
             result['combos'].append({
                 'name': combo_name,
-                'usage': usage
+                'usage': usage,
+                'full_line': line.strip()  # сохраняем для проверки принадлежности
             })
             continue
 
@@ -1935,10 +1937,9 @@ async def test_parse(update: Update, context: ContextTypes.DEFAULT_TYPE):
             # === ВЫВОД ПРИЁМОВ (только для текущего соперника) ===
             enemy_combos = []
             for combo in actions.get('combos', []):
-                # combo теперь словарь, проверяем, что он принадлежит текущему сопернику
-                if isinstance(combo, dict) and combo.get('name'):
-                    # Проверяем, что название приёма содержит имя соперника
-                    if enemy_name in combo['name']:
+                # Проверяем, что приём принадлежит текущему сопернику
+                if isinstance(combo, dict) and combo.get('full_line'):
+                    if enemy_name in combo['full_line']:
                         enemy_combos.append(combo)
 
             if enemy_combos:
