@@ -1918,7 +1918,7 @@ async def test_parse(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if enemy_line:
             enemy_name = extract_player_name(enemy_line)
             msg += f"\n⚔️ Следующий ход соперника: {enemy_line}\n"
-            """
+
             # === ДИАГНОСТИКА ДЛЯ ПОЛУЧЕННЫХ УДАРОВ ===
             msg += "\n🔍 Диагностика полученных ударов:\n"
             for line in text.split('\n'):
@@ -1939,7 +1939,7 @@ async def test_parse(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         msg += f"    Часть тела НЕ найдена\n"
                     msg += f"    enemy_name в строке: {enemy_name in line}\n"
                     msg += f"    'бьет' в строке: {'бьет' in line}\n"
-            """
+
             # === ПАРСИМ ДЕЙСТВИЯ СОПЕРНИКА ===
             actions = parse_player_actions(text, enemy_name)
             """
