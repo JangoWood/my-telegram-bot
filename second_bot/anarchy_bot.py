@@ -1643,16 +1643,29 @@ def parse_player_actions(text, enemy_name):
             result['missed_turns'].append(line.strip())
             continue
 
-        # 2. Приёмы (с количеством использований)
-        if 'использует комбинацию' in line:
-            combo_text = line.strip()
+        # 2. Приёмы (сокращённый вид)
+        if 'использует комбинацию' in line and enemy_name in line:
+            # Извлекаем название приёма после "комбинацию"
+            match = re.search(r'использует комбинацию\s+([^(]+)', line)
+            if match:
+                combo_name = match.group(1).strip()
+            else:
+                combo_name = line.strip()
+
+            usage = ""
             for next_line in lines[lines.index(line) + 1:]:
                 if 'Кол-во использований:' in next_line:
-                    combo_text += " " + next_line.strip()
+                    usage_match = re.search(r'Кол-во использований:\s*(\d+/\d+)', next_line)
+                    if usage_match:
+                        usage = usage_match.group(1)
                     break
                 if not next_line.strip() or 'использует комбинацию' in next_line or 'бьет' in next_line:
                     break
-            result['combos'].append(combo_text)
+
+            result['combos'].append({
+                'name': combo_name,
+                'usage': usage
+            })
             continue
 
         # 3. Навыки (с 💫)
@@ -1919,17 +1932,19 @@ async def test_parse(update: Update, context: ContextTypes.DEFAULT_TYPE):
             for r in actions.get('received', []):
                 msg += f"    {r}\n"
             """
-            # === ВЫВОД ПРИЁМОВ ===
-            # Фильтруем приёмы только для текущего соперника
+            # === ВЫВОД ПРИЁМОВ (только для текущего соперника) ===
             enemy_combos = []
             for combo in actions.get('combos', []):
-                if enemy_name in combo:
-                    enemy_combos.append(combo)
+                # combo теперь словарь, проверяем, что он принадлежит текущему сопернику
+                if isinstance(combo, dict) and combo.get('name'):
+                    # Проверяем, что название приёма содержит имя соперника
+                    if enemy_name in combo['name']:
+                        enemy_combos.append(combo)
 
             if enemy_combos:
                 msg += "\n📋 Использованные приемы:\n"
                 for combo in enemy_combos:
-                    msg += f"  {combo}\n"
+                    msg += f"  {combo['name']} : {combo['usage']}\n"
 
             if actions.get('skills'):
                 msg += "\n💫 Использованные навыки:\n"
@@ -1974,10 +1989,7 @@ async def test_parse(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if enemy_name in session['enemy_stats_by_name']:
                 stats = session['enemy_stats_by_name'][enemy_name]
                 for combo in actions.get('combos', []):
-                    # Если combo — строка, пропускаем (не вычитаем)
-                    if isinstance(combo, str):
-                        continue
-                    if combo.get('resources'):
+                    if isinstance(combo, dict) and combo.get('resources'):
                         subtract_combo_resources(stats, combo['resources'])
             """
             # === ДИАГНОСТИКА: проверяем, что сохранилось в сессии для всех игроков ===
