@@ -1973,7 +1973,7 @@ async def test_parse(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         continue
                     if combo.get('resources'):
                         subtract_combo_resources(stats, combo['resources'])
-"""
+            """
             # === ДИАГНОСТИКА: проверяем, что сохранилось в сессии для всех игроков ===
             msg += "\n🔍 Диагностика сессии (все игроки):\n"
             all_players = defenders + attackers
@@ -1986,7 +1986,7 @@ async def test_parse(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     msg += f"    hits: {hits}\n"
                 if received:
                     msg += f"    received: {received}\n"
-"""
+            """
             # === ВЫВОД ДЛЯ ТЕКУЩЕГО СОПЕРНИКА ===
             if enemy_name in session['enemy_hits_by_name']:
                 msg += f"\n🎯 Удары соперника ({enemy_name}):\n"
