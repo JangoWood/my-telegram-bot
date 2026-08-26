@@ -1945,16 +1945,7 @@ async def test_parse(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             # === ПАРСИМ ДЕЙСТВИЯ СОПЕРНИКА ===
             actions = parse_player_actions(text, enemy_name)
-            """
-            # === ДИАГНОСТИКА ===
-            msg += f"\n🔍 Диагностика parse_player_actions для {enemy_name}:\n"
-            msg += f"  hits: {len(actions.get('hits', []))}\n"
-            for h in actions.get('hits', []):
-                msg += f"    {h}\n"
-            msg += f"  received: {len(actions.get('received', []))}\n"
-            for r in actions.get('received', []):
-                msg += f"    {r}\n"
-            """
+
             # === ВЫВОД ПРИЁМОВ (только для текущего соперника) ===
             enemy_combos = []
             for combo in actions.get('combos', []):
@@ -2030,9 +2021,9 @@ async def test_parse(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 for combo in actions.get('combos', []):
                     if isinstance(combo, dict) and combo.get('resources'):
                         subtract_combo_resources(stats, combo['resources'])
-            """
-            # === ДИАГНОСТИКА: проверяем, что сохранилось в сессии для всех игроков ===
-            msg += "\n🔍 Диагностика сессии (все игроки):\n"
+
+            # === ДИАГНОСТИКА: проверяем, что сохранилось в сессии ===
+            msg += "\n🔍 Диагностика сессии:\n"
             all_players = defenders + attackers
             for player in all_players:
                 pname = player['name']
@@ -2043,7 +2034,7 @@ async def test_parse(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     msg += f"    hits: {hits}\n"
                 if received:
                     msg += f"    received: {received}\n"
-            """
+
             # === ВЫВОД ДЛЯ ТЕКУЩЕГО СОПЕРНИКА ===
             if enemy_name in session['enemy_hits_by_name']:
                 msg += f"\n🎯 Удары соперника ({enemy_name}):\n"
