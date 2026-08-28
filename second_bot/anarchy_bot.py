@@ -1498,6 +1498,10 @@ async def chat_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import CallbackQueryHandler
+
+
 async def cmd_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Показывает команды для игрока с кнопками"""
 
@@ -1531,15 +1535,14 @@ async def cmd_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     response = f"<b>Команды для игрока {player_name}:</b>\n\n"
     response += f"Нажмите на кнопку, чтобы отправить команду в этот чат.\n"
-    response += f"«Тест» — вставляет в поле ввода с выбором чата.\n"
-    response += f"«Тест2» — отправляет в чат без слеша (можно скопировать)."
+    response += f"«Тест» и «Тест2» — выберите чат для вставки команды."
 
     keyboard = [
         [InlineKeyboardButton("🔄 /trade", callback_data=f"cmd_trade_{player_name}")],
         [InlineKeyboardButton("👤 /getplayer", callback_data=f"cmd_getplayer_{player_name}")],
         [InlineKeyboardButton("🔑 /use_k", callback_data=f"cmd_usek_{player_name}")],
         [InlineKeyboardButton("🧪 Тест (выбор чата)", switch_inline_query=f"/trade {player_name}")],
-        [InlineKeyboardButton("🧪 Тест2 (без слеша)", callback_data=f"cmd_notrade_{player_name}")],
+        [InlineKeyboardButton("🧪 Тест2 (без слеша)", switch_inline_query=f"trade {player_name}")],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -1566,9 +1569,6 @@ async def cmd_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data.startswith("cmd_usek_"):
         player_name = data.replace("cmd_usek_", "")
         command = f"/use_k {player_name}"
-    elif data.startswith("cmd_notrade_"):
-        player_name = data.replace("cmd_notrade_", "")
-        command = f"trade {player_name}"
     else:
         return
 
