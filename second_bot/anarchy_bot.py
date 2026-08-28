@@ -1537,6 +1537,42 @@ async def cmd_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(response, parse_mode="HTML")
 
+
+async def trade_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Показывает команду /trade для игрока, на чьё сообщение отвечаем"""
+
+    if not update.message.reply_to_message:
+        await update.message.reply_text(
+            "❌ Ответьте на сообщение игрока командой /trade",
+            parse_mode="HTML"
+        )
+        return
+
+    user = update.message.reply_to_message.from_user
+    user_tag = f"@{user.username}" if user.username else None
+
+    if not user_tag:
+        await update.message.reply_text(
+            "❌ У пользователя нет username в Telegram.",
+            parse_mode="HTML"
+        )
+        return
+
+    player_data = get_player_realm_from_sheet(user_tag)
+
+    if not player_data:
+        await update.message.reply_text(
+            f"❌ Игрок с тегом {user_tag} не найден в таблице Ремесло.",
+            parse_mode="HTML"
+        )
+        return
+
+    player_name = player_data['name']
+
+    response = f"<code>/trade {player_name}</code>"
+
+    await update.message.reply_text(response, parse_mode="HTML")
+
 # Хранилище сессий CW
 cw_sessions = {}
 
@@ -2184,6 +2220,7 @@ def main():
     app.add_handler(CommandHandler("stop_cw", stop_cw))
     app.add_handler(CommandHandler("test_parse", test_parse))
     app.add_handler(CommandHandler("cmd", cmd_command))
+    app.add_handler(CommandHandler("trade", trade_command))
 
     print("✅ Бот запущен и готов к работе!")
     app.run_polling()
