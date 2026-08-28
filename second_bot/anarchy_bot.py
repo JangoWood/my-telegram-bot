@@ -1497,13 +1497,6 @@ async def chat_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode="HTML"
     )
 
-
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import CallbackQueryHandler
-
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-
-
 async def cmd_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Показывает команды для игрока с кнопками выбора чата"""
 
@@ -1535,15 +1528,19 @@ async def cmd_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     player_name = player_data['name']
 
+    # Текст с командами для копирования
     response = f"<b>Команды для игрока {player_name}:</b>\n\n"
+    response += f"<code>/trade {player_name}</code>\n"
+    response += f"<code>/getplayer {player_name}</code>\n"
+    response += f"<code>/use_k {player_name}</code>\n\n"
     response += f"Нажмите на кнопку, выберите чат, и команда вставится в поле ввода.\n"
     response += f"<i>Удалите @имя_бота и нажмите Enter</i>"
 
-    # Все кнопки с выбором чата
+    # Кнопки с выбором чата
     keyboard = [
         [InlineKeyboardButton("🔄 /trade", switch_inline_query=f"/trade {player_name}")],
         [InlineKeyboardButton("👤 /getplayer", switch_inline_query=f"/getplayer {player_name}")],
-        [InlineKeyboardButton("💝 /use_k", switch_inline_query=f"/use_k {player_name}")],
+        [InlineKeyboardButton("🔑 /use_k", switch_inline_query=f"/use_k {player_name}")],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
