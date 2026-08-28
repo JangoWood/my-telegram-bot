@@ -1762,49 +1762,48 @@ def parse_player_actions(text, enemy_name):
                 'full_line': line.strip()
             })
             continue
+        # 4. Удары и полученные удары
+        if 'бьет' in line:
+            parts = line.split('бьет')
+            if len(parts) < 2:
+                continue
 
-            # 4. Удары и полученные удары
-            if 'бьет' in line:
-                parts = line.split('бьет')
-                if len(parts) < 2:
-                    continue
+            left = parts[0].strip()   # кто бьёт
+            right = parts[1].strip()  # кого бьют + часть тела
 
-                left = parts[0].strip()  # кто бьёт
-                right = parts[1].strip()  # кого бьют + часть тела
+            # Определяем часть тела по ключевым словам
+            part = "неизвестно"
+            body_parts = ['голову', 'голова', 'грудь', 'живот', 'пояс', 'ноги']
+            for bp in body_parts:
+                if bp in right:
+                    part = bp
+                    break
 
-                # Определяем часть тела по ключевым словам
-                part = "неизвестно"
-                body_parts = ['голову', 'голова', 'грудь', 'живот', 'пояс', 'ноги']
-                for bp in body_parts:
-                    if bp in right:
-                        part = bp
-                        break
+            # Определяем результат
+            is_block = 'попадает в блок' in line or 'блок' in line or 'Противник заблокировал' in line
+            is_crit = 'критическим ударом' in line
+            is_evade = 'увернулся' in line
+            is_counter = 'контрудар' in line
 
-                # Определяем результат
-                is_block = 'попадает в блок' in line or 'блок' in line or 'Противник заблокировал' in line
-                is_crit = 'критическим ударом' in line
-                is_evade = 'увернулся' in line
-                is_counter = 'контрудар' in line
+            # Если соперник в левой части — он бьёт
+            if enemy_name in left:
+                result['hits'].append({
+                    'part': part,
+                    'block': is_block,
+                    'crit': is_crit,
+                    'evade': is_evade,
+                    'counter': is_counter,
+                })
 
-                # Если соперник в левой части — он бьёт
-                if enemy_name in left:
-                    result['hits'].append({
-                        'part': part,
-                        'block': is_block,
-                        'crit': is_crit,
-                        'evade': is_evade,
-                        'counter': is_counter,
-                    })
-
-                # Если соперник в правой части — по нему бьют
-                if enemy_name in right and not is_counter:
-                    result['received'].append({
-                        'part': part,
-                        'block': is_block,
-                        'crit': is_crit,
-                        'evade': is_evade,
-                        'counter': is_counter,
-                    })
+            # Если соперник в правой части — по нему бьют
+            if enemy_name in right and not is_counter:
+                result['received'].append({
+                    'part': part,
+                    'block': is_block,
+                    'crit': is_crit,
+                    'evade': is_evade,
+                    'counter': is_counter,
+                })
 
     return result
 
