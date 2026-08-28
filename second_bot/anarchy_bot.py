@@ -1540,7 +1540,7 @@ async def cmd_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [InlineKeyboardButton("🔄 /trade", switch_inline_query=f"/trade {player_name}")],
         [InlineKeyboardButton("👤 /getplayer", switch_inline_query=f"/getplayer {player_name}")],
-        [InlineKeyboardButton("🔑 /use_k", switch_inline_query=f"/use_k {player_name}")],
+        [InlineKeyboardButton("💝 /use_k", switch_inline_query=f"/use_k {player_name}")],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
