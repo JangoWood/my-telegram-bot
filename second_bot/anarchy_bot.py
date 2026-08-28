@@ -1497,6 +1497,49 @@ async def chat_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode="HTML"
     )
 
+
+async def cmd_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Показывает команды для игрока, на чьё сообщение отвечаем"""
+
+    # Проверяем, есть ли ответ на сообщение
+    if not update.message.reply_to_message:
+        await update.message.reply_text(
+            "❌ Ответьте на сообщение игрока командой /cmd",
+            parse_mode="HTML"
+        )
+        return
+
+    # Получаем автора исходного сообщения
+    user = update.message.reply_to_message.from_user
+    user_tag = f"@{user.username}" if user.username else None
+
+    if not user_tag:
+        await update.message.reply_text(
+            "❌ У пользователя нет username в Telegram.",
+            parse_mode="HTML"
+        )
+        return
+
+    # Используем существующую функцию для поиска игрока
+    player_data = get_player_realm_from_sheet(user_tag)
+
+    if not player_data:
+        await update.message.reply_text(
+            f"❌ Игрок с тегом {user_tag} не найден в таблице Ремесло.",
+            parse_mode="HTML"
+        )
+        return
+
+    player_name = player_data['name']
+
+    # Формируем ответ с командами
+    response = f"<b>Команды для игрока {player_name}:</b>\n\n"
+    response += f"<code>/trade {player_name}</code>\n"
+    response += f"<code>/getplayer {player_name}</code>\n"
+    response += f"<code>/use_k {player_name}</code>\n"
+
+    await update.message.reply_text(response, parse_mode="HTML")
+
 # Хранилище сессий CW
 cw_sessions = {}
 
@@ -2097,6 +2140,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 ℹ️ <b>Другие команды</b>
   • <code>/start</code> — приветственное сообщение
   • <code>/help</code> — это сообщение
+  • <code>/cmd</code> — показать команды для игрока (ответом на его сообщение)
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -2142,6 +2186,7 @@ def main():
     app.add_handler(CommandHandler("start_cw", start_cw))
     app.add_handler(CommandHandler("stop_cw", stop_cw))
     app.add_handler(CommandHandler("test_parse", test_parse))
+    app.add_handler(CommandHandler("cmd", cmd_command))
 
     print("✅ Бот запущен и готов к работе!")
     app.run_polling()
