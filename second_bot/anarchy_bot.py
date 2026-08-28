@@ -1501,9 +1501,11 @@ async def chat_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CallbackQueryHandler
 
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+
 
 async def cmd_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Показывает команды для игрока с кнопками"""
+    """Показывает команды для игрока с кнопками выбора чата"""
 
     if not update.message.reply_to_message:
         await update.message.reply_text(
@@ -1534,15 +1536,14 @@ async def cmd_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     player_name = player_data['name']
 
     response = f"<b>Команды для игрока {player_name}:</b>\n\n"
-    response += f"Нажмите на кнопку, чтобы отправить команду в этот чат.\n"
-    response += f"«Тест» и «Тест2» — выберите чат для вставки команды."
+    response += f"Нажмите на кнопку, выберите чат, и команда вставится в поле ввода.\n"
+    response += f"<i>Удалите @имя_бота и нажмите Enter</i>"
 
+    # Все кнопки с выбором чата
     keyboard = [
-        [InlineKeyboardButton("🔄 /trade", callback_data=f"cmd_trade_{player_name}")],
-        [InlineKeyboardButton("👤 /getplayer", callback_data=f"cmd_getplayer_{player_name}")],
-        [InlineKeyboardButton("🔑 /use_k", callback_data=f"cmd_usek_{player_name}")],
-        [InlineKeyboardButton("🧪 Тест (выбор чата)", switch_inline_query=f"/trade {player_name}")],
-        [InlineKeyboardButton("🧪 Тест2 (без слеша)", switch_inline_query=f"trade {player_name}")],
+        [InlineKeyboardButton("🔄 /trade", switch_inline_query=f"/trade {player_name}")],
+        [InlineKeyboardButton("👤 /getplayer", switch_inline_query=f"/getplayer {player_name}")],
+        [InlineKeyboardButton("💝 /use_k", switch_inline_query=f"/use_k {player_name}")],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -1551,30 +1552,6 @@ async def cmd_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode="HTML",
         reply_markup=reply_markup
     )
-
-
-async def cmd_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обрабатывает нажатие на кнопки команд"""
-    query = update.callback_query
-    await query.answer()
-
-    data = query.data
-
-    if data.startswith("cmd_trade_"):
-        player_name = data.replace("cmd_trade_", "")
-        command = f"/trade {player_name}"
-    elif data.startswith("cmd_getplayer_"):
-        player_name = data.replace("cmd_getplayer_", "")
-        command = f"/getplayer {player_name}"
-    elif data.startswith("cmd_usek_"):
-        player_name = data.replace("cmd_usek_", "")
-        command = f"/use_k {player_name}"
-    else:
-        return
-
-    # Отправляем команду в чат
-    await query.message.reply_text(command)
-    await query.edit_message_reply_markup(reply_markup=None)
 
 # Хранилище сессий CW
 cw_sessions = {}
