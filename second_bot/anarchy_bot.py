@@ -1498,8 +1498,11 @@ async def chat_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+
+
 async def cmd_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Показывает команды для игрока с текстом и кнопками"""
+    """Показывает команды для игрока с кнопками"""
 
     if not update.message.reply_to_message:
         await update.message.reply_text(
@@ -1529,18 +1532,16 @@ async def cmd_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     player_name = player_data['name']
 
-    # Текст с командами для копирования
     response = f"<b>Команды для игрока {player_name}:</b>\n\n"
-    response += f"<code>/trade {player_name}</code>\n"
-    response += f"<code>/getplayer {player_name}</code>\n"
-    response += f"<code>/use_k {player_name}</code>\n\n"
-    response += f"<i>Нажмите на кнопку, чтобы вставить команду в поле ввода</i>"
+    response += f"Нажмите на кнопку, чтобы отправить команду в этот чат.\n"
+    response += f"Или используйте «Тест», чтобы выбрать чат для вставки."
 
-    # Кнопки для вставки команд
+    # Кнопки: 3 обычные + 1 тестовая
     keyboard = [
-        [InlineKeyboardButton("🔄 /trade", switch_inline_query_current_chat=f"/trade {player_name}")],
-        [InlineKeyboardButton("👤 /getplayer", switch_inline_query_current_chat=f"/getplayer {player_name}")],
-        [InlineKeyboardButton("💝 /use_k", switch_inline_query_current_chat=f"/use_k {player_name}")],
+        [InlineKeyboardButton("🔄 /trade", callback_data=f"cmd_trade_{player_name}")],
+        [InlineKeyboardButton("👤 /getplayer", callback_data=f"cmd_getplayer_{player_name}")],
+        [InlineKeyboardButton("🔑 /use_k", callback_data=f"cmd_usek_{player_name}")],
+        [InlineKeyboardButton("🧪 Тест (выбор чата)", switch_inline_query=f"/trade {player_name}")],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -1550,36 +1551,29 @@ async def cmd_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=reply_markup
     )
 
-    # Получаем автора исходного сообщения
-    user = update.message.reply_to_message.from_user
-    user_tag = f"@{user.username}" if user.username else None
 
-    if not user_tag:
-        await update.message.reply_text(
-            "❌ У пользователя нет username в Telegram.",
-            parse_mode="HTML"
-        )
+async def cmd_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обрабатывает нажатие на кнопки команд"""
+    query = update.callback_query
+    await query.answer()
+
+    data = query.data
+
+    if data.startswith("cmd_trade_"):
+        player_name = data.replace("cmd_trade_", "")
+        command = f"/trade {player_name}"
+    elif data.startswith("cmd_getplayer_"):
+        player_name = data.replace("cmd_getplayer_", "")
+        command = f"/getplayer {player_name}"
+    elif data.startswith("cmd_usek_"):
+        player_name = data.replace("cmd_usek_", "")
+        command = f"/use_k {player_name}"
+    else:
         return
 
-    # Используем существующую функцию для поиска игрока
-    player_data = get_player_realm_from_sheet(user_tag)
-
-    if not player_data:
-        await update.message.reply_text(
-            f"❌ Игрок с тегом {user_tag} не найден в таблице Ремесло.",
-            parse_mode="HTML"
-        )
-        return
-
-    player_name = player_data['name']
-
-    # Формируем ответ с командами
-    response = f"<b>Команды для игрока {player_name}:</b>\n\n"
-    response += f"<code>/trade {player_name}</code>\n"
-    response += f"<code>/getplayer {player_name}</code>\n"
-    response += f"<code>/use_k {player_name}</code>\n"
-
-    await update.message.reply_text(response, parse_mode="HTML")
+    # Отправляем команду в чат
+    await query.message.reply_text(command)
+    await query.edit_message_reply_markup(reply_markup=None)
 
 # Хранилище сессий CW
 cw_sessions = {}
