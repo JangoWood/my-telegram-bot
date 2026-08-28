@@ -1530,11 +1530,11 @@ async def cmd_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     player_name = player_data['name']
 
     # Формируем ответ с командами в HTML-блоках
-    response = f"<b>Команды для игрока в Epsilion {player_name}:</b>\n\n"
+    response = f"<b>Команды для игрока в Epsilion {player_name}:</b>\n"
     response += f"<code>/trade {player_name}</code>\n"
     response += f"<code>/getplayer {player_name}</code>\n"
-    response += f"<code>/use_k {player_name}</code>\n"
-    response += f"<b>Команды для игрока в Анархии {player_name}:</b>\n\n"
+    response += f"<code>/use_k {player_name}</code>\n\n"
+    response += f"<b>Команды для игрока в Анархии {player_name}:</b>\n"
     response += f"<code>/find {player_name}</code>\n"
     response += f"<code>/prof {player_name}</code>\n"
     await update.message.reply_text(response, parse_mode="HTML")
