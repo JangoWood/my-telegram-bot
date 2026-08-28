@@ -39,6 +39,8 @@ REALM_SHEET_ID = os.getenv('REALM_SHEET_ID')
 REALM_SHEET_NAME = 'Ремесло'  # Название листа (можно тоже вынести в переменные, если нужно)
 
 user_sessions = {}  # {user_id: {'skills': {}, 'user_tag': str, 'telegram_name': str, 'skills_text': str}}
+# Хранилище сессий для /help_cw
+help_cw_sessions = {}
 
 # Создаём Flask-приложение для healthcheck
 flask_app = Flask(__name__)
@@ -2137,6 +2139,51 @@ async def test_parse(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(part, parse_mode="HTML")
     else:
         await update.message.reply_text(msg, parse_mode="HTML")
+
+# ХЕЛП на КВ
+async def help_cw(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Начинает сессию отслеживания противников"""
+    user_id = update.effective_user.id
+
+    # Проверка: уже в режиме
+    if user_id in help_cw_sessions:
+        await update.message.reply_text(
+            "❌ Ты уже в режиме отслеживания противников.\n"
+            "Используй /stop_help_cw, чтобы выйти."
+        )
+        return
+
+    # Проверка: указан ли клан
+    if not context.args:
+        await update.message.reply_text(
+            "❌ Укажи название своего клана.\n"
+            "Пример: /help_cw Анархия"
+        )
+        return
+
+    clan_name = ' '.join(context.args).strip()
+
+    # Создаём сессию
+    help_cw_sessions[user_id] = {
+        'my_clan': clan_name,
+        'enemy_clan': None,          # будет заполнено из первого лога
+        'enemy_players': {},          # {имя_игрока: {'swords': 0, 'shields': 0, ...}}
+        'last_turn': 0,
+        'logs': [],
+        'combos_used': {},            # {имя_игрока: [список использованных приёмов]}
+        'started_at': datetime.now(),
+    }
+
+    await update.message.reply_text(
+        f"✅ Режим отслеживания противников активирован!\n"
+        f"Твой клан: {clan_name}\n\n"
+        f"Присылай логи боя, содержащие слово «Ход».\n"
+        f"Я буду отслеживать накопленные очки действий противников."
+    )
+
+
+
+
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
