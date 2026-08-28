@@ -1497,8 +1497,9 @@ async def chat_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode="HTML"
     )
 
+
 async def cmd_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Показывает команды для игрока с кнопками выбора чата"""
+    """Показывает команды для игрока, на чьё сообщение отвечаем"""
 
     if not update.message.reply_to_message:
         await update.message.reply_text(
@@ -1528,27 +1529,13 @@ async def cmd_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     player_name = player_data['name']
 
-    # Текст с командами для копирования
+    # Формируем ответ с командами в HTML-блоках
     response = f"<b>Команды для игрока {player_name}:</b>\n\n"
     response += f"<code>/trade {player_name}</code>\n"
     response += f"<code>/getplayer {player_name}</code>\n"
-    response += f"<code>/use_k {player_name}</code>\n\n"
-    response += f"Нажмите на кнопку, выберите чат, и команда вставится в поле ввода.\n"
-    response += f"<i>Удалите @имя_бота и нажмите Enter</i>"
+    response += f"<code>/use_k {player_name}</code>\n"
 
-    # Кнопки с выбором чата
-    keyboard = [
-        [InlineKeyboardButton("🔄 /trade", switch_inline_query=f"/trade {player_name}")],
-        [InlineKeyboardButton("👤 /getplayer", switch_inline_query=f"/getplayer {player_name}")],
-        [InlineKeyboardButton("💝 /use_k", switch_inline_query=f"/use_k {player_name}")],
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-
-    await update.message.reply_text(
-        response,
-        parse_mode="HTML",
-        reply_markup=reply_markup
-    )
+    await update.message.reply_text(response, parse_mode="HTML")
 
 # Хранилище сессий CW
 cw_sessions = {}
