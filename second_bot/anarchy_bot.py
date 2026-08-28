@@ -2266,6 +2266,9 @@ def main():
 
     app.add_handler(CommandHandler("start_cw", start_cw))
     app.add_handler(CommandHandler("stop_cw", stop_cw))
+
+    app.add_handler(CommandHandler("help_cw", help_cw))
+
     app.add_handler(CommandHandler("test_parse", test_parse))
     app.add_handler(CommandHandler("cmd", cmd_command))
     app.add_handler(CommandHandler("trade", trade_command))
