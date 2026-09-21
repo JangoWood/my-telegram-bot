@@ -867,11 +867,11 @@ async def spec_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
         response += f"<b>{level}</b> ({len(players)}): {', '.join(links)}\n"
 
         if len(response) > 4000:
-            await update.message.reply_text(response, parse_mode="HTML")
+            await update.message.reply_text(response, parse_mode="HTML", disable_web_page_preview=True)
             response = ""
 
     if response:
-        await update.message.reply_text(response, parse_mode="HTML")
+        await update.message.reply_text(response, parse_mode="HTML", disable_web_page_preview=True)
 
 @chat_restricted
 async def inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
