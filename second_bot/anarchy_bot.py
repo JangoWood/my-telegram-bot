@@ -818,7 +818,10 @@ async def spec_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         if level not in levels:
             levels[level] = []
-        levels[level].append(player['name'])
+        levels[level].append({
+            'name': player['name'],
+            'tag': player['tag']
+        })
 
     if not levels:
         filter_text = f" с уровнем {level_filter}" if level_filter else ""
@@ -848,8 +851,20 @@ async def spec_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
     response = f"🔍 <b>Поиск по специализации: {skill_name}{filter_text}</b>\n\n"
 
     for level in sorted_levels:
-        players = sorted(levels[level], key=str.lower)
-        response += f"<b>{level}</b> ({len(players)}): {', '.join(players)}\n"
+        players = sorted(levels[level], key=lambda p: p['name'].lower())
+
+        # Формируем список с гиперссылками
+        links = []
+        for p in players:
+            name = p['name']
+            tag = p['tag']  # это @username
+            if tag and tag.startswith('@'):
+                username = tag[1:]  # убираем @
+                links.append(f'<a href="https://t.me/{username}">{name}</a>')
+            else:
+                links.append(name)
+
+        response += f"<b>{level}</b> ({len(players)}): {', '.join(links)}\n"
 
         if len(response) > 4000:
             await update.message.reply_text(response, parse_mode="HTML")
