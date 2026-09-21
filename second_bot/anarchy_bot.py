@@ -1546,41 +1546,24 @@ async def cmd_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def trade_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Показывает команду /trade для игрока, на чьё сообщение отвечаем"""
 
-    # Игнорируем, если после /trade есть текст (аргументы)
     if context.args:
         return
 
-    if not update.message.reply_to_message:
-        await update.message.reply_text(
-            "❌ Ответьте на сообщение игрока командой /trade",
-            parse_mode="HTML"
+    # ВРЕМЕННАЯ ДИАГНОСТИКА
+    reply = update.message.reply_to_message
+    if reply:
+        debug = (
+            f"🔍 DEBUG\n"
+            f"reply есть: да\n"
+            f"from_user.username: {reply.from_user.username}\n"
+            f"from_user.id: {reply.from_user.id}\n"
+            f"from_user.first_name: {reply.from_user.first_name}\n"
+            f"текст replied: {reply.text[:50] if reply.text else 'нет'}"
         )
-        return
-
-    user = update.message.reply_to_message.from_user
-    user_tag = f"@{user.username}" if user.username else None
-
-    if not user_tag:
-        await update.message.reply_text(
-            "❌ У пользователя нет username в Telegram.",
-            parse_mode="HTML"
-        )
-        return
-
-    player_data = get_player_realm_from_sheet(user_tag)
-
-    if not player_data:
-        await update.message.reply_text(
-            f"❌ Игрок с тегом {user_tag} не найден в таблице Ремесло.",
-            parse_mode="HTML"
-        )
-        return
-
-    player_name = player_data['name']
-
-    response = f"<code>/trade {player_name}</code>"
-
-    await update.message.reply_text(response, parse_mode="HTML")
+    else:
+        debug = "🔍 DEBUG\nreply есть: НЕТ"
+    await update.message.reply_text(debug)
+    return
 
 # Хранилище сессий CW
 cw_sessions = {}
