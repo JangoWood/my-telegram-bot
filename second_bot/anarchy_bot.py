@@ -1542,8 +1542,13 @@ async def cmd_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(response, parse_mode="HTML")
 
 
+@chat_restricted
 async def trade_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Показывает команду /trade для игрока, на чьё сообщение отвечаем"""
+
+    # Игнорируем, если после /trade есть текст (аргументы)
+    if context.args:
+        return
 
     if not update.message.reply_to_message:
         await update.message.reply_text(
