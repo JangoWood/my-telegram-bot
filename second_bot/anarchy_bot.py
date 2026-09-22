@@ -1755,24 +1755,25 @@ async def enchant_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         target_level = int(arg)
 
-        response = f"{title} :\n\n"
-        response += "<pre>"
-        response += f"{'Параметр':<16} {'База':>6} {f'+{target_level}':>6} {'Итог':>6}\n"
-        response += "-" * 36 + "\n"
+        response = f"<b>{title}</b>\n\n"
 
+        # Блок 1: База
+        response += "<b>📦 База:</b>\n"
         for bonus in bonuses:
-            base = bonus['base']
-            bonus_value = calculate_bonus(base, target_level)
-            total = base + bonus_value
+            response += f"· {bonus['emoji']} {bonus['name']}: {bonus['base']}\n"
 
-            # Название с emoji (но без emoji в шапке таблицы)
-            name = f"{bonus['emoji']} {bonus['name']}"
+        # Блок 2: Бонус заточки
+        response += f"\n<b>✨ Бонус заточки +{target_level}:</b>\n"
+        for bonus in bonuses:
+            bonus_value = calculate_bonus(bonus['base'], target_level)
+            response += f"· {bonus['emoji']} {bonus['name']}: {bonus_value}\n"
 
-            # Считаем длину строки для выравнивания (emoji считаются за 2 в рендере,
-            # но в Python — за 1 или 2 в зависимости от emoji, оставим простой ljust)
-            response += f"{name:<16} {base:>6} {bonus_value:>6} {total:>6}\n"
-
-        response += "</pre>"
+        # Блок 3: Итог
+        response += "\n<b>💎 Итог:</b>\n"
+        for bonus in bonuses:
+            bonus_value = calculate_bonus(bonus['base'], target_level)
+            total = bonus['base'] + bonus_value
+            response += f"· {bonus['emoji']} {bonus['name']}: {total}\n"
 
         await update.message.reply_text(response, parse_mode="HTML")
         return
