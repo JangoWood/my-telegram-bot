@@ -1714,15 +1714,7 @@ def parse_equipment_message(text):
 async def enchant_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Показывает бонусы заточки для экипировки из сообщения (ответом)"""
 
-    # С аргументами — подсказка
-    if context.args:
-        await update.message.reply_text(
-            "❌ Эта команда работает только ответом на сообщение с экипировкой.",
-            parse_mode="HTML"
-        )
-        return
-
-    # Без reply — подсказка
+    # Без reply — подсказка (в любом режиме)
     if not update.message.reply_to_message:
         await update.message.reply_text(
             "❌ Эта команда работает только ответом на сообщение с экипировкой.",
@@ -1748,7 +1740,45 @@ async def enchant_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    # Проверка на максимум
+    # ==================== РЕЖИМ С АРГУМЕНТОМ ====================
+    if context.args:
+        arg = context.args[0].strip()
+
+        # Проверяем, что это число от 1 до 10
+        if not arg.isdigit() or not (1 <= int(arg) <= 10):
+            await update.message.reply_text(
+                "❌ Укажи уровень заточки от 1 до 10.\n"
+                "Пример: /enchant 10",
+                parse_mode="HTML"
+            )
+            return
+
+        target_level = int(arg)
+
+        response = f"{title} :\n\n"
+        response += "<pre>"
+        response += f"{'Параметр':<16} {'База':>6} {f'+{target_level}':>6} {'Итог':>6}\n"
+        response += "-" * 36 + "\n"
+
+        for bonus in bonuses:
+            base = bonus['base']
+            bonus_value = calculate_bonus(base, target_level)
+            total = base + bonus_value
+
+            # Название с emoji (но без emoji в шапке таблицы)
+            name = f"{bonus['emoji']} {bonus['name']}"
+
+            # Считаем длину строки для выравнивания (emoji считаются за 2 в рендере,
+            # но в Python — за 1 или 2 в зависимости от emoji, оставим простой ljust)
+            response += f"{name:<16} {base:>6} {bonus_value:>6} {total:>6}\n"
+
+        response += "</pre>"
+
+        await update.message.reply_text(response, parse_mode="HTML")
+        return
+
+    # ==================== РЕЖИМ БЕЗ АРГУМЕНТА (как раньше) ====================
+
     if current_enchant >= 10:
         await update.message.reply_text(
             "⚠️ Предмет уже заточен на +10. Заточить дальше не получится.",
@@ -1756,11 +1786,9 @@ async def enchant_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    # Определяем диапазон уровней для показа
     start_level = current_enchant + 1
     end_level = 10
 
-    # Формируем ответ
     response = "Бонусы заточки (в скобках прирост от прошлого лвла)\n"
     response += f"{title} :\n"
 
@@ -1774,7 +1802,6 @@ async def enchant_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             response += f"· {bonus['emoji']} {bonus['name']}: {current_bonus}({diff})\n"
 
-    # Разбиваем длинные сообщения
     if len(response) > 4000:
         parts = [response[i:i + 4000] for i in range(0, len(response), 4000)]
         for part in parts:
