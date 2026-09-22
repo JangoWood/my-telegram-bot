@@ -1596,6 +1596,193 @@ async def trade_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(response, parse_mode="HTML")
 
+
+
+# ==================== ЗАТОЧКА ЭКИПИРОВКИ (/enchant) ====================
+
+def calculate_bonus(base_value, enchant_level):
+    """Считает бонус параметра на уровне заточки по формуле"""
+    bonuses = {
+        1: 1,
+        2: 2,
+        3: 4,
+        4: 6,
+        5: 8,
+        6: 10,
+        7: 13,
+        8: 16,
+        9: 20,
+        10: 25
+    }
+
+    if enchant_level not in bonuses:
+        return 0
+
+    bonus_percent = bonuses[enchant_level]
+    bonus_value = base_value * bonus_percent / 100
+
+    if 0 < bonus_value < 1:
+        return 1
+    return int(bonus_value)
+
+
+def parse_equipment_message(text):
+    """
+    Парсит сообщение с экипировкой.
+    Возвращает (название, текущий_уровень_заточки, список_бонусов) или (None, None, None).
+    бонусы — список dict {'emoji': str, 'name': str, 'base': int}
+    """
+    if not text:
+        return None, None, None
+
+    lines = text.split('\n')
+
+    # Ищем строку с заголовком предмета (содержит "[IV]" или другой грейд в скобках и ":")
+    title_line = None
+    for line in lines:
+        stripped = line.strip()
+        if not stripped:
+            continue
+        # Заголовок содержит "[...]" и заканчивается ":" (возможно с +N перед ним)
+        if '[' in stripped and ']' in stripped and stripped.endswith(':'):
+            title_line = stripped
+            break
+
+    if not title_line:
+        return None, None, None
+
+    # Извлекаем уровень заточки (+N) из заголовка
+    current_enchant = 0
+    enchant_match = re.search(r'\+(\d+)\s*:\s*$', title_line)
+    if enchant_match:
+        current_enchant = int(enchant_match.group(1))
+        # Убираем "+N" из заголовка для чистого названия
+        title_clean = re.sub(r'\s*\+\d+\s*:\s*$', '', title_line).rstrip(':').strip()
+    else:
+        title_clean = title_line.rstrip(':').strip()
+
+    # Ищем блок "Бонусы предмета:" и парсим строки под ним
+    bonuses = []
+    in_bonus_block = False
+
+    for line in lines:
+        stripped = line.strip()
+
+        if stripped.startswith('Бонусы предмета:'):
+            in_bonus_block = True
+            continue
+
+        # Если начался другой блок — выходим
+        if in_bonus_block and stripped.startswith('Бонусы заточки:'):
+            break
+        if in_bonus_block and stripped.startswith('⚙️'):
+            break
+        if in_bonus_block and stripped.startswith('Стоимость'):
+            break
+        if in_bonus_block and stripped.startswith('💰'):
+            break
+
+        if not in_bonus_block:
+            continue
+
+        # Строка вида: "· 🗡 Атака: 25 [➕️25]"
+        match = re.match(r'^[·•]\s*(.+?):\s*(\d+)', stripped)
+        if not match:
+            continue
+
+        name_part = match.group(1).strip()  # "🗡 Атака"
+        base_value = int(match.group(2))
+
+        # Разбиваем emoji и название
+        parts = name_part.split(maxsplit=1)
+        emoji = parts[0] if len(parts) > 1 else ''
+        name = parts[1] if len(parts) > 1 else name_part
+
+        bonuses.append({
+            'emoji': emoji,
+            'name': name,
+            'base': base_value,
+        })
+
+    if not bonuses:
+        return None, None, None
+
+    return title_clean, current_enchant, bonuses
+
+
+@chat_restricted
+async def enchant_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Показывает бонусы заточки для экипировки из сообщения (ответом)"""
+
+    # С аргументами — подсказка
+    if context.args:
+        await update.message.reply_text(
+            "❌ Эта команда работает только ответом на сообщение с экипировкой.",
+            parse_mode="HTML"
+        )
+        return
+
+    # Без reply — подсказка
+    if not update.message.reply_to_message:
+        await update.message.reply_text(
+            "❌ Эта команда работает только ответом на сообщение с экипировкой.",
+            parse_mode="HTML"
+        )
+        return
+
+    text = update.message.reply_to_message.text
+    if not text:
+        await update.message.reply_text(
+            "❌ В сообщении нет текста.",
+            parse_mode="HTML"
+        )
+        return
+
+    title, current_enchant, bonuses = parse_equipment_message(text)
+
+    if not title or not bonuses:
+        await update.message.reply_text(
+            "❌ Не удалось распознать экипировку в сообщении.\n"
+            "Убедитесь, что это сообщение со страницы экипировки.",
+            parse_mode="HTML"
+        )
+        return
+
+    # Проверка на максимум
+    if current_enchant >= 10:
+        await update.message.reply_text(
+            "⚠️ Предмет уже заточен на +10. Заточить дальше не получится.",
+            parse_mode="HTML"
+        )
+        return
+
+    # Определяем диапазон уровней для показа
+    start_level = current_enchant + 1
+    end_level = 10
+
+    # Формируем ответ
+    response = "Бонусы заточки (в скобках прирост от прошлого лвла)\n"
+    response += f"{title} :\n"
+
+    for level in range(start_level, end_level + 1):
+        response += f"\n {level} \n"
+
+        for bonus in bonuses:
+            current_bonus = calculate_bonus(bonus['base'], level)
+            prev_bonus = calculate_bonus(bonus['base'], level - 1) if level > 1 else 0
+            diff = current_bonus - prev_bonus
+
+            response += f"· {bonus['emoji']} {bonus['name']}: {current_bonus}({diff})\n"
+
+    # Разбиваем длинные сообщения
+    if len(response) > 4000:
+        parts = [response[i:i + 4000] for i in range(0, len(response), 4000)]
+        for part in parts:
+            await update.message.reply_text(part, parse_mode="HTML")
+    else:
+        await update.message.reply_text(response, parse_mode="HTML")
+
+
 # Хранилище сессий CW
 cw_sessions = {}
 
@@ -2304,6 +2491,7 @@ def main():
     app.add_handler(CommandHandler("test_parse", test_parse))
     app.add_handler(CommandHandler("cmd", cmd_command))
     app.add_handler(CommandHandler("trade", trade_command))
+    app.add_handler(CommandHandler("enchant", enchant_command))
 
     print("✅ Бот запущен и готов к работе!")
     app.run_polling()
