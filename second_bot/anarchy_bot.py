@@ -1730,7 +1730,7 @@ async def enchant_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    text = update.message.reply_to_message.text
+    text = update.message.reply_to_message.text or update.message.reply_to_message.caption
     if not text:
         await update.message.reply_text(
             "❌ В сообщении нет текста.",
