@@ -2636,7 +2636,10 @@ def main():
     app.add_handler(CommandHandler("update_me", update_realm))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_nickname))
 
+    app.add_handler(CommandHandler("craft", craft_command))
+
     # Callback обработчики: сначала специфичный, потом общий
+
     app.add_handler(CallbackQueryHandler(clan_callback, pattern="^clan_"))
     app.add_handler(CallbackQueryHandler(craft_callback, pattern="^craft_"))  # ← новый
     app.add_handler(CallbackQueryHandler(button_callback))  # без паттерна - обрабатывает всё остальное
