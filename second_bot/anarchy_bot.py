@@ -2744,6 +2744,97 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=InlineKeyboardMarkup(buttons)
         )
         return
+
+    # ==================== ВЫБОР ПРЕДМЕТА ====================
+    if parts[0] == 'craft_i' and len(parts) == 6:
+        try:
+            grade_idx = int(parts[1])
+            class_idx = int(parts[2])
+            group_idx = int(parts[3])
+            subgroup_idx = int(parts[4])
+            item_idx = int(parts[5])
+        except ValueError:
+            await query.edit_message_text("❌ Некорректные данные.")
+            return
+
+        grade = get_grade_by_idx(grade_idx)
+        cls = get_class_by_idx(grade_idx, class_idx)
+        if not grade or not cls:
+            await query.edit_message_text("❌ Предмет не найден.")
+            return
+
+        item = None
+
+        # Определяем путь
+        if group_idx == -1:
+            # Плоский класс
+            items = cls.get('items', [])
+            if 0 <= item_idx < len(items):
+                item = items[item_idx]
+        else:
+            # С группами
+            groups = cls.get('groups', [])
+            if not (0 <= group_idx < len(groups)):
+                await query.edit_message_text("❌ Группа не найдена.")
+                return
+            group = groups[group_idx]
+
+            if subgroup_idx == -1:
+                # Прямой предмет группы
+                items = group.get('items', [])
+                if 0 <= item_idx < len(items):
+                    item = items[item_idx]
+            else:
+                # Предмет подгруппы
+                subgroups = group.get('subgroups', [])
+                if not (0 <= subgroup_idx < len(subgroups)):
+                    await query.edit_message_text("❌ Подгруппа не найдена.")
+                    return
+                subgroup = subgroups[subgroup_idx]
+                items = subgroup.get('items', [])
+                if 0 <= item_idx < len(items):
+                    item = items[item_idx]
+
+        if not item:
+            await query.edit_message_text("❌ Предмет не найден.")
+            return
+
+        # Формируем сообщение
+        text = f"<b>{item['title']}</b>\n\n"
+
+        if item.get('craft_block'):
+            text += "<b>Ресурсы для крафта:</b>\n"
+            text += item['craft_block'] + "\n\n"
+
+        if item.get('resources_block'):
+            text += "<b>📊 Все необходимые ресурсы для крафта:</b>\n"
+            text += f"<blockquote>{item['resources_block']}</blockquote>\n\n"
+
+        if item.get('energy'):
+            text += f"<b>{item['energy']}</b>"
+
+        # Кнопка «Назад»
+        if group_idx == -1:
+            back_cb = f"craft_c:{grade_idx}:{class_idx}"
+        elif subgroup_idx == -1:
+            back_cb = f"craft_gr:{grade_idx}:{class_idx}:{group_idx}"
+        else:
+            back_cb = f"craft_sg:{grade_idx}:{class_idx}:{group_idx}:{subgroup_idx}"
+
+        buttons = [[InlineKeyboardButton("⬅️ Назад", callback_data=back_cb)]]
+
+        # Telegram ограничивает 4096 символов, режем если больше
+        if len(text) > 4000:
+            text = text[:3997] + "..."
+
+        await query.edit_message_text(
+            text,
+            parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup(buttons)
+        )
+        return
+
+
     # ==================== ЗАГЛУШКА ====================
     await query.edit_message_text("⏳ В разработке.")
 
