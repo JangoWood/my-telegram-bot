@@ -2604,17 +2604,11 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Если у класса есть плоские items — показываем их
         elif 'items' in cls and cls['items']:
             for i, item in enumerate(cls['items']):
-                # Короткое имя для кнопки — обрезаем до 60 символов
                 label = item['title'][:60]
-                row.append(InlineKeyboardButton(
+                buttons.append([InlineKeyboardButton(
                     label,
-                    callback_data=f"craft_i:{grade_idx}:{class_idx}:{i}"
-                ))
-                if len(row) == 1:
-                    buttons.append(row)
-                    row = []
-            if row:
-                buttons.append(row)
+                    callback_data=f"craft_i:{grade_idx}:{class_idx}:-1:-1:{i}"
+                )])
 
         # Кнопка «Назад» на грейд
         buttons.append([InlineKeyboardButton(
@@ -2638,6 +2632,118 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
+    # ==================== ВЫБОР ГРУППЫ ====================
+    if parts[0] == 'craft_gr' and len(parts) == 4:
+        try:
+            grade_idx = int(parts[1])
+            class_idx = int(parts[2])
+            group_idx = int(parts[3])
+        except ValueError:
+            await query.edit_message_text("❌ Некорректные данные.")
+            return
+
+        grade = get_grade_by_idx(grade_idx)
+        cls = get_class_by_idx(grade_idx, class_idx)
+        if not grade or not cls or 'groups' not in cls:
+            await query.edit_message_text("❌ Группа не найдена.")
+            return
+
+        groups = cls['groups']
+        if not (0 <= group_idx < len(groups)):
+            await query.edit_message_text("❌ Группа не найдена.")
+            return
+
+        group = groups[group_idx]
+        buttons = []
+        row = []
+
+        # Сначала подгруппы (если есть)
+        subgroups = group.get('subgroups', [])
+        for i, subgroup in enumerate(subgroups):
+            row.append(InlineKeyboardButton(
+                subgroup['name'],
+                callback_data=f"craft_sg:{grade_idx}:{class_idx}:{group_idx}:{i}"
+            ))
+            if len(row) == 2:
+                buttons.append(row)
+                row = []
+        if row:
+            buttons.append(row)
+            row = []
+
+        # Затем прямые предметы группы
+        items = group.get('items', [])
+        for i, item in enumerate(items):
+            label = item['title'][:60]
+            buttons.append([InlineKeyboardButton(
+                label,
+                callback_data=f"craft_i:{grade_idx}:{class_idx}:{group_idx}:-1:{i}"
+            )])
+
+        # Кнопка «Назад» на класс
+        buttons.append([InlineKeyboardButton(
+            "⬅️ Назад",
+            callback_data=f"craft_c:{grade_idx}:{class_idx}"
+        )])
+
+        await query.edit_message_text(
+            f"🎒 <b>{grade['name']}</b>\n📁 <b>{cls['name']}</b>\n📂 <b>{group['name']}</b>\n\nВыбери:",
+            parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup(buttons)
+        )
+        return
+
+    # ==================== ВЫБОР ПОДГРУППЫ ====================
+    if parts[0] == 'craft_sg' and len(parts) == 5:
+        try:
+            grade_idx = int(parts[1])
+            class_idx = int(parts[2])
+            group_idx = int(parts[3])
+            subgroup_idx = int(parts[4])
+        except ValueError:
+            await query.edit_message_text("❌ Некорректные данные.")
+            return
+
+        grade = get_grade_by_idx(grade_idx)
+        cls = get_class_by_idx(grade_idx, class_idx)
+        if not grade or not cls or 'groups' not in cls:
+            await query.edit_message_text("❌ Подгруппа не найдена.")
+            return
+
+        groups = cls['groups']
+        if not (0 <= group_idx < len(groups)):
+            await query.edit_message_text("❌ Подгруппа не найдена.")
+            return
+
+        group = groups[group_idx]
+        subgroups = group.get('subgroups', [])
+        if not (0 <= subgroup_idx < len(subgroups)):
+            await query.edit_message_text("❌ Подгруппа не найдена.")
+            return
+
+        subgroup = subgroups[subgroup_idx]
+        items = subgroup.get('items', [])
+
+        buttons = []
+        for i, item in enumerate(items):
+            label = item['title'][:60]
+            buttons.append([InlineKeyboardButton(
+                label,
+                callback_data=f"craft_i:{grade_idx}:{class_idx}:{group_idx}:{subgroup_idx}:{i}"
+            )])
+
+        # Кнопка «Назад» на группу
+        buttons.append([InlineKeyboardButton(
+            "⬅️ Назад",
+            callback_data=f"craft_gr:{grade_idx}:{class_idx}:{group_idx}"
+        )])
+
+        await query.edit_message_text(
+            f"🎒 <b>{grade['name']}</b>\n📁 <b>{cls['name']}</b>\n📂 <b>{group['name']}</b>\n📄 <b>{subgroup['name']}</b>\n\nВыбери предмет:",
+            parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup(buttons)
+        )
+        return
     # ==================== ЗАГЛУШКА ====================
     await query.edit_message_text("⏳ В разработке.")
 
