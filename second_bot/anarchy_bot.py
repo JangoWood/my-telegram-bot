@@ -2460,7 +2460,93 @@ async def help_cw(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
+# ==================== КОМАНДА /craft ====================
 
+def get_grade_by_idx(idx):
+    """Возвращает грейд по индексу"""
+    grades = craft_base.get('grades', [])
+    if 0 <= idx < len(grades):
+        return grades[idx]
+    return None
+
+
+def get_class_by_idx(grade_idx, class_idx):
+    """Возвращает класс по индексам"""
+    grade = get_grade_by_idx(grade_idx)
+    if not grade:
+        return None
+    classes = grade.get('classes', [])
+    if 0 <= class_idx < len(classes):
+        return classes[class_idx]
+    return None
+
+
+def build_grades_keyboard():
+    """Кнопки выбора грейда (по 2 в ряд)"""
+    grades = craft_base.get('grades', [])
+    buttons = []
+    row = []
+    for i, grade in enumerate(grades):
+        row.append(InlineKeyboardButton(
+            f"🎒 {grade['name']}",
+            callback_data=f"craft_g:{i}"
+        ))
+        if len(row) == 2:
+            buttons.append(row)
+            row = []
+    if row:
+        buttons.append(row)
+    return InlineKeyboardMarkup(buttons)
+
+
+@chat_restricted
+async def craft_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Команда /craft — меню выбора грейда"""
+    if not craft_base.get('grades'):
+        await update.message.reply_text(
+            "❌ База крафта не загружена.",
+            parse_mode="HTML"
+        )
+        return
+
+    await update.message.reply_text(
+        "⚒️ <b>Крафт — выбери грейд:</b>",
+        parse_mode="HTML",
+        reply_markup=build_grades_keyboard()
+    )
+
+
+async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработчик всех callback-кнопок /craft"""
+    query = update.callback_query
+    await query.answer()
+
+    data = query.data
+
+    # Пока поддерживаем только выбор грейда
+    if data.startswith('craft_g:'):
+        try:
+            grade_idx = int(data.split(':')[1])
+        except (ValueError, IndexError):
+            await query.edit_message_text("❌ Некорректные данные.")
+            return
+
+        grade = get_grade_by_idx(grade_idx)
+        if not grade:
+            await query.edit_message_text("❌ Грейд не найден.")
+            return
+
+        # Пока просто показываем список классов текстом (для проверки)
+        classes = grade.get('classes', [])
+        text = f"🎒 <b>{grade['name']}</b>\n\n"
+        for i, cls in enumerate(classes):
+            text += f"{i + 1}. {cls['name']}\n"
+
+        await query.edit_message_text(text, parse_mode="HTML")
+        return
+
+    # Заглушка для остальных
+    await query.edit_message_text("⏳ В разработке.")
 
 
 
@@ -2552,6 +2638,7 @@ def main():
 
     # Callback обработчики: сначала специфичный, потом общий
     app.add_handler(CallbackQueryHandler(clan_callback, pattern="^clan_"))
+    app.add_handler(CallbackQueryHandler(craft_callback, pattern="^craft_"))  # ← новый
     app.add_handler(CallbackQueryHandler(button_callback))  # без паттерна - обрабатывает всё остальное
 
     app.add_handler(CommandHandler("chat_id", chat_id))
