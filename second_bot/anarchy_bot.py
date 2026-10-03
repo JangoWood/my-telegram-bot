@@ -2808,7 +2808,7 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         if item.get('resources_block'):
             text += "<b>📊 Все необходимые ресурсы для крафта:</b>\n"
-            text += f"<blockquote>{item['resources_block']}</blockquote>\n\n"
+            text += f"<blockquote expandable>{item['resources_block']}</blockquote>\n\n"
 
         if item.get('energy'):
             text += f"<b>{item['energy']}</b>"
