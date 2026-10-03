@@ -19,6 +19,7 @@ from google.oauth2.service_account import Credentials
 import pytz
 from telegram.ext import MessageHandler, filters
 import re
+import json
 
 # Загружаем переменные из .env в корне проекта
 env_path = Path(__file__).parent.parent / '.env'
@@ -66,6 +67,49 @@ ALLOWED_CHATS = [
 ALLOWED_USERS = [
     121597158,  # Твой Telegram ID (замени на реальный)
 ]
+
+# ==================== ЗАГРУЗКА БАЗЫ КРАФТА ====================
+
+CRAFT_BASE_FILE = Path(__file__).parent / 'craft_base.json'
+
+craft_base = {'grades': []}
+craft_index = {
+    'grades': [],         # [{name, classes: [...]}]
+    'classes': {},        # {grade_idx: [{name, ...}]}
+    'items': {},          # {(grade_idx, class_idx, item_path): item}
+}
+
+
+def load_craft_base():
+    """Загружает craft_base.json и строит индексы для callback_data"""
+    global craft_base, craft_index
+    if not CRAFT_BASE_FILE.exists():
+        print(f"⚠️ craft_base.json не найден по пути {CRAFT_BASE_FILE}")
+        return
+
+    with open(CRAFT_BASE_FILE, 'r', encoding='utf-8') as f:
+        craft_base = json.load(f)
+
+    # Строим индексы
+    craft_index = {'grades': []}
+
+    for grade in craft_base.get('grades', []):
+        craft_index['grades'].append(grade['name'])
+        for cls in grade.get('classes', []):
+            # items — если плоский класс
+            # groups — если класс с группами
+            pass  # Индексы строим динамически в хендлерах по позициям
+
+    total = sum(
+        len(cls.get('items', [])) + sum(
+            len(g.get('items', [])) + sum(len(sg.get('items', [])) for sg in g.get('subgroups', []))
+            for g in cls.get('groups', [])
+        )
+        for grade in craft_base.get('grades', [])
+        for cls in grade.get('classes', [])
+    )
+    print(f"✅ Загружено {len(craft_base.get('grades', []))} грейдов, {total} предметов")
+
 def is_chat_allowed(chat_id):
     """Проверяет, разрешён ли чат"""
     return chat_id in ALLOWED_CHATS
@@ -2482,6 +2526,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 def main():
     print("🟢 Запуск бота...")
+    load_craft_base()  # ← добавить эту строку
     app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
 
     # Основные команды
