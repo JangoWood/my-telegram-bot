@@ -206,8 +206,6 @@ def is_item_message(entities):
     first_bold = extract_bold_first(entities)
     if not first_bold:
         return None
-    if '[' not in first_bold or ']' not in first_bold:
-        return None
 
     craft_block_text = None
     resources_block_text = None
@@ -382,7 +380,59 @@ def collect_instruments(messages_dict):
 
     return {'groups': groups}
 
+# ==================== КУЛИНАРИЯ ====================
 
+def collect_cooking(messages_dict):
+    """
+    Собирает кулинарию. Две группы: [IV+] и [I]-[III].
+    Возвращает dict: {'groups': [{'name': ..., 'items': [...]}]}
+    """
+    cooking_menus = []
+
+    for msg_id, msg in messages_dict.items():
+        entities = msg.get('text_entities', [])
+        first_bold = extract_bold_first(entities)
+        if not first_bold or not first_bold.startswith('🥨 Кулинария'):
+            continue
+
+        items = []
+        for ent in entities:
+            if not is_item_link(ent):
+                continue
+            href = ent.get('href', '')
+            title = ent.get('text', '').strip()
+            item_id = extract_message_id_from_url(href)
+            if not item_id:
+                continue
+            items.append({
+                'id': item_id,
+                'title': title,
+                'url': href,
+            })
+
+        if items:
+            cooking_menus.append({
+                'id': msg_id,
+                'title': first_bold,
+                'items': items,
+            })
+
+    # Сортируем меню: сначала [IV+], потом [I]-[III] (по id: 62 < 412)
+    cooking_menus.sort(key=lambda m: m['id'])
+
+    groups = []
+    for menu in cooking_menus:
+        items_full = []
+        for item in menu['items']:
+            item_full = build_item_output(item['id'], messages_dict)
+            if item_full:
+                items_full.append(item_full)
+        groups.append({
+            'name': menu['title'],
+            'items': items_full,
+        })
+
+    return {'groups': groups}
 # ==================== ОСНОВНАЯ ЛОГИКА ====================
 
 def build_base():
@@ -506,6 +556,13 @@ def build_base():
     for group in result['instruments']['groups']:
         print(f"  🛠 {group['name']}: {len(group['items'])} предметов")
 
+    # Шаг 5: собираем кулинарию
+    print()
+    print("🥨 Собираем кулинарию...")
+    result['cooking'] = collect_cooking(messages_dict)
+    for group in result['cooking']['groups']:
+        print(f"  🍲 {group['name']}: {len(group['items'])} блюд")
+
     # Сохраняем
     with open(OUTPUT_FILE, 'w', encoding='utf-8') as f:
         json.dump(result, f, ensure_ascii=False, indent=2)
@@ -531,8 +588,10 @@ def build_base():
         print(f"  {grade['name']}: {len(grade['classes'])} классов, {grade_items} предметов")
 
     instruments_count = sum(len(g['items']) for g in result['instruments']['groups'])
+    cooking_count = sum(len(g['items']) for g in result['cooking']['groups'])
     print(f"  ИНСТРУМЕНТЫ: {len(result['instruments']['groups'])} групп, {instruments_count} предметов")
-    print(f"  ВСЕГО предметов: {total_items + instruments_count}")
+    print(f"  КУЛИНАРИЯ: {len(result['cooking']['groups'])} групп, {cooking_count} блюд")
+    print(f"  ВСЕГО предметов: {total_items + instruments_count + cooking_count}")
 
 
 if __name__ == '__main__':
