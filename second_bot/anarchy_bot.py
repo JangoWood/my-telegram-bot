@@ -2498,10 +2498,27 @@ def build_grades_keyboard():
         buttons.append(row)
     return InlineKeyboardMarkup(buttons)
 
+def build_instruments_keyboard():
+    """Кнопки выбора группы инструментов (по 2 в ряд)"""
+    instruments = craft_base.get('instruments', {})
+    groups = instruments.get('groups', [])
+    buttons = []
+    row = []
+    for i, group in enumerate(groups):
+        row.append(InlineKeyboardButton(
+            group['name'],
+            callback_data=f"craft_ig:{i}"
+        ))
+        if len(row) == 2:
+            buttons.append(row)
+            row = []
+    if row:
+        buttons.append(row)
+    return InlineKeyboardMarkup(buttons)
 
 @chat_restricted
 async def craft_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Команда /craft — меню выбора грейда"""
+    """Команда /craft — меню выбора раздела"""
     if not craft_base.get('grades'):
         await update.message.reply_text(
             "❌ База крафта не загружена.",
@@ -2509,10 +2526,16 @@ async def craft_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
+    keyboard = [
+        [
+            InlineKeyboardButton("🎒 Экипировка", callback_data="craft_section:equip"),
+            InlineKeyboardButton("⚒️ Инструменты", callback_data="craft_section:instr"),
+        ]
+    ]
     await update.message.reply_text(
-        "⚒️ <b>Крафт — выбери грейд:</b>",
+        "⚒️ <b>Крафт — выбери раздел:</b>",
         parse_mode="HTML",
-        reply_markup=build_grades_keyboard()
+        reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
 
@@ -2523,6 +2546,108 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     data = query.data
     parts = data.split(':')
+
+    # ==================== ВЫБОР РАЗДЕЛА ====================
+    if parts[0] == 'craft_section' and len(parts) == 2:
+        if parts[1] == 'equip':
+            await query.edit_message_text(
+                "🎒 <b>Экипировка — выбери грейд:</b>",
+                parse_mode="HTML",
+                reply_markup=build_grades_keyboard()
+            )
+            return
+        elif parts[1] == 'instr':
+            await query.edit_message_text(
+                "⚒️ <b>Инструменты — выбери тип:</b>",
+                parse_mode="HTML",
+                reply_markup=build_instruments_keyboard()
+            )
+            return
+
+    # ==================== ВЫБОР ГРУППЫ ИНСТРУМЕНТОВ ====================
+    if parts[0] == 'craft_ig' and len(parts) == 2:
+        try:
+            group_idx = int(parts[1])
+        except ValueError:
+            await query.edit_message_text("❌ Некорректные данные.")
+            return
+
+        instruments = craft_base.get('instruments', {})
+        groups = instruments.get('groups', [])
+        if not (0 <= group_idx < len(groups)):
+            await query.edit_message_text("❌ Группа не найдена.")
+            return
+
+        group = groups[group_idx]
+        items = group.get('items', [])
+
+        buttons = []
+        for i, item in enumerate(items):
+            label = item['title'][:60]
+            buttons.append([InlineKeyboardButton(
+                label,
+                callback_data=f"craft_ii:{group_idx}:{i}"
+            )])
+
+        buttons.append([InlineKeyboardButton(
+            "⬅️ Назад",
+            callback_data="craft_section:instr"
+        )])
+
+        await query.edit_message_text(
+            f"⚒️ <b>{group['name']}</b>\n\nВыбери инструмент:",
+            parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup(buttons)
+        )
+        return
+
+    # ==================== ВЫБОР ИНСТРУМЕНТА ====================
+    if parts[0] == 'craft_ii' and len(parts) == 3:
+        try:
+            group_idx = int(parts[1])
+            item_idx = int(parts[2])
+        except ValueError:
+            await query.edit_message_text("❌ Некорректные данные.")
+            return
+
+        instruments = craft_base.get('instruments', {})
+        groups = instruments.get('groups', [])
+        if not (0 <= group_idx < len(groups)):
+            await query.edit_message_text("❌ Группа не найдена.")
+            return
+
+        group = groups[group_idx]
+        items = group.get('items', [])
+        if not (0 <= item_idx < len(items)):
+            await query.edit_message_text("❌ Инструмент не найден.")
+            return
+
+        item = items[item_idx]
+
+        # Формируем сообщение (у инструментов нет resources_block)
+        text = f"<b>{item['title']}</b>\n\n"
+
+        if item.get('craft_block'):
+            text += "<b>Ресурсы для крафта:</b>\n"
+            text += item['craft_block'] + "\n\n"
+
+        if item.get('energy'):
+            text += f"<b>{item['energy']}</b>"
+
+        buttons = [[InlineKeyboardButton(
+            "⬅️ Назад",
+            callback_data=f"craft_ig:{group_idx}"
+        )]]
+
+        if len(text) > 4000:
+            text = text[:3997] + "..."
+
+        await query.edit_message_text(
+            text,
+            parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup(buttons)
+        )
+        return
 
     # ==================== ВЫБОР ГРЕЙДА ====================
     if parts[0] == 'craft_g' and len(parts) == 2:
@@ -2625,10 +2750,16 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # ==================== НАЗАД К ГРЕЙДАМ ====================
     if parts[0] == 'craft_back' and len(parts) == 2 and parts[1] == 'grades':
+        keyboard = [
+            [
+                InlineKeyboardButton("🎒 Экипировка", callback_data="craft_section:equip"),
+                InlineKeyboardButton("⚒️ Инструменты", callback_data="craft_section:instr"),
+            ]
+        ]
         await query.edit_message_text(
-            "⚒️ <b>Крафт — выбери грейд:</b>",
+            "⚒️ <b>Крафт — выбери раздел:</b>",
             parse_mode="HTML",
-            reply_markup=build_grades_keyboard()
+            reply_markup=InlineKeyboardMarkup(keyboard)
         )
         return
 
