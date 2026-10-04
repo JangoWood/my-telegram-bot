@@ -427,8 +427,17 @@ def collect_cooking(messages_dict):
             item_full = build_item_output(item['id'], messages_dict)
             if item_full:
                 items_full.append(item_full)
+
+        # Определяем красивое название группы
+        title = menu['title']
+        if title.strip() == '🥨 Кулинария':
+            # Меню [I]-[III] — его заголовок в канале без грейда
+            title = '🥨 Кулинария [I]-[III]'
+        elif not title.endswith(':'):
+            title = title.rstrip(':')
+
         groups.append({
-            'name': menu['title'],
+            'name': title,
             'items': items_full,
         })
 
