@@ -2530,6 +2530,9 @@ async def craft_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [
             InlineKeyboardButton("🎒 Экипировка", callback_data="craft_section:equip"),
             InlineKeyboardButton("⚒️ Инструменты", callback_data="craft_section:instr"),
+        ],
+        [
+            InlineKeyboardButton("🥨 Кулинария", callback_data="craft_section:cook"),
         ]
     ]
     await update.message.reply_text(
@@ -2579,6 +2582,33 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             await query.edit_message_text(
                 "⚒️ <b>Инструменты — выбери тип:</b>",
+                parse_mode="HTML",
+                reply_markup=InlineKeyboardMarkup(buttons)
+            )
+            return
+        elif parts[1] == 'cook':
+            cooking = craft_base.get('cooking', {})
+            groups = cooking.get('groups', [])
+            buttons = []
+            row = []
+            for i, group in enumerate(groups):
+                row.append(InlineKeyboardButton(
+                    group['name'],
+                    callback_data=f"craft_cg:{i}"
+                ))
+                if len(row) == 2:
+                    buttons.append(row)
+                    row = []
+            if row:
+                buttons.append(row)
+
+            buttons.append([InlineKeyboardButton(
+                "⬅️ Назад",
+                callback_data="craft_back:main"
+            )])
+
+            await query.edit_message_text(
+                "🥨 <b>Кулинария — выбери раздел:</b>",
                 parse_mode="HTML",
                 reply_markup=InlineKeyboardMarkup(buttons)
             )
@@ -2774,6 +2804,9 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [
                 InlineKeyboardButton("🎒 Экипировка", callback_data="craft_section:equip"),
                 InlineKeyboardButton("⚒️ Инструменты", callback_data="craft_section:instr"),
+            ],
+            [
+                InlineKeyboardButton("🥨 Кулинария", callback_data="craft_section:cook"),
             ]
         ]
         await query.edit_message_text(
@@ -2786,9 +2819,13 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # ==================== НАЗАД К ГРЕЙДАМ ====================
     if parts[0] == 'craft_back' and len(parts) == 2 and parts[1] == 'grades':
         keyboard = [
+            keyboard = [
             [
                 InlineKeyboardButton("🎒 Экипировка", callback_data="craft_section:equip"),
                 InlineKeyboardButton("⚒️ Инструменты", callback_data="craft_section:instr"),
+            ],
+            [
+                InlineKeyboardButton("🥨 Кулинария", callback_data="craft_section:cook"),
             ]
         ]
         await query.edit_message_text(
@@ -2999,7 +3036,93 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=InlineKeyboardMarkup(buttons)
         )
         return
+    # ==================== ВЫБОР ГРУППЫ КУЛИНАРИИ ====================
+    if parts[0] == 'craft_cg' and len(parts) == 2:
+        try:
+            group_idx = int(parts[1])
+        except ValueError:
+            await query.edit_message_text("❌ Некорректные данные.")
+            return
 
+        cooking = craft_base.get('cooking', {})
+        groups = cooking.get('groups', [])
+        if not (0 <= group_idx < len(groups)):
+            await query.edit_message_text("❌ Группа не найдена.")
+            return
+
+        group = groups[group_idx]
+        items = group.get('items', [])
+
+        buttons = []
+        for i, item in enumerate(items):
+            label = item['title'][:60]
+            buttons.append([InlineKeyboardButton(
+                label,
+                callback_data=f"craft_ci:{group_idx}:{i}"
+            )])
+
+        buttons.append([InlineKeyboardButton(
+            "⬅️ Назад",
+            callback_data="craft_section:cook"
+        )])
+
+        await query.edit_message_text(
+            f"🥨 <b>{group['name']}</b>\n\nВыбери блюдо:",
+            parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup(buttons)
+        )
+        return
+
+    # ==================== ВЫБОР БЛЮДА ====================
+    if parts[0] == 'craft_ci' and len(parts) == 3:
+        try:
+            group_idx = int(parts[1])
+            item_idx = int(parts[2])
+        except ValueError:
+            await query.edit_message_text("❌ Некорректные данные.")
+            return
+
+        cooking = craft_base.get('cooking', {})
+        groups = cooking.get('groups', [])
+        if not (0 <= group_idx < len(groups)):
+            await query.edit_message_text("❌ Группа не найдена.")
+            return
+
+        group = groups[group_idx]
+        items = group.get('items', [])
+        if not (0 <= item_idx < len(items)):
+            await query.edit_message_text("❌ Блюдо не найдено.")
+            return
+
+        item = items[item_idx]
+
+        text = f"<b>{item['title']}</b>\n\n"
+
+        if item.get('craft_block'):
+            text += "<b>Ресурсы для крафта:</b>\n"
+            text += item['craft_block'] + "\n\n"
+
+        if item.get('resources_block'):
+            text += "<b>📊 Все необходимые ресурсы для крафта:</b>\n"
+            text += f"<blockquote expandable>{item['resources_block']}</blockquote>\n\n"
+
+        if item.get('energy'):
+            text += f"<b>{item['energy']}</b>"
+
+        buttons = [[InlineKeyboardButton(
+            "⬅️ Назад",
+            callback_data=f"craft_cg:{group_idx}"
+        )]]
+
+        if len(text) > 4000:
+            text = text[:3997] + "..."
+
+        await query.edit_message_text(
+            text,
+            parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup(buttons)
+        )
+        return
 
     # ==================== ЗАГЛУШКА ====================
     await query.edit_message_text("⏳ В разработке.")
