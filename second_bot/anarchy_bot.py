@@ -2556,7 +2556,7 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 reply_markup=build_grades_keyboard()
             )
             return
-            elif parts[1] == 'instr':
+        elif parts[1] == 'instr':
             instruments = craft_base.get('instruments', {})
             groups = instruments.get('groups', [])
             buttons = []
