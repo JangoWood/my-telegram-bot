@@ -2556,11 +2556,31 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 reply_markup=build_grades_keyboard()
             )
             return
-        elif parts[1] == 'instr':
+            elif parts[1] == 'instr':
+            instruments = craft_base.get('instruments', {})
+            groups = instruments.get('groups', [])
+            buttons = []
+            row = []
+            for i, group in enumerate(groups):
+                row.append(InlineKeyboardButton(
+                    group['name'],
+                    callback_data=f"craft_ig:{i}"
+                ))
+                if len(row) == 2:
+                    buttons.append(row)
+                    row = []
+            if row:
+                buttons.append(row)
+
+            buttons.append([InlineKeyboardButton(
+                "⬅️ Назад",
+                callback_data="craft_back:main"
+            )])
+
             await query.edit_message_text(
                 "⚒️ <b>Инструменты — выбери тип:</b>",
                 parse_mode="HTML",
-                reply_markup=build_instruments_keyboard()
+                reply_markup=InlineKeyboardMarkup(buttons)
             )
             return
 
@@ -2745,6 +2765,21 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"🎒 <b>{grade['name']}</b>\n📁 <b>{cls['name']}</b>\n\nВыбери:",
             parse_mode="HTML",
             reply_markup=InlineKeyboardMarkup(buttons)
+        )
+        return
+
+    # ==================== НАЗАД К ГЛАВНОМУ МЕНЮ ====================
+    if parts[0] == 'craft_back' and len(parts) == 2 and parts[1] == 'main':
+        keyboard = [
+            [
+                InlineKeyboardButton("🎒 Экипировка", callback_data="craft_section:equip"),
+                InlineKeyboardButton("⚒️ Инструменты", callback_data="craft_section:instr"),
+            ]
+        ]
+        await query.edit_message_text(
+            "⚒️ <b>Крафт — выбери раздел:</b>",
+            parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup(keyboard)
         )
         return
 
