@@ -51,26 +51,50 @@ def is_grade_menu(entities):
     return None
 
 
+def is_instrument_menu(entities):
+    """
+    Проверяет, что это меню инструментов.
+    Возвращает True, если в первых bold-заголовках есть 'Орудие' или 'Инструменты'.
+    """
+    # Собираем первые 3-4 значимых куска до первой ссылки/большого отступа
+    title_parts = []
+    for ent in entities[:8]:
+        if isinstance(ent, dict):
+            ent_type = ent.get('type')
+            text = ent.get('text', '').strip()
+            if ent_type == 'bold' and text:
+                title_parts.append(text)
+            elif ent_type == 'plain' and text and not text.isspace():
+                # Plain тоже может содержать часть заголовка
+                title_parts.append(text)
+            elif ent_type == 'text_link':
+                # Начались ссылки — прекращаем
+                break
+        if len(' '.join(title_parts)) > 100:
+            break
+
+    combined = ' '.join(title_parts)
+    if 'Орудие' in combined or 'Инструменты' in combined:
+        return True
+    return False
+
+
 def is_group_marker(ent):
     """
     Проверяет, что элемент — маркер группы.
     Возвращает (тип, имя) или None.
-    Тип: 'group' (🟣 Эпическая, 🔵 Редкая) или 'subgroup' (Сет Рока).
     """
     if not isinstance(ent, dict):
         return None
     ent_type = ent.get('type')
     text = ent.get('text', '').strip()
 
-    # Убираем завершающее двоеточие, если есть
     name = text.rstrip(':').strip()
 
-    # Группы: "🟣 Эпическая", "🔵 Редкая" — обычно italic
     if ent_type == 'italic':
         if name:
             return ('group', name)
 
-    # Подгруппы и группы: bold
     if ent_type == 'bold':
         if name.startswith('📊') or name.startswith('Все необходимые'):
             return None
@@ -100,14 +124,12 @@ def is_item_link(ent):
 
 def is_class_menu(entities):
     """
-    Проверяет, что это меню класса. Возвращает dict с плоской структурой или None.
-    Структура: {'name': ..., 'has_groups': bool, 'flat_items': [...], 'groups': [...]}
+    Проверяет, что это меню класса. Возвращает dict или None.
     """
     first_bold = extract_bold_first(entities)
     if not first_bold:
         return None
 
-    # Отсеиваем заголовки меню/разделов
     if first_bold.startswith('🎒'):
         return None
     if first_bold.startswith('⚒️') or first_bold.startswith('🥨') or first_bold.startswith('♻️'):
@@ -115,12 +137,10 @@ def is_class_menu(entities):
     if first_bold.startswith('🌀'):
         return None
 
-    # Пробегаем по entities, собираем структуру
     flat_items = []
-    groups = []  # [{'name': ..., 'items': [...], 'subgroups': [{'name': ..., 'items': [...]}]}]
-
-    current_group = None      # dict или None
-    current_subgroup = None   # dict или None
+    groups = []
+    current_group = None
+    current_subgroup = None
     stop_parsing = False
 
     for ent in entities:
@@ -130,7 +150,6 @@ def is_class_menu(entities):
         ent_type = ent.get('type')
         text = ent.get('text', '').strip()
 
-        # После блока «📊 Все необходимые ресурсы...» — прекращаем парсинг
         if ent_type == 'bold' and text.startswith('📊 Все необходимые'):
             stop_parsing = True
             continue
@@ -138,7 +157,6 @@ def is_class_menu(entities):
         if stop_parsing:
             continue
 
-        # Проверяем маркер группы/подгруппы
         marker = is_group_marker(ent)
         if marker:
             marker_type, marker_name = marker
@@ -154,7 +172,6 @@ def is_class_menu(entities):
                 current_group['subgroups'].append(current_subgroup)
             continue
 
-        # Обрабатываем ссылки на предметы
         if is_item_link(ent):
             href = ent.get('href', '')
             text_link = ent.get('text', '').strip()
@@ -171,10 +188,8 @@ def is_class_menu(entities):
             else:
                 flat_items.append(item)
 
-    # Определяем режим: с группами или плоский
     has_groups = bool(groups)
 
-    # Если групп нет, но есть flat_items — плоский режим
     if not has_groups and not flat_items:
         return None
 
@@ -187,11 +202,7 @@ def is_class_menu(entities):
 
 
 def is_item_message(entities):
-    """
-    Проверяет, что это сообщение с ресурсами для предмета.
-    Возвращает dict с полями или None.
-    """
-    # Заголовок: bold с названием и [грейдом]
+    """Проверяет, что это сообщение с ресурсами для предмета."""
     first_bold = extract_bold_first(entities)
     if not first_bold:
         return None
@@ -209,27 +220,35 @@ def is_item_message(entities):
         ent_type = ent.get('type')
         text = ent.get('text', '')
 
-        # Начало блока «Ресурсы для крафта:»
         if ent_type == 'bold' and text.strip().startswith('Ресурсы для крафта'):
             in_craft_block = True
             continue
 
         if in_craft_block:
+            # Прекращаем сбор при встрече с маркерами конца блока
             if ent_type == 'bold' and 'Все необходимые' in text:
                 in_craft_block = False
                 continue
-            if ent_type == 'plain':
-                craft_block_text = (craft_block_text or '') + text
-            elif ent_type == 'text_link':
-                craft_block_text = (craft_block_text or '') + text
-            elif ent_type == 'bold':
-                craft_block_text = (craft_block_text or '') + text
+            if ent_type == 'bold' and '🔋' in text:
+                in_craft_block = False
+                # Не прерываем цикл — продолжаем, чтобы поймать energy ниже
+            elif ent_type == 'text_link' and 'Назад' in text:
+                in_craft_block = False
+                continue
+            elif ent_type == 'code':
+                in_craft_block = False
+                continue
+            else:
+                if ent_type == 'plain':
+                    craft_block_text = (craft_block_text or '') + text
+                elif ent_type == 'text_link':
+                    craft_block_text = (craft_block_text or '') + text
+                elif ent_type == 'bold':
+                    craft_block_text = (craft_block_text or '') + text
 
-        # Блок «Все необходимые ресурсы» (blockquote)
         if ent_type == 'blockquote':
             resources_block_text = text
 
-        # Энергия (жирный текст с 🔋)
         if ent_type == 'bold' and '🔋' in text:
             energy_text = text.strip()
 
@@ -238,7 +257,7 @@ def is_item_message(entities):
 
     return {
         'title': first_bold,
-        'craft_block': (craft_block_text or '').strip(),
+        'craft_block': (craft_block_text or '').strip().rstrip('\n'),
         'resources_block': (resources_block_text or '').strip(),
         'energy': energy_text,
     }
@@ -260,6 +279,108 @@ def build_item_output(item_id, messages_dict):
         'resources_block': item_info['resources_block'],
         'energy': item_info['energy'],
     }
+
+
+# ==================== ИНСТРУМЕНТЫ ====================
+
+INSTRUMENT_TYPES = [
+    ('лук', '🏹 Лук'),
+    ('кирка', '⛏️ Кирка'),
+    ('удочка', '🎣 Удочка'),
+    ('мотыга', '🔧 Мотыга'),
+]
+
+LEVEL_ORDER = {
+    'подмастерья': 1,
+    'мастера': 2,
+    'грандмастера': 3,
+}
+
+
+def extract_instrument_type(title):
+    """Определяет тип инструмента по названию"""
+    lower = title.lower()
+    for key, display_name in INSTRUMENT_TYPES:
+        if key in lower:
+            return display_name
+    return None
+
+
+def extract_instrument_level_order(title):
+    """Определяет порядок уровня для сортировки: подмастерья → мастера → грандмастера"""
+    lower = title.lower()
+    for level_name, order in LEVEL_ORDER.items():
+        if level_name in lower:
+            return order
+    return 99
+
+
+def collect_instruments(messages_dict):
+    """
+    Собирает инструменты из всех меню-инструментов.
+    Возвращает dict: {'groups': [{'name': ..., 'items': [...]}]}
+    """
+    # Ищем все меню инструментов
+    instrument_items = []  # плоский список: [{'id': ..., 'title': ..., 'url': ...}]
+
+    for msg_id, msg in messages_dict.items():
+        entities = msg.get('text_entities', [])
+        if not is_instrument_menu(entities):
+            continue
+
+        for ent in entities:
+            if not is_item_link(ent):
+                continue
+            href = ent.get('href', '')
+            title = ent.get('text', '').strip()
+            item_id = extract_message_id_from_url(href)
+            if not item_id:
+                continue
+            instrument_items.append({
+                'id': item_id,
+                'title': title,
+                'url': href,
+            })
+
+    if not instrument_items:
+        return {'groups': []}
+
+    # Группируем по типу
+    groups_dict = {}  # {display_name: [items]}
+
+    for item in instrument_items:
+        type_name = extract_instrument_type(item['title'])
+        if not type_name:
+            # Если тип не распознан — кладём в «Прочее»
+            type_name = '📦 Прочее'
+        if type_name not in groups_dict:
+            groups_dict[type_name] = []
+        groups_dict[type_name].append(item)
+
+    # Сортируем внутри групп по уровню, потом по названию
+    for type_name in groups_dict:
+        groups_dict[type_name].sort(
+            key=lambda x: (extract_instrument_level_order(x['title']), x['title'])
+        )
+
+    # Собираем итоговый список групп с полными данными предметов
+    groups = []
+    for type_name, items in groups_dict.items():
+        items_full = []
+        for item in items:
+            item_full = build_item_output(item['id'], messages_dict)
+            if item_full:
+                items_full.append(item_full)
+        groups.append({
+            'name': type_name,
+            'items': items_full,
+        })
+
+    # Сортируем группы по порядку INSTRUMENT_TYPES
+    order_map = {display: i for i, (_, display) in enumerate(INSTRUMENT_TYPES)}
+    groups.sort(key=lambda g: order_map.get(g['name'], 99))
+
+    return {'groups': groups}
 
 
 # ==================== ОСНОВНАЯ ЛОГИКА ====================
@@ -345,7 +466,6 @@ def build_base():
             class_out = {'name': class_info['name']}
 
             if class_info['has_groups']:
-                # Режим с группами
                 groups_out = []
                 for group in class_info['groups']:
                     group_out = {'name': group['name'], 'items': [], 'subgroups': []}
@@ -367,7 +487,6 @@ def build_base():
 
                 class_out['groups'] = groups_out
             else:
-                # Плоский режим
                 items_out = []
                 for item in class_info['flat_items']:
                     item_full = build_item_output(item['id'], messages_dict)
@@ -378,6 +497,14 @@ def build_base():
             grade_out['classes'].append(class_out)
 
         result['grades'].append(grade_out)
+
+    # Шаг 4: собираем инструменты
+    print()
+    print("🔧 Собираем инструменты...")
+    result['instruments'] = collect_instruments(messages_dict)
+
+    for group in result['instruments']['groups']:
+        print(f"  🛠 {group['name']}: {len(group['items'])} предметов")
 
     # Сохраняем
     with open(OUTPUT_FILE, 'w', encoding='utf-8') as f:
@@ -403,7 +530,9 @@ def build_base():
         total_items += grade_items
         print(f"  {grade['name']}: {len(grade['classes'])} классов, {grade_items} предметов")
 
-    print(f"  ВСЕГО предметов: {total_items}")
+    instruments_count = sum(len(g['items']) for g in result['instruments']['groups'])
+    print(f"  ИНСТРУМЕНТЫ: {len(result['instruments']['groups'])} групп, {instruments_count} предметов")
+    print(f"  ВСЕГО предметов: {total_items + instruments_count}")
 
 
 if __name__ == '__main__':
