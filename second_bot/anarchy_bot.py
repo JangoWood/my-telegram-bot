@@ -2819,7 +2819,6 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # ==================== НАЗАД К ГРЕЙДАМ ====================
     if parts[0] == 'craft_back' and len(parts) == 2 and parts[1] == 'grades':
         keyboard = [
-            keyboard = [
             [
                 InlineKeyboardButton("🎒 Экипировка", callback_data="craft_section:equip"),
                 InlineKeyboardButton("⚒️ Инструменты", callback_data="craft_section:instr"),
