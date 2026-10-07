@@ -1,3 +1,5 @@
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+
 def get_grade_by_idx(idx, craft_base):
     """Возвращает грейд по индексу"""
     grades = craft_base.get('grades', [])
@@ -105,3 +107,50 @@ def build_instruments_keyboard(craft_base):
         buttons.append(row)
     return InlineKeyboardMarkup(buttons)
 
+
+
+def build_cooking_keyboard(craft_base):
+    """Кнопки выбора группы кулинарии (по 2 в ряд)."""
+    cooking = craft_base.get('cooking', {})
+    groups = cooking.get('groups', [])
+    buttons = []
+    row = []
+    for i, group in enumerate(groups):
+        row.append(InlineKeyboardButton(
+            f"{group['name']} ({count_cooking_items(group)})",
+            callback_data=f"craft_cg:{i}"
+        ))
+        if len(row) == 2:
+            buttons.append(row)
+            row = []
+    if row:
+        buttons.append(row)
+    buttons.append([InlineKeyboardButton(
+        "⬅️ Назад",
+        callback_data="craft_back:main"
+    )])
+    return InlineKeyboardMarkup(buttons)
+
+
+def build_alchemy_keyboard(craft_base):
+    """Кнопки выбора категории алхимии."""
+    alchemy = craft_base.get('alchemy', {})
+    buttons = []
+    category_icons = {
+        'Зелья': '🧪',
+        'Свитки': '📜',
+        'Ресурсы': '♻️',
+        'Прочее': '🧩',
+    }
+    categories = list(alchemy.keys())
+    for category_idx, category in enumerate(categories):
+        icon = category_icons.get(category, '🧪')
+        buttons.append([InlineKeyboardButton(
+            f"{icon} {category} ({len(alchemy[category])})",
+            callback_data=f"craft_ag:{category_idx}"
+        )])
+    buttons.append([InlineKeyboardButton(
+        "⬅️ Назад",
+        callback_data="craft_back:main"
+    )])
+    return InlineKeyboardMarkup(buttons)

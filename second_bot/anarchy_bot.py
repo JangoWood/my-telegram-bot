@@ -51,7 +51,7 @@ from utils.craft_menu import (
     get_grade_by_idx, get_class_by_idx, count_grade_items, count_instrument_items,
     count_cooking_items, count_group_items, count_class_items, count_all_equipment,
     count_all_instruments, count_all_cooking, count_all_alchemy, build_grades_keyboard,
-    build_instruments_keyboard
+    build_instruments_keyboard, build_cooking_keyboard, build_alchemy_keyboard
 )
 from utils.craft_calculator import build_calculator_text, build_calculator_buttons
 from utils.callback_handlers import handle_button_callback
@@ -2196,57 +2196,17 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             return
         elif parts[1] == 'instr':
-            instruments = craft_base.get('instruments', {})
-            groups = instruments.get('groups', [])
-            buttons = []
-            row = []
-            for i, group in enumerate(groups):
-                row.append(InlineKeyboardButton(
-                    f"{group['name']} ({count_instrument_items(group)})",
-                    callback_data=f"craft_ig:{i}"
-                ))
-                if len(row) == 2:
-                    buttons.append(row)
-                    row = []
-            if row:
-                buttons.append(row)
-
-            buttons.append([InlineKeyboardButton(
-                "⬅️ Назад",
-                callback_data="craft_back:main"
-            )])
-
             await query.edit_message_text(
                 "⚒️ <b>Инструменты — выбери тип:</b>",
                 parse_mode="HTML",
-                reply_markup=InlineKeyboardMarkup(buttons)
+                reply_markup=build_instruments_keyboard(craft_base)
             )
             return
         elif parts[1] == 'cook':
-            cooking = craft_base.get('cooking', {})
-            groups = cooking.get('groups', [])
-            buttons = []
-            row = []
-            for i, group in enumerate(groups):
-                row.append(InlineKeyboardButton(
-                    f"{group['name']} ({count_cooking_items(group)})",
-                    callback_data=f"craft_cg:{i}"
-                ))
-                if len(row) == 2:
-                    buttons.append(row)
-                    row = []
-            if row:
-                buttons.append(row)
-
-            buttons.append([InlineKeyboardButton(
-                "⬅️ Назад",
-                callback_data="craft_back:main"
-            )])
-
             await query.edit_message_text(
                 "🥨 <b>Кулинария — выбери раздел:</b>",
                 parse_mode="HTML",
-                reply_markup=InlineKeyboardMarkup(buttons)
+                reply_markup=build_cooking_keyboard(craft_base)
             )
             return
 
@@ -2260,29 +2220,10 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             return
 
-        buttons = []
-        category_icons = {
-            'Зелья': '🧪',
-            'Свитки': '📜',
-            'Ресурсы': '♻️',
-            'Прочее': '🧩',
-        }
-        for category, items in alchemy.items():
-            icon = category_icons.get(category, '🧪')
-            buttons.append([InlineKeyboardButton(
-                f"{icon} {category} ({len(items)})",
-                callback_data=f"craft_ag:{list(alchemy.keys()).index(category)}"
-            )])
-
-        buttons.append([InlineKeyboardButton(
-            "⬅️ Назад",
-            callback_data="craft_back:main"
-        )])
-
         await query.edit_message_text(
             "🧪 <b>Алхимия — выбери раздел:</b>",
             parse_mode="HTML",
-            reply_markup=InlineKeyboardMarkup(buttons)
+            reply_markup=build_alchemy_keyboard(craft_base)
         )
         return
 
