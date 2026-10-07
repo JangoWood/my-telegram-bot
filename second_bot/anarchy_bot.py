@@ -48,6 +48,7 @@ from utils.craft_loader import load_craft_file
 from utils.get_keyboard import get_search_keyboard
 from utils.callback_handlers import handle_button_callback
 from utils.table_data import get_table_data, get_table_data_by_gid, get_table_data_by_gid_with_fallback
+from utils.table_search import get_combined_table_data
 
 # ==================== ЗАГРУЗКА БАЗЫ КРАФТА ====================
 
@@ -92,29 +93,6 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ==================== ОСНОВНАЯ ТАБЛИЦА (актуальная таблица) ====================
 
 
-
-def get_combined_table_data():
-    """Объединяет данные с трёх листов для поиска (/find), сохраняя заголовки каждого"""
-    sheets = [
-        {'gid': MAIN_SHEET_GID, 'name': 'main'},
-        {'gid': SECOND_SHEET_GID, 'name': 'second'},
-        {'gid': THIRD_SHEET_GID, 'name': 'third'},
-    ]
-
-    combined = []
-
-    for sheet in sheets:
-        data, headers = get_table_data_by_gid(sheet['gid'])
-        if data:
-            for row in data:
-                combined.append({
-                    'row': row,
-                    'headers': headers,
-                    'source': sheet['name']
-                })
-
-    print(f"📊 Всего строк для поиска: {len(combined)}")
-    return combined
 
 def format_table_row(row, headers):
     """Форматирует строку данных, используя даты из заголовков"""
