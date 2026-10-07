@@ -3590,12 +3590,8 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             back_cb = f"craft_sg:{grade_idx}:{class_idx}:{group_idx}:{subgroup_idx}"
 
-        context.user_data.setdefault('craft_calc_back', {})[str(item.get('id'))] = back_cb
-        buttons = []
-        if item.get('craft_block') or item.get('resources_block'):
-            buttons = build_calculator_buttons(item.get('id'), 1, back_cb).inline_keyboard
-        else:
-            buttons = [[InlineKeyboardButton("⬅️ Назад", callback_data=back_cb)]]
+        # Для раздела «Экипировка» калькулятор отключён.
+        buttons = [[InlineKeyboardButton("⬅️ Назад", callback_data=back_cb)]]
 
         # Telegram ограничивает 4096 символов, режем если больше
         if len(text) > 4000:
