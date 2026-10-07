@@ -78,6 +78,7 @@ craft_index = {
     'classes': {},        # {grade_idx: [{name, ...}]}
     'items': {},          # {(grade_idx, class_idx, item_path): item}
 }
+craft_search_items = []  # Плоский список всех карточек для /get
 
 
 def load_craft_base():
@@ -100,15 +101,46 @@ def load_craft_base():
             # groups — если класс с группами
             pass  # Индексы строим динамически в хендлерах по позициям
 
-    total = sum(
-        len(cls.get('items', [])) + sum(
-            len(g.get('items', [])) + sum(len(sg.get('items', [])) for sg in g.get('subgroups', []))
-            for g in cls.get('groups', [])
-        )
-        for grade in craft_base.get('grades', [])
-        for cls in grade.get('classes', [])
-    )
-    print(f"✅ Загружено {len(craft_base.get('grades', []))} грейдов, {total} предметов")
+    global craft_search_items
+    craft_search_items = []
+
+    def add_item(item, section):
+        if isinstance(item, dict) and item.get('title'):
+            craft_search_items.append({
+                'item': item,
+                'section': section,
+            })
+
+    # Экипировка
+    for grade in craft_base.get('grades', []):
+        for cls in grade.get('classes', []):
+            for item in cls.get('items', []):
+                add_item(item, f"🎒 {grade.get('name', '')} • {cls.get('name', '')}")
+            for group in cls.get('groups', []):
+                for item in group.get('items', []):
+                    add_item(item, f"🎒 {grade.get('name', '')} • {cls.get('name', '')} • {group.get('name', '')}")
+                for subgroup in group.get('subgroups', []):
+                    for item in subgroup.get('items', []):
+                        add_item(item, f"🎒 {grade.get('name', '')} • {cls.get('name', '')} • {group.get('name', '')} • {subgroup.get('name', '')}")
+
+    # Инструменты и кулинария
+    for group in craft_base.get('instruments', {}).get('groups', []):
+        for item in group.get('items', []):
+            add_item(item, f"⚒️ {group.get('name', '')}")
+    for group in craft_base.get('cooking', {}).get('groups', []):
+        for item in group.get('items', []):
+            add_item(item, f"🥨 {group.get('name', '')}")
+
+    # Алхимия (категории и подкатегории)
+    for category, items in craft_base.get('alchemy', {}).items():
+        for item in items:
+            subcategory = item.get('subcategory')
+            section = f"🧪 {category}"
+            if subcategory:
+                section += f" • {subcategory}"
+            add_item(item, section)
+
+    print(f"✅ Загружено {len(craft_base.get('grades', []))} грейдов, {len(craft_search_items)} предметов")
 
 def is_chat_allowed(chat_id):
     """Проверяет, разрешён ли чат"""
@@ -916,6 +948,91 @@ async def spec_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if response:
         await update.message.reply_text(response, parse_mode="HTML", disable_web_page_preview=True)
+
+@chat_restricted
+async def get_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Команда /get — открывает живой поиск по карточкам крафта."""
+    keyboard = [[InlineKeyboardButton(
+        "🔍 Начать поиск",
+        switch_inline_query_current_chat="get "
+    )]]
+    await update.message.reply_text(
+        "🔎 <b>Поиск предмета</b>\n\nНажми кнопку и начни вводить название.",
+        parse_mode="HTML",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+
+def build_get_card_text(item):
+    """Формирует карточку предмета в том же формате, что /craft."""
+    text = f"<b>{item.get('title', 'Без названия')}</b>\n\n"
+
+    if item.get('where'):
+        text += f"📍 <b>Где:</b> {item['where']}\n\n"
+
+    if item.get('craft_block'):
+        text += "<b>Ресурсы для крафта:</b>\n"
+        text += item['craft_block'] + "\n\n"
+
+    if item.get('resources_block'):
+        text += "<b>📊 Все необходимые ресурсы для крафта:</b>\n"
+        text += f"<blockquote expandable>{item['resources_block']}</blockquote>\n\n"
+
+    if item.get('energy'):
+        text += f"<b>{item['energy']}</b>"
+
+    if len(text) > 4000:
+        text = text[:3997] + "..."
+    return text
+
+
+@chat_restricted
+async def get_inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Живой поиск предметов для /get."""
+    raw_query = update.inline_query.query
+    query = raw_query[3:].strip().lower() if raw_query.lower().startswith('get') else raw_query.strip().lower()
+
+    if not query:
+        results = [InlineQueryResultArticle(
+            id="get_help",
+            title="🔍 Введите название предмета",
+            description=f"Поиск по {len(craft_search_items)} карточкам крафта",
+            input_message_content=InputTextMessageContent(
+                "🔎 Начни вводить название предмета для поиска."
+            )
+        )]
+        await update.inline_query.answer(results, cache_time=0, is_personal=True)
+        return
+
+    found = []
+    for entry in craft_search_items:
+        item = entry['item']
+        title = item.get('title', '')
+        if query in title.lower():
+            found.append(InlineQueryResultArticle(
+                id=f"get_{item.get('id', len(found))}",
+                title=title[:64],
+                description=entry['section'][:128],
+                input_message_content=InputTextMessageContent(
+                    build_get_card_text(item),
+                    parse_mode="HTML"
+                )
+            ))
+            if len(found) >= 50:
+                break
+
+    if not found:
+        found = [InlineQueryResultArticle(
+            id="get_not_found",
+            title=f"❌ Не найдено: {query}",
+            description="Попробуйте другое название",
+            input_message_content=InputTextMessageContent(
+                f"❌ Предмет «{query}» не найден."
+            )
+        )]
+
+    await update.inline_query.answer(found, cache_time=0, is_personal=True)
+
 
 @chat_restricted
 async def inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -2481,55 +2598,6 @@ def get_class_by_idx(grade_idx, class_idx):
     return None
 
 
-def count_grade_items(grade):
-    """Количество рецептов/предметов в грейде."""
-    total = len(grade.get('items', []))
-    for cls in grade.get('classes', []):
-        total += len(cls.get('items', []))
-        for group in cls.get('groups', []):
-            total += len(group.get('items', []))
-    return total
-
-
-def count_instrument_items(group):
-    return len(group.get('items', []))
-
-
-def count_cooking_items(group):
-    return len(group.get('items', []))
-
-
-def count_group_items(group):
-    """Количество предметов в группе, включая её подгруппы."""
-    total = len(group.get('items', []))
-    for subgroup in group.get('subgroups', []):
-        total += len(subgroup.get('items', []))
-    return total
-
-
-def count_class_items(cls):
-    """Количество предметов в классе, включая группы и подгруппы."""
-    if cls.get('groups'):
-        return sum(count_group_items(group) for group in cls.get('groups', []))
-    return len(cls.get('items', []))
-
-
-def count_all_equipment():
-    return sum(count_grade_items(grade) for grade in craft_base.get('grades', []))
-
-
-def count_all_instruments():
-    return sum(count_instrument_items(group) for group in craft_base.get('instruments', {}).get('groups', []))
-
-
-def count_all_cooking():
-    return sum(count_cooking_items(group) for group in craft_base.get('cooking', {}).get('groups', []))
-
-
-def count_all_alchemy():
-    return sum(len(items) for items in craft_base.get('alchemy', {}).values())
-
-
 def build_grades_keyboard():
     """Кнопки выбора грейда (по 2 в ряд)"""
     grades = craft_base.get('grades', [])
@@ -2537,7 +2605,7 @@ def build_grades_keyboard():
     row = []
     for i, grade in enumerate(grades):
         row.append(InlineKeyboardButton(
-            f"🎒 {grade['name']} ({count_grade_items(grade)})",
+            f"🎒 {grade['name']}",
             callback_data=f"craft_g:{i}"
         ))
         if len(row) == 2:
@@ -2559,7 +2627,7 @@ def build_instruments_keyboard():
     row = []
     for i, group in enumerate(groups):
         row.append(InlineKeyboardButton(
-            f"{group['name']} ({count_instrument_items(group)})",
+            group['name'],
             callback_data=f"craft_ig:{i}"
         ))
         if len(row) == 2:
@@ -2581,12 +2649,12 @@ async def craft_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     keyboard = [
         [
-            InlineKeyboardButton(f"🎒 Экипировка ({count_all_equipment()})", callback_data="craft_section:equip"),
-            InlineKeyboardButton(f"⚒️ Инструменты ({count_all_instruments()})", callback_data="craft_section:instr"),
+            InlineKeyboardButton("🎒 Экипировка", callback_data="craft_section:equip"),
+            InlineKeyboardButton("⚒️ Инструменты", callback_data="craft_section:instr"),
         ],
         [
-            InlineKeyboardButton(f"🥨 Кулинария ({count_all_cooking()})", callback_data="craft_section:cook"),
-            InlineKeyboardButton(f"🧪 Алхимия ({count_all_alchemy()})", callback_data="craft_section:alchemy"),
+            InlineKeyboardButton("🥨 Кулинария", callback_data="craft_section:cook"),
+            InlineKeyboardButton("🧪 Алхимия", callback_data="craft_section:alchemy"),
         ]
     ]
     await update.message.reply_text(
@@ -2620,7 +2688,7 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             row = []
             for i, group in enumerate(groups):
                 row.append(InlineKeyboardButton(
-                    f"{group['name']} ({count_instrument_items(group)})",
+                    group['name'],
                     callback_data=f"craft_ig:{i}"
                 ))
                 if len(row) == 2:
@@ -2647,7 +2715,7 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             row = []
             for i, group in enumerate(groups):
                 row.append(InlineKeyboardButton(
-                    f"{group['name']} ({count_cooking_items(group)})",
+                    group['name'],
                     callback_data=f"craft_cg:{i}"
                 ))
                 if len(row) == 2:
@@ -2682,7 +2750,7 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         category_icons = {
             'Зелья': '🧪',
             'Свитки': '📜',
-            'Ресурсы': '♻️',
+            'Ресурсы': '🧱',
             'Прочее': '🧩',
         }
         for category, items in alchemy.items():
@@ -2720,73 +2788,6 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         category = categories[category_idx]
         items = alchemy.get(category, [])
-
-        # Показываем подгруппы, если парсер их определил.
-        # Ресурсы, зелья и свитки используют одну механику навигации.
-        subgroups = []
-        seen_subgroups = set()
-        for item in items:
-            subcategory = item.get('subcategory')
-            if subcategory and subcategory not in seen_subgroups:
-                seen_subgroups.add(subcategory)
-                subgroups.append(subcategory)
-
-        if subgroups:
-            subgroup_icons = {
-                # Зелья
-                'Таланты': '💟',
-                'Очищение камня': '🌡🎆',
-                'Элексиры здоровья': '🧪',
-                'Антидоты': '🧪',
-                'Усиление': '🌡',
-                # Свитки
-                'Заточки': '🔖',
-                'Телепорты': '🗞',
-                'Трансмутация': '📜',
-                # Ресурсы
-                'Алхимия [IV+]': '🧪',
-                'Алхимия [IV]': '🧪',
-                'Алхимия [III+]': '🧪',
-                'Алхимия [III]': '🧪',
-                'Материя': 'Ⓜ️',
-            }
-            category_icons = {
-                'Зелья': '🧪',
-                'Свитки': '📜',
-                'Ресурсы': '♻️',
-                'Прочее': '🧩',
-            }
-            icon = category_icons.get(category, '🧪')
-
-            buttons = []
-            for sub_idx, subcategory in enumerate(subgroups):
-                count = sum(1 for item in items if item.get('subcategory') == subcategory)
-                sub_icon = subgroup_icons.get(subcategory, icon)
-                buttons.append([InlineKeyboardButton(
-                    f"{sub_icon} {subcategory} ({count})",
-                    callback_data=f"craft_as:{category_idx}:{sub_idx}"
-                )])
-
-            # Рецепты без подгруппы, если такие появятся в будущем.
-            ungrouped = sum(1 for item in items if not item.get('subcategory'))
-            if ungrouped:
-                buttons.append([InlineKeyboardButton(
-                    f"{icon} Прочее ({ungrouped})",
-                    callback_data=f"craft_as:{category_idx}:ungrouped"
-                )])
-
-            buttons.append([InlineKeyboardButton(
-                "⬅️ Назад",
-                callback_data="craft_section:alchemy"
-            )])
-
-            await query.edit_message_text(
-                f"{icon} <b>{category} — выбери подгруппу:</b>",
-                parse_mode="HTML",
-                reply_markup=InlineKeyboardMarkup(buttons)
-            )
-            return
-
         buttons = []
         for i, item in enumerate(items):
             buttons.append([InlineKeyboardButton(
@@ -2801,81 +2802,6 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         await query.edit_message_text(
             f"🧪 <b>{category}</b> — выбери рецепт:",
-            parse_mode="HTML",
-            reply_markup=InlineKeyboardMarkup(buttons)
-        )
-        return
-
-    # ==================== ПОДГРУППА АЛХИМИИ ====================
-    if parts[0] == 'craft_as' and len(parts) == 3:
-        try:
-            category_idx = int(parts[1])
-        except ValueError:
-            await query.edit_message_text("❌ Некорректные данные.")
-            return
-
-        alchemy = craft_base.get('alchemy', {})
-        categories = list(alchemy.keys())
-        if not (0 <= category_idx < len(categories)):
-            await query.edit_message_text("❌ Категория не найдена.")
-            return
-
-        category = categories[category_idx]
-        items = alchemy.get(category, [])
-        subgroups = []
-        seen_subgroups = set()
-        for item in items:
-            subcategory = item.get('subcategory')
-            if subcategory and subcategory not in seen_subgroups:
-                seen_subgroups.add(subcategory)
-                subgroups.append(subcategory)
-
-        sub_idx = parts[2]
-        if sub_idx == 'ungrouped':
-            selected_items = [(i, item) for i, item in enumerate(items) if not item.get('subcategory')]
-            subgroup_title = 'Прочие ресурсы'
-        else:
-            try:
-                sub_idx_int = int(sub_idx)
-            except ValueError:
-                await query.edit_message_text("❌ Подгруппа не найдена.")
-                return
-            if not (0 <= sub_idx_int < len(subgroups)):
-                await query.edit_message_text("❌ Подгруппа не найдена.")
-                return
-            subgroup_title = subgroups[sub_idx_int]
-            selected_items = [(i, item) for i, item in enumerate(items) if item.get('subcategory') == subgroup_title]
-
-        subgroup_icons = {
-            'Таланты': '💟',
-            'Очищение камня': '🌡🎆',
-            'Элексиры здоровья': '🧪',
-            'Антидоты': '🧪',
-            'Усиление': '🌡',
-            'Заточки': '🔖',
-            'Телепорты': '🗞',
-            'Трансмутация': '📜',
-            'Алхимия [IV+]': '🧪',
-            'Алхимия [IV]': '🧪',
-            'Алхимия [III+]': '🧪',
-            'Алхимия [III]': '🧪',
-            'Материя': 'Ⓜ️',
-        }
-
-        buttons = []
-        for item_idx, item in selected_items:
-            buttons.append([InlineKeyboardButton(
-                item.get('title', 'Без названия')[:60],
-                callback_data=f"craft_ai:{category_idx}:{item_idx}"
-            )])
-
-        buttons.append([InlineKeyboardButton(
-            "⬅️ Назад",
-            callback_data=f"craft_ag:{category_idx}"
-        )])
-
-        await query.edit_message_text(
-            f"{subgroup_icons.get(subgroup_title, '🧪')} <b>{subgroup_title}</b> — выбери рецепт:",
             parse_mode="HTML",
             reply_markup=InlineKeyboardMarkup(buttons)
         )
@@ -3045,7 +2971,7 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         row = []
         for i, cls in enumerate(classes):
             row.append(InlineKeyboardButton(
-                f"{cls['name']} ({count_class_items(cls)})",
+                cls['name'],
                 callback_data=f"craft_c:{grade_idx}:{i}"
             ))
             if len(row) == 2:
@@ -3087,7 +3013,7 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if 'groups' in cls and cls['groups']:
             for i, group in enumerate(cls['groups']):
                 row.append(InlineKeyboardButton(
-                    f"{group['name']} ({count_group_items(group)})",
+                    group['name'],
                     callback_data=f"craft_gr:{grade_idx}:{class_idx}:{i}"
                 ))
                 if len(row) == 2:
@@ -3122,12 +3048,12 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if parts[0] == 'craft_back' and len(parts) == 2 and parts[1] == 'main':
         keyboard = [
             [
-                InlineKeyboardButton(f"🎒 Экипировка ({count_all_equipment()})", callback_data="craft_section:equip"),
-                InlineKeyboardButton(f"⚒️ Инструменты ({count_all_instruments()})", callback_data="craft_section:instr"),
+                InlineKeyboardButton("🎒 Экипировка", callback_data="craft_section:equip"),
+                InlineKeyboardButton("⚒️ Инструменты", callback_data="craft_section:instr"),
             ],
             [
-                InlineKeyboardButton(f"🥨 Кулинария ({count_all_cooking()})", callback_data="craft_section:cook"),
-                InlineKeyboardButton(f"🧪 Алхимия ({count_all_alchemy()})", callback_data="craft_section:alchemy"),
+                InlineKeyboardButton("🥨 Кулинария", callback_data="craft_section:cook"),
+                InlineKeyboardButton("🧪 Алхимия", callback_data="craft_section:alchemy"),
             ]
         ]
         await query.edit_message_text(
@@ -3139,10 +3065,20 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # ==================== НАЗАД К ГРЕЙДАМ ====================
     if parts[0] == 'craft_back' and len(parts) == 2 and parts[1] == 'grades':
+        keyboard = [
+            [
+                InlineKeyboardButton("🎒 Экипировка", callback_data="craft_section:equip"),
+                InlineKeyboardButton("⚒️ Инструменты", callback_data="craft_section:instr"),
+            ],
+            [
+                InlineKeyboardButton("🥨 Кулинария", callback_data="craft_section:cook"),
+                InlineKeyboardButton("🧪 Алхимия", callback_data="craft_section:alchemy"),
+            ]
+        ]
         await query.edit_message_text(
-            "🎒 <b>Экипировка — выбери грейд:</b>",
+            "⚒️ <b>Крафт — выбери раздел:</b>",
             parse_mode="HTML",
-            reply_markup=build_grades_keyboard()
+            reply_markup=InlineKeyboardMarkup(keyboard)
         )
         return
 
@@ -3175,7 +3111,7 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         subgroups = group.get('subgroups', [])
         for i, subgroup in enumerate(subgroups):
             row.append(InlineKeyboardButton(
-                f"{subgroup['name']} ({len(subgroup.get('items', []))})",
+                subgroup['name'],
                 callback_data=f"craft_sg:{grade_idx}:{class_idx}:{group_idx}:{i}"
             ))
             if len(row) == 2:
@@ -3517,7 +3453,11 @@ def main():
     # Команды для специализаций
     app.add_handler(CommandHandler("f", spec_search))
 
-    # Инлайн-обработчик
+    # Поиск карточек /get
+    app.add_handler(CommandHandler("get", get_command))
+    app.add_handler(InlineQueryHandler(get_inline_query, pattern=r"^get(?:\s.*)?$"))
+
+    # Инлайн-обработчик поиска игроков
     app.add_handler(InlineQueryHandler(inline_query))
 
     app.add_handler(CommandHandler("prof", get_profile))
