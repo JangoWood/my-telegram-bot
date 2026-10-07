@@ -2482,6 +2482,40 @@ def get_class_by_idx(grade_idx, class_idx):
     return None
 
 
+def count_grade_items(grade):
+    """Количество рецептов/предметов в грейде."""
+    total = len(grade.get('items', []))
+    for cls in grade.get('classes', []):
+        total += len(cls.get('items', []))
+        for group in cls.get('groups', []):
+            total += len(group.get('items', []))
+    return total
+
+
+def count_instrument_items(group):
+    return len(group.get('items', []))
+
+
+def count_cooking_items(group):
+    return len(group.get('items', []))
+
+
+def count_all_equipment():
+    return sum(count_grade_items(grade) for grade in craft_base.get('grades', []))
+
+
+def count_all_instruments():
+    return sum(count_instrument_items(group) for group in craft_base.get('instruments', {}).get('groups', []))
+
+
+def count_all_cooking():
+    return sum(count_cooking_items(group) for group in craft_base.get('cooking', {}).get('groups', []))
+
+
+def count_all_alchemy():
+    return sum(len(items) for items in craft_base.get('alchemy', {}).values())
+
+
 def build_grades_keyboard():
     """Кнопки выбора грейда (по 2 в ряд)"""
     grades = craft_base.get('grades', [])
@@ -2489,7 +2523,7 @@ def build_grades_keyboard():
     row = []
     for i, grade in enumerate(grades):
         row.append(InlineKeyboardButton(
-            f"🎒 {grade['name']}",
+            f"🎒 {grade['name']} ({count_grade_items(grade)})",
             callback_data=f"craft_g:{i}"
         ))
         if len(row) == 2:
@@ -2511,7 +2545,7 @@ def build_instruments_keyboard():
     row = []
     for i, group in enumerate(groups):
         row.append(InlineKeyboardButton(
-            group['name'],
+            f"{group['name']} ({count_instrument_items(group)})",
             callback_data=f"craft_ig:{i}"
         ))
         if len(row) == 2:
@@ -2533,12 +2567,12 @@ async def craft_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     keyboard = [
         [
-            InlineKeyboardButton("🎒 Экипировка", callback_data="craft_section:equip"),
-            InlineKeyboardButton("⚒️ Инструменты", callback_data="craft_section:instr"),
+            InlineKeyboardButton(f"🎒 Экипировка ({count_all_equipment()})", callback_data="craft_section:equip"),
+            InlineKeyboardButton(f"⚒️ Инструменты ({count_all_instruments()})", callback_data="craft_section:instr"),
         ],
         [
-            InlineKeyboardButton("🥨 Кулинария", callback_data="craft_section:cook"),
-            InlineKeyboardButton("🧪 Алхимия", callback_data="craft_section:alchemy"),
+            InlineKeyboardButton(f"🥨 Кулинария ({count_all_cooking()})", callback_data="craft_section:cook"),
+            InlineKeyboardButton(f"🧪 Алхимия ({count_all_alchemy()})", callback_data="craft_section:alchemy"),
         ]
     ]
     await update.message.reply_text(
@@ -2599,7 +2633,7 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             row = []
             for i, group in enumerate(groups):
                 row.append(InlineKeyboardButton(
-                    group['name'],
+                    f"{group['name']} ({count_cooking_items(group)})",
                     callback_data=f"craft_cg:{i}"
                 ))
                 if len(row) == 2:
@@ -3074,12 +3108,12 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if parts[0] == 'craft_back' and len(parts) == 2 and parts[1] == 'main':
         keyboard = [
             [
-                InlineKeyboardButton("🎒 Экипировка", callback_data="craft_section:equip"),
-                InlineKeyboardButton("⚒️ Инструменты", callback_data="craft_section:instr"),
+                InlineKeyboardButton(f"🎒 Экипировка ({count_all_equipment()})", callback_data="craft_section:equip"),
+                InlineKeyboardButton(f"⚒️ Инструменты ({count_all_instruments()})", callback_data="craft_section:instr"),
             ],
             [
-                InlineKeyboardButton("🥨 Кулинария", callback_data="craft_section:cook"),
-                InlineKeyboardButton("🧪 Алхимия", callback_data="craft_section:alchemy"),
+                InlineKeyboardButton(f"🥨 Кулинария ({count_all_cooking()})", callback_data="craft_section:cook"),
+                InlineKeyboardButton(f"🧪 Алхимия ({count_all_alchemy()})", callback_data="craft_section:alchemy"),
             ]
         ]
         await query.edit_message_text(
