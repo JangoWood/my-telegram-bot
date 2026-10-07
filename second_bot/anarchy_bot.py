@@ -17,7 +17,6 @@ import gspread
 from google.oauth2.service_account import Credentials
 import pytz
 from telegram.ext import MessageHandler, filters
-from utils.realm_profile import format_realm_profile, format_specializations_for_profile
 import re
 import json
 
@@ -62,6 +61,7 @@ from utils.callback_handlers import handle_button_callback
 from utils.table_data import get_table_data, get_table_data_by_gid, get_table_data_by_gid_with_fallback
 from utils.table_search import get_combined_table_data
 from utils.spec_table import show_specializations
+from utils.table_formatter import format_table_row
 
 # ==================== ЗАГРУЗКА БАЗЫ КРАФТА ====================
 
@@ -105,41 +105,6 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ==================== ОСНОВНАЯ ТАБЛИЦА (актуальная таблица) ====================
 
-
-
-def format_table_row(row, headers):
-    """Форматирует строку данных, используя даты из заголовков"""
-    if not row or len(row) < 3:
-        return ""
-
-    name = row[0].strip()
-    if not name or name.lower() == 'состав':
-        return ""
-
-    # Берём даты из заголовков (2-я и 3-я колонки, индекс 1 и 2)
-    date_start = headers[1].strip() if len(headers) > 1 else "??"
-    date_end = headers[2].strip() if len(headers) > 2 else "??"
-
-    # Берём значения (индексы: 1=дата1, 2=дата2, 3=очки, 4=монеты, 5=итог)
-    # Внимание: индексы зависят от того, что приходит из CSV
-    points = row[3].strip() if len(row) > 3 else "0"
-    coins = row[4].strip() if len(row) > 4 else "0"
-    total = row[5].strip() if len(row) > 5 else "0"
-    minus = row[6].strip() if len(row) > 6 else ""
-
-    # Если очки и монеты пустые — пропускаем строку
-    if not points and not coins:
-        return ""
-
-    result = f"🤟🏼 <b>{name}</b>\n"
-    result += f"  📅 {date_start} – {date_end}: ⚔️ {points} очков, 💰 {coins} монет"
-    if total and total not in ['0', '']:
-        result += f", 📦 итог: {total}"
-    if minus and minus not in ['0', '', '-']:
-        result += f" ⚠️ минус: {minus}"
-    result += "\n"
-
-    return result
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -888,6 +853,67 @@ def get_player_realm_from_sheet(user_tag):
         print(f"Ошибка получения данных игрока {user_tag}: {e}")
         return None
 
+
+def format_realm_profile(player_data):
+    """Форматирует вывод профиля из таблицы Ремесло"""
+    name = player_data['name']
+    tag = player_data['tag']
+    clan = player_data['clan']
+    skills = player_data['skills']
+    updated = player_data['updated']
+
+    response = f"🤟🏼 <b>{name}</b>\n"
+    response += f"📱 {tag}\n"
+    response += f"🏛️ {clan}\n\n"
+    response += "<b>📋 Специализации:</b>\n"
+
+    # Эмодзи для каждой специализации
+    emojis = {
+        'Крафтер': '⚒️',
+        'Рыбалка': '🎣',
+        'Шахтёр': '⛏️',
+        'Охота': '🏹',
+        'Кулинария': '🥨',
+        'Алхимия': '🧪',
+        'Плавильщик': '🪔',
+        'Фермер': '🌽'
+    }
+
+    for skill, value in skills.items():
+        if value:
+            emoji = emojis.get(skill, '•')
+            response += f"  {emoji} {skill}: <b>{value}</b>\n"
+        else:
+            response += f"  • {skill}: —\n"
+
+    if updated:
+        response += f"\n📅 <i>Обновлено: {updated}</i>"
+
+    return response
+
+def format_specializations_for_profile(row, headers):
+    """Форматирует специализации игрока для красивого вывода (как в /f, но для одного игрока)"""
+    if not row or len(row) < 2:
+        return "❌ Нет данных"
+
+    # Первая колонка — это тег (@username), вторая — имя игрока
+    tag = row[0].strip() if len(row) > 0 else "?"
+    name = row[1].strip() if len(row) > 1 and row[1] else "Неизвестно"
+
+    # Названия специализаций (заголовки)
+    spec_names = headers[2:] if len(headers) > 2 else []
+
+    response = f"🤟🏼 <b>{name}</b>\n"
+    response += f"📱 {tag}\n\n"
+    response += "<b>📋 Специализации:</b>\n"
+
+    for i, spec in enumerate(spec_names):
+        if i + 2 < len(row) and row[i + 2]:
+            value = row[i + 2].strip()
+            if value and value != '-':
+                response += f"  • {spec}: <b>{value}</b>\n"
+
+    return response
 
 
 def get_specializations_data():
