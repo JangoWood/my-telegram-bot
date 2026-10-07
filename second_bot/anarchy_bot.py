@@ -47,7 +47,7 @@ from utils.health import run_flask
 from utils.craft_loader import load_craft_file
 from utils.get_keyboard import get_search_keyboard
 from utils.get_craft import get_all_craft_search_items, build_get_card_text, find_craft_item_by_id
-from utils.craft_calculator import build_calculator_text, build_calculator_buttons, calculator_callback
+from utils.craft_calculator import build_calculator_text, build_calculator_buttons
 from utils.callback_handlers import handle_button_callback
 from utils.table_data import get_table_data, get_table_data_by_gid, get_table_data_by_gid_with_fallback
 from utils.table_search import get_combined_table_data
@@ -3199,6 +3199,34 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ==================== ЗАПУСК БОТА ====================
 
+
+async def calculator_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Изменяет множитель ресурсов в текущей карточке."""
+    query = update.callback_query
+    await query.answer()
+
+    try:
+        _, item_id, quantity = query.data.split('_', 2)
+        quantity = int(quantity)
+        if quantity < 1:
+            quantity = 1
+    except (ValueError, AttributeError):
+        await query.answer("❌ Некорректные данные", show_alert=True)
+        return
+
+    item = find_craft_item_by_id(item_id, craft_base)
+    if not item:
+        await query.answer("❌ Предмет не найден", show_alert=True)
+        return
+
+    calc_back = context.user_data.get('craft_calc_back', {}).get(str(item_id))
+    if calc_back == '__get__':
+        calc_back = None
+
+    text = build_calculator_text(item, quantity)
+    markup = build_calculator_buttons(item_id, quantity, calc_back)
+
+    await query.edit_message_text(text, parse_mode="HTML", reply_markup=markup)
 def main():
     print("🟢 Запуск бота...")
     load_craft_base()  # ← добавить эту строку
