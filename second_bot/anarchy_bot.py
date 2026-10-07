@@ -66,7 +66,6 @@ ALLOWED_CHATS = [
 # Белый список пользователей (кто может писать боту в личку)
 ALLOWED_USERS = [
     121597158,  # Твой Telegram ID (замени на реальный)
-    812701729,  # @OlegKrylov1991
 ]
 
 # ==================== ЗАГРУЗКА БАЗЫ КРАФТА ====================
@@ -3176,7 +3175,25 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if item.get('energy'):
             text += f"<b>{item['energy']}</b>"
 
-        back_cb = f"craft_ag:{category_idx}"
+        # Возврат должен вести в ту подгруппу, из которой открыт рецепт.
+        # Например, «Антидот архонта» → 🧪 Антидоты, а не общий раздел «Зелья».
+        subcategory = item.get('subcategory')
+        if subcategory:
+            subgroups = []
+            seen_subgroups = set()
+            for candidate in items:
+                candidate_subcategory = candidate.get('subcategory')
+                if candidate_subcategory and candidate_subcategory not in seen_subgroups:
+                    seen_subgroups.add(candidate_subcategory)
+                    subgroups.append(candidate_subcategory)
+
+            if subcategory in subgroups:
+                back_cb = f"craft_as:{category_idx}:{subgroups.index(subcategory)}"
+            else:
+                back_cb = f"craft_ag:{category_idx}"
+        else:
+            back_cb = f"craft_ag:{category_idx}"
+
         context.user_data.setdefault('craft_calc_back', {})[str(item.get('id'))] = back_cb
         buttons = build_calculator_buttons(item.get('id'), 1, back_cb).inline_keyboard
 
