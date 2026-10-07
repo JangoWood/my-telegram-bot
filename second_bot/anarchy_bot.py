@@ -45,6 +45,7 @@ help_cw_sessions = {}
 from utils.permissions import chat_restricted
 from utils.health import run_flask
 from utils.craft_loader import load_craft_file
+from utils.get_keyboard import get_search_keyboard
 
 # ==================== ЗАГРУЗКА БАЗЫ КРАФТА ====================
 
@@ -850,14 +851,10 @@ async def spec_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
 @chat_restricted
 async def get_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Команда /get — открывает inline-поиск по карточкам крафта."""
-    keyboard = [[InlineKeyboardButton(
-        "🔍 Начать поиск",
-        switch_inline_query_current_chat="get "
-    )]]
     await update.message.reply_text(
         "🔎 <b>Поиск предмета</b>\n\nНажми кнопку и начни вводить название.",
         parse_mode="HTML",
-        reply_markup=InlineKeyboardMarkup(keyboard)
+        reply_markup=get_search_keyboard()
     )
 
 
