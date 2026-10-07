@@ -2244,91 +2244,18 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.edit_message_text("❌ Категория не найдена.")
             return
 
-        category = categories[category_idx]
-        items = alchemy.get(category, [])
-
-        # Показываем подгруппы, если парсер их определил.
-        # Ресурсы, зелья и свитки используют одну механику навигации.
-        subgroups = []
-        seen_subgroups = set()
-        for item in items:
-            subcategory = item.get('subcategory')
-            if subcategory and subcategory not in seen_subgroups:
-                seen_subgroups.add(subcategory)
-                subgroups.append(subcategory)
-
-        if subgroups:
-            subgroup_icons = {
-                # Зелья
-                'Таланты': '💟',
-                'Очищение камня': '🌡🎆',
-                'Элексиры здоровья': '🧪',
-                'Антидоты': '🧪',
-                'Усиление': '🌡',
-                # Свитки
-                'Заточки': '🔖',
-                'Телепорты': '🗞',
-                'Трансмутация': '📜',
-                # Ресурсы
-                'Алхимия [IV+]': '🧪',
-                'Алхимия [IV]': '🧪',
-                'Алхимия [III+]': '🧪',
-                'Алхимия [III]': '🧪',
-                'Материя': 'Ⓜ️',
-            }
-            category_icons = {
-                'Зелья': '🧪',
-                'Свитки': '📜',
-                'Ресурсы': '♻️',
-                'Прочее': '🧩',
-            }
-            icon = category_icons.get(category, '🧪')
-
-            buttons = []
-            for sub_idx, subcategory in enumerate(subgroups):
-                count = sum(1 for item in items if item.get('subcategory') == subcategory)
-                sub_icon = subgroup_icons.get(subcategory, icon)
-                buttons.append([InlineKeyboardButton(
-                    f"{sub_icon} {subcategory} ({count})",
-                    callback_data=f"craft_as:{category_idx}:{sub_idx}"
-                )])
-
-            # Рецепты без подгруппы, если такие появятся в будущем.
-            ungrouped = sum(1 for item in items if not item.get('subcategory'))
-            if ungrouped:
-                buttons.append([InlineKeyboardButton(
-                    f"{icon} Прочее ({ungrouped})",
-                    callback_data=f"craft_as:{category_idx}:ungrouped"
-                )])
-
-            buttons.append([InlineKeyboardButton(
-                "⬅️ Назад",
-                callback_data="craft_section:alchemy"
-            )])
-
-            await query.edit_message_text(
-                f"{icon} <b>{category} — выбери подгруппу:</b>",
-                parse_mode="HTML",
-                reply_markup=InlineKeyboardMarkup(buttons)
-            )
-            return
-
-        buttons = []
-        for i, item in enumerate(items):
-            buttons.append([InlineKeyboardButton(
-                item.get('title', 'Без названия')[:60],
-                callback_data=f"craft_ai:{category_idx}:{i}"
-            )])
-
-        buttons.append([InlineKeyboardButton(
-            "⬅️ Назад",
-            callback_data="craft_section:alchemy"
-        )])
+        markup, category, has_subgroups, icon = build_alchemy_category_keyboard(
+            craft_base, category_idx
+        )
+        if has_subgroups:
+            text = f"{icon} <b>{category} — выбери подгруппу:</b>"
+        else:
+            text = f"🧪 <b>{category}</b> — выбери рецепт:"
 
         await query.edit_message_text(
-            f"🧪 <b>{category}</b> — выбери рецепт:",
+            text,
             parse_mode="HTML",
-            reply_markup=InlineKeyboardMarkup(buttons)
+            reply_markup=markup
         )
         return
 

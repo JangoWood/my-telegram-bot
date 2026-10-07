@@ -238,3 +238,71 @@ def build_cooking_items_keyboard(group, group_idx):
         callback_data="craft_section:cook"
     )])
     return InlineKeyboardMarkup(buttons)
+
+
+def build_alchemy_category_keyboard(craft_base, category_idx):
+    """Кнопки рецептов/подгрупп выбранной категории алхимии."""
+    alchemy = craft_base.get('alchemy', {})
+    categories = list(alchemy.keys())
+    category = categories[category_idx]
+    items = alchemy.get(category, [])
+
+    subgroups = []
+    seen_subgroups = set()
+    for item in items:
+        subcategory = item.get('subcategory')
+        if subcategory and subcategory not in seen_subgroups:
+            seen_subgroups.add(subcategory)
+            subgroups.append(subcategory)
+
+    category_icons = {
+        'Зелья': '🧪',
+        'Свитки': '📜',
+        'Ресурсы': '♻️',
+        'Прочее': '🧩',
+    }
+    icon = category_icons.get(category, '🧪')
+
+    subgroup_icons = {
+        'Таланты': '💟',
+        'Очищение камня': '🌡🎆',
+        'Элексиры здоровья': '🧪',
+        'Антидоты': '🧪',
+        'Усиление': '🌡',
+        'Заточки': '🔖',
+        'Телепорты': '🗞',
+        'Трансмутация': '📜',
+        'Алхимия [IV+]': '🧪',
+        'Алхимия [IV]': '🧪',
+        'Алхимия [III+]': '🧪',
+        'Алхимия [III]': '🧪',
+        'Материя': 'Ⓜ️',
+    }
+
+    buttons = []
+    if subgroups:
+        for sub_idx, subgroup in enumerate(subgroups):
+            count = sum(1 for item in items if item.get('subcategory') == subgroup)
+            buttons.append([InlineKeyboardButton(
+                f"{subgroup_icons.get(subgroup, '🧪')} {subgroup} ({count})",
+                callback_data=f"craft_as:{category_idx}:{sub_idx}"
+            )])
+
+        ungrouped = sum(1 for item in items if not item.get('subcategory'))
+        if ungrouped:
+            buttons.append([InlineKeyboardButton(
+                f"{icon} Прочее ({ungrouped})",
+                callback_data=f"craft_as:{category_idx}:ungrouped"
+            )])
+    else:
+        for i, item in enumerate(items):
+            buttons.append([InlineKeyboardButton(
+                item.get('title', 'Без названия')[:60],
+                callback_data=f"craft_ai:{category_idx}:{i}"
+            )])
+
+    buttons.append([InlineKeyboardButton(
+        "⬅️ Назад",
+        callback_data="craft_section:alchemy"
+    )])
+    return InlineKeyboardMarkup(buttons), category, bool(subgroups), icon
