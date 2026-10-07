@@ -988,7 +988,14 @@ def build_get_card_text(item):
         text += f"<blockquote expandable>{item['resources_block']}</blockquote>\n\n"
 
     if item.get('energy'):
-        text += f"<b>{item['energy']}</b>"
+        energy = item['energy']
+        # Умножаем только число энергии перед 🔋, не уровень/название профессии.
+        energy = re.sub(
+            r'(\d[\d ]*)\s*🔋',
+            lambda m: f"{int(m.group(1).replace(' ', '')) * quantity}🔋",
+            energy
+        )
+        text += f"<b>{energy}</b>"
 
     return text[:3997] + "..." if len(text) > 4000 else text
 
@@ -1063,10 +1070,14 @@ def build_calculator_text(item, quantity=1):
 def build_calculator_buttons(item_id, quantity, back_cb=None):
     """Кнопки калькулятора. Уменьшение недоступно, если количество недостаточно."""
     quantity = max(1, int(quantity))
+    # При первом нажатии +5/+10 это выбор количества, а не прибавление к базовой единице.
+    # Поэтому из ×1 получаем ×5 или ×10, а дальше кнопки работают как обычное прибавление.
+    plus5 = 5 if quantity == 1 else quantity + 5
+    plus10 = 10 if quantity == 1 else quantity + 10
     row = [
         InlineKeyboardButton("➕1", callback_data=f"calc_{item_id}_{quantity + 1}"),
-        InlineKeyboardButton("➕5", callback_data=f"calc_{item_id}_{quantity + 5}"),
-        InlineKeyboardButton("➕10", callback_data=f"calc_{item_id}_{quantity + 10}"),
+        InlineKeyboardButton("➕5", callback_data=f"calc_{item_id}_{plus5}"),
+        InlineKeyboardButton("➕10", callback_data=f"calc_{item_id}_{plus10}"),
     ]
     buttons = [row]
 
