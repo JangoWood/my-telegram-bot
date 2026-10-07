@@ -354,7 +354,11 @@ async def find(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     search = " ".join(context.args).lower().strip()
-    combined_data = get_combined_table_data()
+    combined_data = get_combined_table_data(
+        MAIN_SHEET_GID,
+        SECOND_SHEET_GID,
+        THIRD_SHEET_GID
+    )
 
     if not combined_data:
         await update.message.reply_text("❌ Нет данных для поиска")
