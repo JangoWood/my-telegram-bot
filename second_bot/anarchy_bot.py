@@ -52,7 +52,7 @@ from utils.craft_menu import (
     count_cooking_items, count_group_items, count_class_items, count_all_equipment,
     count_all_instruments, count_all_cooking, count_all_alchemy, build_grades_keyboard,
     build_instruments_keyboard, build_cooking_keyboard, build_alchemy_keyboard,
-    build_alchemy_category_keyboard, build_classes_keyboard, build_class_items_keyboard
+    build_classes_keyboard, build_class_items_keyboard
 ,
     build_instrument_items_keyboard, build_cooking_items_keyboard
 )
@@ -60,9 +60,8 @@ from utils.craft_calculator import build_calculator_text, build_calculator_butto
 from utils.callback_handlers import handle_button_callback
 from utils.table_data import get_table_data, get_table_data_by_gid, get_table_data_by_gid_with_fallback
 from utils.table_search import get_combined_table_data
+from utils.find_formatter import build_find_response
 from utils.spec_table import show_specializations
-from utils.spec_formatter import build_specialization_response_chunks
-from utils.spec_search import resolve_specialization, group_players_by_specialization
 
 # ==================== ЗАГРУЗКА БАЗЫ КРАФТА ====================
 
@@ -346,7 +345,7 @@ async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 @chat_restricted
 async def find(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Ищет игрока в объединённых данных с трёх листов"""
+    """Ищет игрока в объединённых данных с трёх листов."""
     if not context.args:
         await update.message.reply_text(
             "ℹ️ Укажите имя игрока для поиска. Пример: /find pa3ym",
@@ -354,70 +353,25 @@ async def find(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    search = ' '.join(context.args).lower().strip()
-
-    combined_data = get_combined_table_data(
-        MAIN_SHEET_GID, SECOND_SHEET_GID, THIRD_SHEET_GID
-    )
+    search = " ".join(context.args).lower().strip()
+    combined_data = get_combined_table_data()
 
     if not combined_data:
         await update.message.reply_text("❌ Нет данных для поиска")
         return
 
     found_items = []
-
     for item in combined_data:
-        row = item['row']
+        row = item["row"]
         name = row[0].strip().lower() if row[0] else ""
-        if not name:
-            continue
-
-        if search in name:
+        if name and search in name:
             found_items.append(item)
 
     if not found_items:
         await update.message.reply_text(f"❌ Игрок '{search}' не найден")
         return
 
-    response = f"🔎 <b>Найдено {len(found_items)} результатов:</b>\n\n"
-
-    # Названия листов для отображения
-    sheet_names = {
-        'main': '📊 Анархия',
-        'second': '📊 Наследие Анархии',
-        'third': '📊 Крылья Анархии'
-    }
-
-    for item in found_items:
-        row = item['row']
-        headers = item['headers']
-        source = item['source']
-
-        date_start = headers[1].strip() if headers and len(headers) > 1 else "??"
-        date_end = headers[2].strip() if headers and len(headers) > 2 else "??"
-
-        player_name = row[0].strip() if row[0] else "???"
-        points = row[3].strip() if len(row) > 3 else "0"
-        coins = row[4].strip() if len(row) > 4 else "0"
-        total = row[5].strip() if len(row) > 5 else "0"
-        minus = row[6].strip() if len(row) > 6 else ""
-
-        # Добавляем название листа
-        sheet_label = sheet_names.get(source, f'📊 {source}')
-
-        response += f"🤟🏼 <b>{player_name}</b> — {sheet_label}\n"
-        response += f"  📅 {date_start} – {date_end}: ⚔️ {points} очков, 💰 {coins} монет"
-        if total and total not in ['0', '']:
-            response += f", 📦 итог: {total}"
-        if minus and minus not in ['0', '', '-']:
-            response += f" ⚠️ минус: {minus}"
-        response += "\n\n"
-
-        if len(response) > 4000:
-            await update.message.reply_text(response, parse_mode="HTML")
-            response = ""
-
-    if response:
+    for response in build_find_response(found_items):
         await update.message.reply_text(response, parse_mode="HTML")
 
 # ==================== СПЕЦИАЛИЗАЦИИ (лист с GID 279368796) ====================
@@ -451,7 +405,19 @@ async def spec_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Разбираем аргументы
     search_input = context.args[0].lower()
     level_filter = context.args[1].upper() if len(context.args) > 1 else None
-    skill_name = resolve_specialization(search_input)
+
+    synonyms = {
+        'крафтер': 'Крафтер', 'крафт': 'Крафтер', 'к': 'Крафтер',
+        'рыбалка': 'Рыбалка', 'рыба': 'Рыбалка', 'р': 'Рыбалка',
+        'шахтёр': 'Шахтёр', 'шахта': 'Шахтёр', 'ш': 'Шахтёр',
+        'охота': 'Охота', 'охотник': 'Охота', 'о': 'Охота',
+        'кулинария': 'Кулинария', 'еда': 'Кулинария', 'кухня': 'Кулинария', 'кул': 'Кулинария',
+        'алхимия': 'Алхимия', 'алхим': 'Алхимия', 'алх': 'Алхимия', 'а': 'Алхимия',
+        'плавильщик': 'Плавильщик', 'плавка': 'Плавильщик', 'пл': 'Плавильщик',
+        'фермер': 'Фермер', 'ферма': 'Фермер', 'ф': 'Фермер',
+    }
+
+    skill_name = synonyms.get(search_input)
     if not skill_name:
         await update.message.reply_text(
             f"❌ Специализация '{search_input}' не найдена.\n\n"
@@ -468,16 +434,71 @@ async def spec_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     # Группируем игроков по уровню
-    levels = group_players_by_specialization(all_players, skill_name, level_filter)
+    levels = {}
+
+    for player in all_players:
+        level = player['skills'].get(skill_name, '')
+        if not level or level == '-':
+            continue
+
+        if level_filter and level.upper() != level_filter:
+            continue
+
+        if level not in levels:
+            levels[level] = []
+        levels[level].append({
+            'name': player['name'],
+            'tag': player['tag']
+        })
 
     if not levels:
         filter_text = f" с уровнем {level_filter}" if level_filter else ""
         await update.message.reply_text(f"❌ Нет игроков по специализации '{skill_name}'{filter_text}")
         return
 
-    response_chunks = build_specialization_response_chunks(levels, skill_name, level_filter)
+    # Сортировка уровней
+    def sort_key(level):
+        order = {'Э': 1, 'ГМ': 2, 'М': 3, 'ПМ': 4, 'У': 5}
+        if level[:2] in order:
+            prefix = level[:2]
+            num_start = 2
+        elif level[:1] in order:
+            prefix = level[:1]
+            num_start = 1
+        else:
+            return (99, 0)
+        try:
+            num = int(level[num_start:]) if len(level) > num_start else 0
+        except:
+            num = 0
+        return (order.get(prefix, 99), -num)
 
-    for response in response_chunks:
+    sorted_levels = sorted(levels.keys(), key=sort_key)
+
+    filter_text = f" {level_filter}" if level_filter else ""
+    response = f"🔍 <b>Поиск по специализации: {skill_name}{filter_text}</b>\n\n"
+
+    for level in sorted_levels:
+        players = sorted(levels[level], key=lambda p: p['name'].lower())
+
+        # Формируем список с гиперссылками
+        links = []
+        for p in players:
+            name = p['name']
+            tag = p['tag']  # это @username
+            if tag and tag.startswith('@'):
+                username = tag[1:]  # убираем @
+                links.append(f'<a href="https://t.me/{username}">{name}</a>')
+            else:
+                links.append(name)
+
+        response += f"<b>{level}</b> ({len(players)}): {', '.join(links)}\n"
+
+        if len(response) > 4000:
+            await update.message.reply_text(response, parse_mode="HTML", disable_web_page_preview=True)
+            response = ""
+
+    if response:
         await update.message.reply_text(response, parse_mode="HTML", disable_web_page_preview=True)
 
 @chat_restricted
