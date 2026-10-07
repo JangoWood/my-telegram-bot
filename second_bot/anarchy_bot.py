@@ -53,6 +53,8 @@ from utils.craft_menu import (
     count_all_instruments, count_all_cooking, count_all_alchemy, build_grades_keyboard,
     build_instruments_keyboard, build_cooking_keyboard, build_alchemy_keyboard,
     build_classes_keyboard, build_class_items_keyboard
+,
+    build_instrument_items_keyboard, build_cooking_items_keyboard
 )
 from utils.craft_calculator import build_calculator_text, build_calculator_buttons
 from utils.callback_handlers import handle_button_callback
@@ -2490,25 +2492,11 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         group = groups[group_idx]
-        items = group.get('items', [])
-
-        buttons = []
-        for i, item in enumerate(items):
-            label = item['title'][:60]
-            buttons.append([InlineKeyboardButton(
-                label,
-                callback_data=f"craft_ii:{group_idx}:{i}"
-            )])
-
-        buttons.append([InlineKeyboardButton(
-            "⬅️ Назад",
-            callback_data="craft_section:instr"
-        )])
 
         await query.edit_message_text(
             f"⚒️ <b>{group['name']}</b>\n\nВыбери инструмент:",
             parse_mode="HTML",
-            reply_markup=InlineKeyboardMarkup(buttons)
+            reply_markup=build_instrument_items_keyboard(group, group_idx)
         )
         return
 
@@ -2858,25 +2846,11 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         group = groups[group_idx]
-        items = group.get('items', [])
-
-        buttons = []
-        for i, item in enumerate(items):
-            label = item['title'][:60]
-            buttons.append([InlineKeyboardButton(
-                label,
-                callback_data=f"craft_ci:{group_idx}:{i}"
-            )])
-
-        buttons.append([InlineKeyboardButton(
-            "⬅️ Назад",
-            callback_data="craft_section:cook"
-        )])
 
         await query.edit_message_text(
             f"🥨 <b>{group['name']}</b>\n\nВыбери блюдо:",
             parse_mode="HTML",
-            reply_markup=InlineKeyboardMarkup(buttons)
+            reply_markup=build_cooking_items_keyboard(group, group_idx)
         )
         return
 

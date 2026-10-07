@@ -205,3 +205,32 @@ def build_class_items_keyboard(cls, grade_idx, class_idx):
         callback_data=f"craft_g:{grade_idx}"
     )])
     return buttons
+
+def build_instrument_items_keyboard(group, group_idx):
+    """Кнопки выбора инструмента в группе."""
+    buttons = []
+    for i, item in enumerate(group.get('items', [])):
+        buttons.append([InlineKeyboardButton(
+            item['title'][:60],
+            callback_data=f"craft_ii:{group_idx}:{i}"
+        )])
+    buttons.append([InlineKeyboardButton(
+        "⬅️ Назад",
+        callback_data="craft_section:instr"
+    )])
+    return InlineKeyboardMarkup(buttons)
+
+
+def build_cooking_items_keyboard(group, group_idx):
+    """Кнопки выбора блюда в группе."""
+    buttons = []
+    for i, item in enumerate(group.get('items', [])):
+        buttons.append([InlineKeyboardButton(
+            item['title'][:60],
+            callback_data=f"craft_ci:{group_idx}:{i}"
+        )])
+    buttons.append([InlineKeyboardButton(
+        "⬅️ Назад",
+        callback_data="craft_section:cook"
+    )])
+    return InlineKeyboardMarkup(buttons)
