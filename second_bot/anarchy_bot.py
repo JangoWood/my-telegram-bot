@@ -66,7 +66,7 @@ ALLOWED_CHATS = [
 # Белый список пользователей (кто может писать боту в личку)
 ALLOWED_USERS = [
     121597158,  # Твой Telegram ID (замени на реальный)
-    812701729,
+    812701729,  # @OlegKrylov1991
 ]
 
 # ==================== ЗАГРУЗКА БАЗЫ КРАФТА ====================
@@ -2634,7 +2634,7 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         category_icons = {
             'Зелья': '🧪',
             'Свитки': '📜',
-            'Ресурсы': '🧱',
+            'Ресурсы': '♻️',
             'Прочее': '🧩',
         }
         for category, items in alchemy.items():
