@@ -44,6 +44,7 @@ help_cw_sessions = {}
 
 from utils.permissions import chat_restricted
 from utils.health import run_flask
+from utils.craft_loader import load_craft_file
 
 # ==================== ЗАГРУЗКА БАЗЫ КРАФТА ====================
 
@@ -64,8 +65,7 @@ def load_craft_base():
         print(f"⚠️ craft_base.json не найден по пути {CRAFT_BASE_FILE}")
         return
 
-    with open(CRAFT_BASE_FILE, 'r', encoding='utf-8') as f:
-        craft_base = json.load(f)
+    craft_base, total = load_craft_file(CRAFT_BASE_FILE)
 
     # Строим индексы
     craft_index = {'grades': []}
@@ -77,14 +77,6 @@ def load_craft_base():
             # groups — если класс с группами
             pass  # Индексы строим динамически в хендлерах по позициям
 
-    total = sum(
-        len(cls.get('items', [])) + sum(
-            len(g.get('items', [])) + sum(len(sg.get('items', [])) for sg in g.get('subgroups', []))
-            for g in cls.get('groups', [])
-        )
-        for grade in craft_base.get('grades', [])
-        for cls in grade.get('classes', [])
-    )
     print(f"✅ Загружено {len(craft_base.get('grades', []))} грейдов, {total} предметов")
 
 async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
