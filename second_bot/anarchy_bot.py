@@ -1056,9 +1056,16 @@ def build_calculator_text(item, quantity=1):
 
     if item.get('energy'):
         energy = item['energy']
+        # В разных разделах энергия хранится в двух форматах:
+        # "8🔋" / "8 🔋" и "🔋2". Умножаем оба варианта.
         energy = re.sub(
             r'(\d[\d ]*)\s*🔋',
             lambda m: f"{int(m.group(1).replace(' ', '')) * quantity}🔋",
+            energy
+        )
+        energy = re.sub(
+            r'🔋\s*(\d[\d ]*)',
+            lambda m: f"🔋{int(m.group(1).replace(' ', '')) * quantity}",
             energy
         )
         text += f"<b>{energy}</b>"
