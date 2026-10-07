@@ -154,3 +154,54 @@ def build_alchemy_keyboard(craft_base):
         callback_data="craft_back:main"
     )])
     return InlineKeyboardMarkup(buttons)
+
+
+def build_classes_keyboard(classes, grade_idx):
+    """Кнопки выбора класса в грейде."""
+    buttons = []
+    row = []
+    for i, cls in enumerate(classes):
+        row.append(InlineKeyboardButton(
+            f"{cls['name']} ({count_class_items(cls)})",
+            callback_data=f"craft_c:{grade_idx}:{i}"
+        ))
+        if len(row) == 2:
+            buttons.append(row)
+            row = []
+    if row:
+        buttons.append(row)
+    buttons.append([InlineKeyboardButton(
+        "⬅️ Назад",
+        callback_data="craft_back:grades"
+    )])
+    return buttons
+
+
+def build_class_items_keyboard(cls, grade_idx, class_idx):
+    """Кнопки содержимого класса: группы или плоские предметы."""
+    buttons = []
+    row = []
+
+    if cls.get('groups'):
+        for i, group in enumerate(cls['groups']):
+            row.append(InlineKeyboardButton(
+                f"{group['name']} ({count_group_items(group)})",
+                callback_data=f"craft_gr:{grade_idx}:{class_idx}:{i}"
+            ))
+            if len(row) == 2:
+                buttons.append(row)
+                row = []
+        if row:
+            buttons.append(row)
+    elif cls.get('items'):
+        for i, item in enumerate(cls['items']):
+            buttons.append([InlineKeyboardButton(
+                item['title'][:60],
+                callback_data=f"craft_i:{grade_idx}:{class_idx}:-1:-1:{i}"
+            )])
+
+    buttons.append([InlineKeyboardButton(
+        "⬅️ Назад",
+        callback_data=f"craft_g:{grade_idx}"
+    )])
+    return buttons

@@ -51,7 +51,8 @@ from utils.craft_menu import (
     get_grade_by_idx, get_class_by_idx, count_grade_items, count_instrument_items,
     count_cooking_items, count_group_items, count_class_items, count_all_equipment,
     count_all_instruments, count_all_cooking, count_all_alchemy, build_grades_keyboard,
-    build_instruments_keyboard, build_cooking_keyboard, build_alchemy_keyboard
+    build_instruments_keyboard, build_cooking_keyboard, build_alchemy_keyboard,
+    build_classes_keyboard, build_class_items_keyboard
 )
 from utils.craft_calculator import build_calculator_text, build_calculator_buttons
 from utils.callback_handlers import handle_button_callback
@@ -2579,22 +2580,7 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             return
 
-        # Кнопки классов (по 2 в ряд)
-        buttons = []
-        row = []
-        for i, cls in enumerate(classes):
-            row.append(InlineKeyboardButton(
-                f"{cls['name']} ({count_class_items(cls)})",
-                callback_data=f"craft_c:{grade_idx}:{i}"
-            ))
-            if len(row) == 2:
-                buttons.append(row)
-                row = []
-        if row:
-            buttons.append(row)
-
-        # Кнопка «Назад»
-        buttons.append([InlineKeyboardButton("⬅️ Назад", callback_data="craft_back:grades")])
+        buttons = build_classes_keyboard(classes, grade_idx)
 
         await query.edit_message_text(
             f"🎒 <b>{grade['name']}</b>\n\nВыбери класс:",
@@ -2618,37 +2604,7 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.edit_message_text("❌ Класс не найден.")
             return
 
-        # Собираем кнопки
-        buttons = []
-        row = []
-
-        # Если у класса есть groups — показываем группы
-        if 'groups' in cls and cls['groups']:
-            for i, group in enumerate(cls['groups']):
-                row.append(InlineKeyboardButton(
-                    f"{group['name']} ({count_group_items(group)})",
-                    callback_data=f"craft_gr:{grade_idx}:{class_idx}:{i}"
-                ))
-                if len(row) == 2:
-                    buttons.append(row)
-                    row = []
-            if row:
-                buttons.append(row)
-
-        # Если у класса есть плоские items — показываем их
-        elif 'items' in cls and cls['items']:
-            for i, item in enumerate(cls['items']):
-                label = item['title'][:60]
-                buttons.append([InlineKeyboardButton(
-                    label,
-                    callback_data=f"craft_i:{grade_idx}:{class_idx}:-1:-1:{i}"
-                )])
-
-        # Кнопка «Назад» на грейд
-        buttons.append([InlineKeyboardButton(
-            "⬅️ Назад",
-            callback_data=f"craft_g:{grade_idx}"
-        )])
+        buttons = build_class_items_keyboard(cls, grade_idx, class_idx)
 
         await query.edit_message_text(
             f"🎒 <b>{grade['name']}</b>\n📁 <b>{cls['name']}</b>\n\nВыбери:",
