@@ -62,6 +62,7 @@ from utils.table_data import get_table_data, get_table_data_by_gid, get_table_da
 from utils.table_search import get_combined_table_data
 from utils.spec_table import show_specializations
 from utils.spec_formatter import build_specialization_response_chunks
+from utils.spec_search import resolve_specialization, group_players_by_specialization
 
 # ==================== ЗАГРУЗКА БАЗЫ КРАФТА ====================
 
@@ -450,19 +451,7 @@ async def spec_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Разбираем аргументы
     search_input = context.args[0].lower()
     level_filter = context.args[1].upper() if len(context.args) > 1 else None
-
-    synonyms = {
-        'крафтер': 'Крафтер', 'крафт': 'Крафтер', 'к': 'Крафтер',
-        'рыбалка': 'Рыбалка', 'рыба': 'Рыбалка', 'р': 'Рыбалка',
-        'шахтёр': 'Шахтёр', 'шахта': 'Шахтёр', 'ш': 'Шахтёр',
-        'охота': 'Охота', 'охотник': 'Охота', 'о': 'Охота',
-        'кулинария': 'Кулинария', 'еда': 'Кулинария', 'кухня': 'Кулинария', 'кул': 'Кулинария',
-        'алхимия': 'Алхимия', 'алхим': 'Алхимия', 'алх': 'Алхимия', 'а': 'Алхимия',
-        'плавильщик': 'Плавильщик', 'плавка': 'Плавильщик', 'пл': 'Плавильщик',
-        'фермер': 'Фермер', 'ферма': 'Фермер', 'ф': 'Фермер',
-    }
-
-    skill_name = synonyms.get(search_input)
+    skill_name = resolve_specialization(search_input)
     if not skill_name:
         await update.message.reply_text(
             f"❌ Специализация '{search_input}' не найдена.\n\n"
@@ -479,22 +468,7 @@ async def spec_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     # Группируем игроков по уровню
-    levels = {}
-
-    for player in all_players:
-        level = player['skills'].get(skill_name, '')
-        if not level or level == '-':
-            continue
-
-        if level_filter and level.upper() != level_filter:
-            continue
-
-        if level not in levels:
-            levels[level] = []
-        levels[level].append({
-            'name': player['name'],
-            'tag': player['tag']
-        })
+    levels = group_players_by_specialization(all_players, skill_name, level_filter)
 
     if not levels:
         filter_text = f" с уровнем {level_filter}" if level_filter else ""
