@@ -66,7 +66,6 @@ ALLOWED_CHATS = [
 # Белый список пользователей (кто может писать боту в личку)
 ALLOWED_USERS = [
     121597158,  # Твой Telegram ID (замени на реальный)
-    812701729,  # @OlegKrylov1991
 ]
 
 # ==================== ЗАГРУЗКА БАЗЫ КРАФТА ====================
@@ -2500,6 +2499,21 @@ def count_cooking_items(group):
     return len(group.get('items', []))
 
 
+def count_group_items(group):
+    """Количество предметов в группе, включая её подгруппы."""
+    total = len(group.get('items', []))
+    for subgroup in group.get('subgroups', []):
+        total += len(subgroup.get('items', []))
+    return total
+
+
+def count_class_items(cls):
+    """Количество предметов в классе, включая группы и подгруппы."""
+    if cls.get('groups'):
+        return sum(count_group_items(group) for group in cls.get('groups', []))
+    return len(cls.get('items', []))
+
+
 def count_all_equipment():
     return sum(count_grade_items(grade) for grade in craft_base.get('grades', []))
 
@@ -2606,7 +2620,7 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             row = []
             for i, group in enumerate(groups):
                 row.append(InlineKeyboardButton(
-                    group['name'],
+                    f"{group['name']} ({count_instrument_items(group)})",
                     callback_data=f"craft_ig:{i}"
                 ))
                 if len(row) == 2:
@@ -3031,7 +3045,7 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         row = []
         for i, cls in enumerate(classes):
             row.append(InlineKeyboardButton(
-                cls['name'],
+                f"{cls['name']} ({count_class_items(cls)})",
                 callback_data=f"craft_c:{grade_idx}:{i}"
             ))
             if len(row) == 2:
@@ -3073,7 +3087,7 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if 'groups' in cls and cls['groups']:
             for i, group in enumerate(cls['groups']):
                 row.append(InlineKeyboardButton(
-                    group['name'],
+                    f"{group['name']} ({count_group_items(group)})",
                     callback_data=f"craft_gr:{grade_idx}:{class_idx}:{i}"
                 ))
                 if len(row) == 2:
@@ -3125,20 +3139,10 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # ==================== НАЗАД К ГРЕЙДАМ ====================
     if parts[0] == 'craft_back' and len(parts) == 2 and parts[1] == 'grades':
-        keyboard = [
-            [
-                InlineKeyboardButton("🎒 Экипировка", callback_data="craft_section:equip"),
-                InlineKeyboardButton("⚒️ Инструменты", callback_data="craft_section:instr"),
-            ],
-            [
-                InlineKeyboardButton("🥨 Кулинария", callback_data="craft_section:cook"),
-                InlineKeyboardButton("🧪 Алхимия", callback_data="craft_section:alchemy"),
-            ]
-        ]
         await query.edit_message_text(
-            "⚒️ <b>Крафт — выбери раздел:</b>",
+            "🎒 <b>Экипировка — выбери грейд:</b>",
             parse_mode="HTML",
-            reply_markup=InlineKeyboardMarkup(keyboard)
+            reply_markup=build_grades_keyboard()
         )
         return
 
@@ -3171,7 +3175,7 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         subgroups = group.get('subgroups', [])
         for i, subgroup in enumerate(subgroups):
             row.append(InlineKeyboardButton(
-                subgroup['name'],
+                f"{subgroup['name']} ({len(subgroup.get('items', []))})",
                 callback_data=f"craft_sg:{grade_idx}:{class_idx}:{group_idx}:{i}"
             ))
             if len(row) == 2:
