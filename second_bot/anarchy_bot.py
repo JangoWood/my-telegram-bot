@@ -2671,6 +2671,47 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         category = categories[category_idx]
         items = alchemy.get(category, [])
+
+        # Для ресурсов показываем подгруппы, которые парсер берет
+        # непосредственно из структуры меню алхимии.
+        if category == 'Ресурсы':
+            subgroups = []
+            seen_subgroups = set()
+            for item in items:
+                subcategory = item.get('subcategory')
+                if subcategory and subcategory not in seen_subgroups:
+                    seen_subgroups.add(subcategory)
+                    subgroups.append(subcategory)
+
+            if subgroups:
+                buttons = []
+                for sub_idx, subcategory in enumerate(subgroups):
+                    count = sum(1 for item in items if item.get('subcategory') == subcategory)
+                    buttons.append([InlineKeyboardButton(
+                        f"🧱 {subcategory} ({count})",
+                        callback_data=f"craft_as:{category_idx}:{sub_idx}"
+                    )])
+
+                # Ресурсы без подгруппы, если такие появятся в будущем.
+                ungrouped = sum(1 for item in items if not item.get('subcategory'))
+                if ungrouped:
+                    buttons.append([InlineKeyboardButton(
+                        f"🧱 Прочие ресурсы ({ungrouped})",
+                        callback_data=f"craft_as:{category_idx}:ungrouped"
+                    )])
+
+                buttons.append([InlineKeyboardButton(
+                    "⬅️ Назад",
+                    callback_data="craft_section:alchemy"
+                )])
+
+                await query.edit_message_text(
+                    "🧱 <b>Ресурсы — выбери подгруппу:</b>",
+                    parse_mode="HTML",
+                    reply_markup=InlineKeyboardMarkup(buttons)
+                )
+                return
+
         buttons = []
         for i, item in enumerate(items):
             buttons.append([InlineKeyboardButton(
@@ -2685,6 +2726,65 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         await query.edit_message_text(
             f"🧪 <b>{category}</b> — выбери рецепт:",
+            parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup(buttons)
+        )
+        return
+
+    # ==================== ПОДГРУППА АЛХИМИИ ====================
+    if parts[0] == 'craft_as' and len(parts) == 3:
+        try:
+            category_idx = int(parts[1])
+        except ValueError:
+            await query.edit_message_text("❌ Некорректные данные.")
+            return
+
+        alchemy = craft_base.get('alchemy', {})
+        categories = list(alchemy.keys())
+        if not (0 <= category_idx < len(categories)):
+            await query.edit_message_text("❌ Категория не найдена.")
+            return
+
+        category = categories[category_idx]
+        items = alchemy.get(category, [])
+        subgroups = []
+        seen_subgroups = set()
+        for item in items:
+            subcategory = item.get('subcategory')
+            if subcategory and subcategory not in seen_subgroups:
+                seen_subgroups.add(subcategory)
+                subgroups.append(subcategory)
+
+        sub_idx = parts[2]
+        if sub_idx == 'ungrouped':
+            selected_items = [(i, item) for i, item in enumerate(items) if not item.get('subcategory')]
+            subgroup_title = 'Прочие ресурсы'
+        else:
+            try:
+                sub_idx_int = int(sub_idx)
+            except ValueError:
+                await query.edit_message_text("❌ Подгруппа не найдена.")
+                return
+            if not (0 <= sub_idx_int < len(subgroups)):
+                await query.edit_message_text("❌ Подгруппа не найдена.")
+                return
+            subgroup_title = subgroups[sub_idx_int]
+            selected_items = [(i, item) for i, item in enumerate(items) if item.get('subcategory') == subgroup_title]
+
+        buttons = []
+        for item_idx, item in selected_items:
+            buttons.append([InlineKeyboardButton(
+                item.get('title', 'Без названия')[:60],
+                callback_data=f"craft_ai:{category_idx}:{item_idx}"
+            )])
+
+        buttons.append([InlineKeyboardButton(
+            "⬅️ Назад",
+            callback_data=f"craft_ag:{category_idx}"
+        )])
+
+        await query.edit_message_text(
+            f"🧱 <b>{subgroup_title}</b> — выбери рецепт:",
             parse_mode="HTML",
             reply_markup=InlineKeyboardMarkup(buttons)
         )

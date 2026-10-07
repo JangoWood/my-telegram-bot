@@ -457,12 +457,12 @@ ALCHEMY_CATEGORIES = ('Зелья', 'Свитки', 'Ресурсы', 'Проч�
 # с алхимическими ресурсами внутри рецептов экипировки.
 ALCHEMY_BRANCHES = {
     57: 'iv_plus',    # Алхимия [IV+]
-    458: 'resources', # Алхимия [IV]
-    443: 'resources', # Алхимия [III+]
-    469: 'resources', # Алхимия [III]
+    458: 'iv',        # Алхимия [IV]
+    443: 'iii_plus',  # Алхимия [III+]
+    469: 'iii',       # Алхимия [III]
     491: 'potions',   # Зелья
     530: 'scrolls',   # Свитки
-    544: 'resources', # Материя
+    544: 'matter',    # Материя
     550: 'other',     # Прочее
 }
 
@@ -568,6 +568,16 @@ def collect_alchemy(messages_dict):
                 continue
 
             category = _alchemy_item_category(branch, item_id, item_full['title'])
+
+            subcategory_map = {
+                'iv_plus': 'Алхимия [IV+]',
+                'iv': 'Алхимия [IV]',
+                'iii_plus': 'Алхимия [III+]',
+                'iii': 'Алхимия [III]',
+                'matter': 'Материя',
+            }
+            if category == 'Ресурсы' and branch in subcategory_map:
+                item_full['subcategory'] = subcategory_map[branch]
 
             # В новых карточках location | NPC уже указан непосредственно в карточке.
             # Если его нет, используем общее место ветки как fallback.
