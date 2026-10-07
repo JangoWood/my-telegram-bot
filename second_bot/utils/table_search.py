@@ -1,12 +1,12 @@
 from .table_data import get_table_data_by_gid
 
 
-def get_combined_table_data():
+def get_combined_table_data(main_sheet_gid, second_sheet_gid, third_sheet_gid):
     """Объединяет данные с трёх листов для поиска (/find), сохраняя заголовки каждого"""
     sheets = [
-        {'gid': MAIN_SHEET_GID, 'name': 'main'},
-        {'gid': SECOND_SHEET_GID, 'name': 'second'},
-        {'gid': THIRD_SHEET_GID, 'name': 'third'},
+        {'gid': main_sheet_gid, 'name': 'main'},
+        {'gid': second_sheet_gid, 'name': 'second'},
+        {'gid': third_sheet_gid, 'name': 'third'},
     ]
 
     combined = []
