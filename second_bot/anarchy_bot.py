@@ -988,14 +988,7 @@ def build_get_card_text(item):
         text += f"<blockquote expandable>{item['resources_block']}</blockquote>\n\n"
 
     if item.get('energy'):
-        energy = item['energy']
-        # Умножаем только число энергии перед 🔋, не уровень/название профессии.
-        energy = re.sub(
-            r'(\d[\d ]*)\s*🔋',
-            lambda m: f"{int(m.group(1).replace(' ', '')) * quantity}🔋",
-            energy
-        )
-        text += f"<b>{energy}</b>"
+        text += f"<b>{item['energy']}</b>"
 
     return text[:3997] + "..." if len(text) > 4000 else text
 
@@ -1062,7 +1055,13 @@ def build_calculator_text(item, quantity=1):
         text += f"<blockquote expandable>{resources}</blockquote>\n\n"
 
     if item.get('energy'):
-        text += f"<b>{item['energy']}</b>"
+        energy = item['energy']
+        energy = re.sub(
+            r'(\d[\d ]*)\s*🔋',
+            lambda m: f"{int(m.group(1).replace(' ', '')) * quantity}🔋",
+            energy
+        )
+        text += f"<b>{energy}</b>"
 
     return text[:3997] + "..." if len(text) > 4000 else text
 
