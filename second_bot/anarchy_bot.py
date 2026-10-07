@@ -60,8 +60,8 @@ from utils.craft_calculator import build_calculator_text, build_calculator_butto
 from utils.callback_handlers import handle_button_callback
 from utils.table_data import get_table_data, get_table_data_by_gid, get_table_data_by_gid_with_fallback
 from utils.table_search import get_combined_table_data
-from utils.find_formatter import build_find_response
 from utils.spec_table import show_specializations
+from utils.realm_skills import parse_skills_from_text
 
 # ==================== ЗАГРУЗКА БАЗЫ КРАФТА ====================
 
@@ -345,7 +345,7 @@ async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 @chat_restricted
 async def find(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Ищет игрока в объединённых данных с трёх листов."""
+    """Ищет игрока в объединённых данных с трёх листов"""
     if not context.args:
         await update.message.reply_text(
             "ℹ️ Укажите имя игрока для поиска. Пример: /find pa3ym",
@@ -353,11 +353,10 @@ async def find(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    search = " ".join(context.args).lower().strip()
+    search = ' '.join(context.args).lower().strip()
+
     combined_data = get_combined_table_data(
-        MAIN_SHEET_GID,
-        SECOND_SHEET_GID,
-        THIRD_SHEET_GID
+        MAIN_SHEET_GID, SECOND_SHEET_GID, THIRD_SHEET_GID
     )
 
     if not combined_data:
@@ -365,17 +364,59 @@ async def find(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     found_items = []
+
     for item in combined_data:
-        row = item["row"]
+        row = item['row']
         name = row[0].strip().lower() if row[0] else ""
-        if name and search in name:
+        if not name:
+            continue
+
+        if search in name:
             found_items.append(item)
 
     if not found_items:
         await update.message.reply_text(f"❌ Игрок '{search}' не найден")
         return
 
-    for response in build_find_response(found_items):
+    response = f"🔎 <b>Найдено {len(found_items)} результатов:</b>\n\n"
+
+    # Названия листов для отображения
+    sheet_names = {
+        'main': '📊 Анархия',
+        'second': '📊 Наследие Анархии',
+        'third': '📊 Крылья Анархии'
+    }
+
+    for item in found_items:
+        row = item['row']
+        headers = item['headers']
+        source = item['source']
+
+        date_start = headers[1].strip() if headers and len(headers) > 1 else "??"
+        date_end = headers[2].strip() if headers and len(headers) > 2 else "??"
+
+        player_name = row[0].strip() if row[0] else "???"
+        points = row[3].strip() if len(row) > 3 else "0"
+        coins = row[4].strip() if len(row) > 4 else "0"
+        total = row[5].strip() if len(row) > 5 else "0"
+        minus = row[6].strip() if len(row) > 6 else ""
+
+        # Добавляем название листа
+        sheet_label = sheet_names.get(source, f'📊 {source}')
+
+        response += f"🤟🏼 <b>{player_name}</b> — {sheet_label}\n"
+        response += f"  📅 {date_start} – {date_end}: ⚔️ {points} очков, 💰 {coins} монет"
+        if total and total not in ['0', '']:
+            response += f", 📦 итог: {total}"
+        if minus and minus not in ['0', '', '-']:
+            response += f" ⚠️ минус: {minus}"
+        response += "\n\n"
+
+        if len(response) > 4000:
+            await update.message.reply_text(response, parse_mode="HTML")
+            response = ""
+
+    if response:
         await update.message.reply_text(response, parse_mode="HTML")
 
 # ==================== СПЕЦИАЛИЗАЦИИ (лист с GID 279368796) ====================
@@ -938,54 +979,6 @@ def get_specializations_data():
     except Exception as e:
         return None, None, f"❌ Ошибка: {e}"
 
-
-# Словарь для преобразования уровней
-LEVEL_MAP = {
-    'Подмастерье': 'ПМ',
-    'Ученик': 'У',
-    'Грандмастер': 'ГМ',
-    'Мастер': 'М',
-    'Эксперт': 'Э'
-}
-
-
-def parse_skills_from_text(text):
-    """Извлекает и преобразует навыки из текста сообщения"""
-    skills = {}
-
-    patterns = {
-        'Крафтер': r'[⚒]*\s*[Нн]авык\s*[Кк]рафтер[а]?\s*:\s*([^\s▫️]+(?:\s+[^\s▫️]+)?)',
-        'Рыбалка': r'[🎣]*\s*[Нн]авык\s*[Рр]ыбалк[иа]\s*:\s*([^\s▫️]+(?:\s+[^\s▫️]+)?)',
-        'Шахтёр': r'[⛏]*\s*[Нн]авык\s*[Шш]ахт[её]р[а]?\s*:\s*([^\s▫️]+(?:\s+[^\s▫️]+)?)',
-        'Охота': r'[🏹]*\s*[Нн]авык\s*[Оо]хот[ыа]\s*:\s*([^\s▫️]+(?:\s+[^\s▫️]+)?)',
-        'Кулинария': r'[🥨]*\s*[Нн]авык\s*[Кк]улинари[яи]\s*:\s*([^\s▫️]+(?:\s+[^\s▫️]+)?)',
-        'Алхимия': r'[🧪🌡]*\s*[Нн]авык\s*[Аа]лхими[яи]\s*:\s*([^\s▫️]+(?:\s+[^\s▫️]+)?)',
-        'Плавильщик': r'[🪔]*\s*[Нн]авык\s*[Пп]лавильщик[а]?\s*:\s*([^\s▫️]+(?:\s+[^\s▫️]+)?)',
-        'Фермер': r'[🌽]*\s*[Нн]авык\s*[Фф]ермер[а]?\s*:\s*([^\s▫️]+(?:\s+[^\s▫️]+)?)',
-    }
-
-    for skill, pattern in patterns.items():
-        match = re.search(pattern, text, re.IGNORECASE)
-        if match:
-            level_text = match.group(1).strip()
-            converted_level = convert_level(level_text)
-            skills[skill] = converted_level
-
-    return skills
-
-
-def convert_level(level_text):
-    """Преобразует текстовый уровень в короткий код"""
-    # Примеры: "Подмастерье 2" -> "ПМ2", "Грандмастер 5" -> "ГМ5"
-    for full_name, short_code in LEVEL_MAP.items():
-        if full_name in level_text:
-            # Извлекаем число
-            numbers = re.findall(r'\d+', level_text)
-            number = numbers[0] if numbers else ''
-            return f"{short_code}{number}"
-
-    # Если не нашли известный уровень, возвращаем как есть
-    return level_text
 
 
 def update_player_realm(user_tag, player_name, clan, skills, update_time):
