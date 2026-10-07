@@ -2672,45 +2672,71 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         category = categories[category_idx]
         items = alchemy.get(category, [])
 
-        # Для ресурсов показываем подгруппы, которые парсер берет
-        # непосредственно из структуры меню алхимии.
-        if category == 'Ресурсы':
-            subgroups = []
-            seen_subgroups = set()
-            for item in items:
-                subcategory = item.get('subcategory')
-                if subcategory and subcategory not in seen_subgroups:
-                    seen_subgroups.add(subcategory)
-                    subgroups.append(subcategory)
+        # Показываем подгруппы, если парсер их определил.
+        # Ресурсы, зелья и свитки используют одну механику навигации.
+        subgroups = []
+        seen_subgroups = set()
+        for item in items:
+            subcategory = item.get('subcategory')
+            if subcategory and subcategory not in seen_subgroups:
+                seen_subgroups.add(subcategory)
+                subgroups.append(subcategory)
 
-            if subgroups:
-                buttons = []
-                for sub_idx, subcategory in enumerate(subgroups):
-                    count = sum(1 for item in items if item.get('subcategory') == subcategory)
-                    buttons.append([InlineKeyboardButton(
-                        f"🧱 {subcategory} ({count})",
-                        callback_data=f"craft_as:{category_idx}:{sub_idx}"
-                    )])
+        if subgroups:
+            subgroup_icons = {
+                # Зелья
+                'Таланты': '💟',
+                'Очищение камня': '🌡🎆',
+                'Элексиры здоровья': '🧪',
+                'Антидоты': '🧪',
+                'Усиление': '🌡',
+                # Свитки
+                'Заточки': '🔖',
+                'Телепорты': '🗞',
+                'Трансмутация': '📜',
+                # Ресурсы
+                'Алхимия [IV+]': '🧪',
+                'Алхимия [IV]': '🧪',
+                'Алхимия [III+]': '🧪',
+                'Алхимия [III]': '🧪',
+                'Материя': 'Ⓜ️',
+            }
+            category_icons = {
+                'Зелья': '🧪',
+                'Свитки': '📜',
+                'Ресурсы': '♻️',
+                'Прочее': '🧩',
+            }
+            icon = category_icons.get(category, '🧪')
 
-                # Ресурсы без подгруппы, если такие появятся в будущем.
-                ungrouped = sum(1 for item in items if not item.get('subcategory'))
-                if ungrouped:
-                    buttons.append([InlineKeyboardButton(
-                        f"🧱 Прочие ресурсы ({ungrouped})",
-                        callback_data=f"craft_as:{category_idx}:ungrouped"
-                    )])
-
+            buttons = []
+            for sub_idx, subcategory in enumerate(subgroups):
+                count = sum(1 for item in items if item.get('subcategory') == subcategory)
+                sub_icon = subgroup_icons.get(subcategory, icon)
                 buttons.append([InlineKeyboardButton(
-                    "⬅️ Назад",
-                    callback_data="craft_section:alchemy"
+                    f"{sub_icon} {subcategory} ({count})",
+                    callback_data=f"craft_as:{category_idx}:{sub_idx}"
                 )])
 
-                await query.edit_message_text(
-                    "🧱 <b>Ресурсы — выбери подгруппу:</b>",
-                    parse_mode="HTML",
-                    reply_markup=InlineKeyboardMarkup(buttons)
-                )
-                return
+            # Рецепты без подгруппы, если такие появятся в будущем.
+            ungrouped = sum(1 for item in items if not item.get('subcategory'))
+            if ungrouped:
+                buttons.append([InlineKeyboardButton(
+                    f"{icon} Прочее ({ungrouped})",
+                    callback_data=f"craft_as:{category_idx}:ungrouped"
+                )])
+
+            buttons.append([InlineKeyboardButton(
+                "⬅️ Назад",
+                callback_data="craft_section:alchemy"
+            )])
+
+            await query.edit_message_text(
+                f"{icon} <b>{category} — выбери подгруппу:</b>",
+                parse_mode="HTML",
+                reply_markup=InlineKeyboardMarkup(buttons)
+            )
+            return
 
         buttons = []
         for i, item in enumerate(items):
@@ -2771,6 +2797,22 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             subgroup_title = subgroups[sub_idx_int]
             selected_items = [(i, item) for i, item in enumerate(items) if item.get('subcategory') == subgroup_title]
 
+        subgroup_icons = {
+            'Таланты': '💟',
+            'Очищение камня': '🌡🎆',
+            'Элексиры здоровья': '🧪',
+            'Антидоты': '🧪',
+            'Усиление': '🌡',
+            'Заточки': '🔖',
+            'Телепорты': '🗞',
+            'Трансмутация': '📜',
+            'Алхимия [IV+]': '🧪',
+            'Алхимия [IV]': '🧪',
+            'Алхимия [III+]': '🧪',
+            'Алхимия [III]': '🧪',
+            'Материя': 'Ⓜ️',
+        }
+
         buttons = []
         for item_idx, item in selected_items:
             buttons.append([InlineKeyboardButton(
@@ -2784,7 +2826,7 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )])
 
         await query.edit_message_text(
-            f"🧱 <b>{subgroup_title}</b> — выбери рецепт:",
+            f"{subgroup_icons.get(subgroup_title, '🧪')} <b>{subgroup_title}</b> — выбери рецепт:",
             parse_mode="HTML",
             reply_markup=InlineKeyboardMarkup(buttons)
         )

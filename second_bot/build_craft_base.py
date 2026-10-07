@@ -540,6 +540,32 @@ def _alchemy_item_category(branch, item_id, title):
     return 'Ресурсы'
 
 
+def _alchemy_subcategory(branch, title):
+    """Подгруппа определяется по конкретной ветке и названию карточки."""
+    if branch == 'potions':
+        if 'Талант' in title:
+            return 'Таланты'
+        if 'Зелье очищения камня' in title:
+            return 'Очищение камня'
+        if 'Эликсир здоровья' in title:
+            return 'Элексиры здоровья'
+        if 'антидот' in title.lower():
+            return 'Антидоты'
+        return 'Усиление'
+
+    if branch == 'iv_plus' and 'трансмутации' in title.lower():
+        return 'Трансмутация'
+
+    if branch == 'scrolls':
+        if 'Безопасный свиток заточки' in title:
+            return 'Заточки'
+        if 'Чертеж трансмутации' in title or 'Печать трансмутации' in title:
+            return 'Трансмутация'
+        return 'Телепорты'
+
+    return None
+
+
 def collect_alchemy(messages_dict):
     """
     Собирает всю алхимию из result.json.
@@ -578,6 +604,10 @@ def collect_alchemy(messages_dict):
             }
             if category == 'Ресурсы' and branch in subcategory_map:
                 item_full['subcategory'] = subcategory_map[branch]
+
+            potion_scroll_subcategory = _alchemy_subcategory(branch, item_full['title'])
+            if potion_scroll_subcategory:
+                item_full['subcategory'] = potion_scroll_subcategory
 
             # В новых карточках location | NPC уже указан непосредственно в карточке.
             # Если его нет, используем общее место ветки как fallback.
