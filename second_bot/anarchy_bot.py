@@ -8,7 +8,6 @@ from telegram.ext import Application, CommandHandler, ContextTypes
 from dotenv import load_dotenv
 from pathlib import Path
 from io import StringIO
-from flask import Flask
 import threading
 from telegram import InlineQueryResultArticle, InputTextMessageContent
 from telegram.ext import InlineQueryHandler
@@ -43,21 +42,8 @@ user_sessions = {}  # {user_id: {'skills': {}, 'user_tag': str, 'telegram_name':
 # Хранилище сессий для /help_cw
 help_cw_sessions = {}
 
-# Создаём Flask-приложение для healthcheck
-flask_app = Flask(__name__)
-
-@flask_app.route('/')
-@flask_app.route('/health')
-@flask_app.route('/healthcheck')
-def health():
-    return "OK", 200
-
-def run_flask():
-    # Render задаёт порт через переменную окружения PORT
-    port = int(os.environ.get("PORT", 10000))
-    flask_app.run(host='0.0.0.0', port=port)
-
 from utils.permissions import chat_restricted
+from utils.health import run_flask
 
 # ==================== ЗАГРУЗКА БАЗЫ КРАФТА ====================
 
