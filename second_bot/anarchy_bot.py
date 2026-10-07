@@ -61,7 +61,7 @@ from utils.callback_handlers import handle_button_callback
 from utils.table_data import get_table_data, get_table_data_by_gid, get_table_data_by_gid_with_fallback
 from utils.table_search import get_combined_table_data
 from utils.spec_table import show_specializations
-from utils.table_formatter import format_table_row
+from utils.spec_formatter import build_specialization_response_chunks
 
 # ==================== ЗАГРУЗКА БАЗЫ КРАФТА ====================
 
@@ -105,6 +105,41 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ==================== ОСНОВНАЯ ТАБЛИЦА (актуальная таблица) ====================
 
+
+
+def format_table_row(row, headers):
+    """Форматирует строку данных, используя даты из заголовков"""
+    if not row or len(row) < 3:
+        return ""
+
+    name = row[0].strip()
+    if not name or name.lower() == 'состав':
+        return ""
+
+    # Берём даты из заголовков (2-я и 3-я колонки, индекс 1 и 2)
+    date_start = headers[1].strip() if len(headers) > 1 else "??"
+    date_end = headers[2].strip() if len(headers) > 2 else "??"
+
+    # Берём значения (индексы: 1=дата1, 2=дата2, 3=очки, 4=монеты, 5=итог)
+    # Внимание: индексы зависят от того, что приходит из CSV
+    points = row[3].strip() if len(row) > 3 else "0"
+    coins = row[4].strip() if len(row) > 4 else "0"
+    total = row[5].strip() if len(row) > 5 else "0"
+    minus = row[6].strip() if len(row) > 6 else ""
+
+    # Если очки и монеты пустые — пропускаем строку
+    if not points and not coins:
+        return ""
+
+    result = f"🤟🏼 <b>{name}</b>\n"
+    result += f"  📅 {date_start} – {date_end}: ⚔️ {points} очков, 💰 {coins} монет"
+    if total and total not in ['0', '']:
+        result += f", 📦 итог: {total}"
+    if minus and minus not in ['0', '', '-']:
+        result += f" ⚠️ минус: {minus}"
+    result += "\n"
+
+    return result
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -466,49 +501,9 @@ async def spec_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"❌ Нет игроков по специализации '{skill_name}'{filter_text}")
         return
 
-    # Сортировка уровней
-    def sort_key(level):
-        order = {'Э': 1, 'ГМ': 2, 'М': 3, 'ПМ': 4, 'У': 5}
-        if level[:2] in order:
-            prefix = level[:2]
-            num_start = 2
-        elif level[:1] in order:
-            prefix = level[:1]
-            num_start = 1
-        else:
-            return (99, 0)
-        try:
-            num = int(level[num_start:]) if len(level) > num_start else 0
-        except:
-            num = 0
-        return (order.get(prefix, 99), -num)
+    response_chunks = build_specialization_response_chunks(levels, skill_name, level_filter)
 
-    sorted_levels = sorted(levels.keys(), key=sort_key)
-
-    filter_text = f" {level_filter}" if level_filter else ""
-    response = f"🔍 <b>Поиск по специализации: {skill_name}{filter_text}</b>\n\n"
-
-    for level in sorted_levels:
-        players = sorted(levels[level], key=lambda p: p['name'].lower())
-
-        # Формируем список с гиперссылками
-        links = []
-        for p in players:
-            name = p['name']
-            tag = p['tag']  # это @username
-            if tag and tag.startswith('@'):
-                username = tag[1:]  # убираем @
-                links.append(f'<a href="https://t.me/{username}">{name}</a>')
-            else:
-                links.append(name)
-
-        response += f"<b>{level}</b> ({len(players)}): {', '.join(links)}\n"
-
-        if len(response) > 4000:
-            await update.message.reply_text(response, parse_mode="HTML", disable_web_page_preview=True)
-            response = ""
-
-    if response:
+    for response in response_chunks:
         await update.message.reply_text(response, parse_mode="HTML", disable_web_page_preview=True)
 
 @chat_restricted
