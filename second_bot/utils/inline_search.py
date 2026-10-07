@@ -20,7 +20,7 @@ async def inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # /get использует тот же inline-хендлер, но полностью изолирован префиксом "get ".
     if query == "get" or query.startswith("get "):
         craft_query = raw_query[3:].strip().lower()
-        items = get_all_craft_search_items()
+        items = get_all_craft_search_items(context.application.bot_data.get("craft_base", {}))
 
         if not craft_query:
             results = [InlineQueryResultArticle(

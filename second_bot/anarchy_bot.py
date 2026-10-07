@@ -1221,6 +1221,7 @@ def main():
     print("🟢 Запуск бота...")
     load_craft_base()  # ← добавить эту строку
     app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
+    app.bot_data["craft_base"] = craft_base
 
     # Основные команды
     app.add_handler(CommandHandler("start", start))
