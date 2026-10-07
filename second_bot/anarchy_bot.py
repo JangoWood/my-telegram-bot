@@ -47,6 +47,12 @@ from utils.health import run_flask
 from utils.craft_loader import load_craft_file
 from utils.get_keyboard import get_search_keyboard
 from utils.get_craft import get_all_craft_search_items, build_get_card_text, find_craft_item_by_id
+from utils.craft_menu import (
+    get_grade_by_idx, get_class_by_idx, count_grade_items, count_instrument_items,
+    count_cooking_items, count_group_items, count_class_items, count_all_equipment,
+    count_all_instruments, count_all_cooking, count_all_alchemy, build_grades_keyboard,
+    build_instruments_keyboard
+)
 from utils.craft_calculator import build_calculator_text, build_calculator_buttons
 from utils.callback_handlers import handle_button_callback
 from utils.table_data import get_table_data, get_table_data_by_gid, get_table_data_by_gid_with_fallback
@@ -2145,113 +2151,6 @@ async def help_cw(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ==================== КОМАНДА /craft ====================
 
-def get_grade_by_idx(idx):
-    """Возвращает грейд по индексу"""
-    grades = craft_base.get('grades', [])
-    if 0 <= idx < len(grades):
-        return grades[idx]
-    return None
-
-
-def get_class_by_idx(grade_idx, class_idx):
-    """Возвращает класс по индексам"""
-    grade = get_grade_by_idx(grade_idx)
-    if not grade:
-        return None
-    classes = grade.get('classes', [])
-    if 0 <= class_idx < len(classes):
-        return classes[class_idx]
-    return None
-
-
-def count_grade_items(grade):
-    """Количество рецептов/предметов в грейде."""
-    total = len(grade.get('items', []))
-    for cls in grade.get('classes', []):
-        total += len(cls.get('items', []))
-        for group in cls.get('groups', []):
-            total += len(group.get('items', []))
-    return total
-
-
-def count_instrument_items(group):
-    return len(group.get('items', []))
-
-
-def count_cooking_items(group):
-    return len(group.get('items', []))
-
-
-def count_group_items(group):
-    """Количество предметов в группе, включая её подгруппы."""
-    total = len(group.get('items', []))
-    for subgroup in group.get('subgroups', []):
-        total += len(subgroup.get('items', []))
-    return total
-
-
-def count_class_items(cls):
-    """Количество предметов в классе, включая группы и подгруппы."""
-    if cls.get('groups'):
-        return sum(count_group_items(group) for group in cls.get('groups', []))
-    return len(cls.get('items', []))
-
-
-def count_all_equipment():
-    return sum(count_grade_items(grade) for grade in craft_base.get('grades', []))
-
-
-def count_all_instruments():
-    return sum(count_instrument_items(group) for group in craft_base.get('instruments', {}).get('groups', []))
-
-
-def count_all_cooking():
-    return sum(count_cooking_items(group) for group in craft_base.get('cooking', {}).get('groups', []))
-
-
-def count_all_alchemy():
-    return sum(len(items) for items in craft_base.get('alchemy', {}).values())
-
-
-def build_grades_keyboard():
-    """Кнопки выбора грейда (по 2 в ряд)"""
-    grades = craft_base.get('grades', [])
-    buttons = []
-    row = []
-    for i, grade in enumerate(grades):
-        row.append(InlineKeyboardButton(
-            f"🎒 {grade['name']} ({count_grade_items(grade)})",
-            callback_data=f"craft_g:{i}"
-        ))
-        if len(row) == 2:
-            buttons.append(row)
-            row = []
-    if row:
-        buttons.append(row)
-    buttons.append([InlineKeyboardButton(
-        "⬅️ Назад",
-        callback_data="craft_back:main"
-    )])
-    return InlineKeyboardMarkup(buttons)
-
-def build_instruments_keyboard():
-    """Кнопки выбора группы инструментов (по 2 в ряд)"""
-    instruments = craft_base.get('instruments', {})
-    groups = instruments.get('groups', [])
-    buttons = []
-    row = []
-    for i, group in enumerate(groups):
-        row.append(InlineKeyboardButton(
-            f"{group['name']} ({count_instrument_items(group)})",
-            callback_data=f"craft_ig:{i}"
-        ))
-        if len(row) == 2:
-            buttons.append(row)
-            row = []
-    if row:
-        buttons.append(row)
-    return InlineKeyboardMarkup(buttons)
-
 @chat_restricted
 async def craft_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Команда /craft — меню выбора раздела"""
@@ -2264,12 +2163,12 @@ async def craft_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     keyboard = [
         [
-            InlineKeyboardButton(f"🎒 Экипировка ({count_all_equipment()})", callback_data="craft_section:equip"),
-            InlineKeyboardButton(f"⚒️ Инструменты ({count_all_instruments()})", callback_data="craft_section:instr"),
+            InlineKeyboardButton(f"🎒 Экипировка ({count_all_equipment(craft_base)})", callback_data="craft_section:equip"),
+            InlineKeyboardButton(f"⚒️ Инструменты ({count_all_instruments(craft_base)})", callback_data="craft_section:instr"),
         ],
         [
-            InlineKeyboardButton(f"🥨 Кулинария ({count_all_cooking()})", callback_data="craft_section:cook"),
-            InlineKeyboardButton(f"🧪 Алхимия ({count_all_alchemy()})", callback_data="craft_section:alchemy"),
+            InlineKeyboardButton(f"🥨 Кулинария ({count_all_cooking(craft_base)})", callback_data="craft_section:cook"),
+            InlineKeyboardButton(f"🧪 Алхимия ({count_all_alchemy(craft_base)})", callback_data="craft_section:alchemy"),
         ]
     ]
     await update.message.reply_text(
@@ -2293,7 +2192,7 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.edit_message_text(
                 "🎒 <b>Экипировка — выбери грейд:</b>",
                 parse_mode="HTML",
-                reply_markup=build_grades_keyboard()
+                reply_markup=build_grades_keyboard(craft_base)
             )
             return
         elif parts[1] == 'instr':
@@ -2726,7 +2625,7 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.edit_message_text("❌ Некорректные данные.")
             return
 
-        grade = get_grade_by_idx(grade_idx)
+        grade = get_grade_by_idx(grade_idx, craft_base)
         if not grade:
             await query.edit_message_text("❌ Грейд не найден.")
             return
@@ -2772,8 +2671,8 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.edit_message_text("❌ Некорректные данные.")
             return
 
-        grade = get_grade_by_idx(grade_idx)
-        cls = get_class_by_idx(grade_idx, class_idx)
+        grade = get_grade_by_idx(grade_idx, craft_base)
+        cls = get_class_by_idx(grade_idx, class_idx, craft_base)
         if not grade or not cls:
             await query.edit_message_text("❌ Класс не найден.")
             return
@@ -2821,12 +2720,12 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if parts[0] == 'craft_back' and len(parts) == 2 and parts[1] == 'main':
         keyboard = [
             [
-                InlineKeyboardButton(f"🎒 Экипировка ({count_all_equipment()})", callback_data="craft_section:equip"),
-                InlineKeyboardButton(f"⚒️ Инструменты ({count_all_instruments()})", callback_data="craft_section:instr"),
+                InlineKeyboardButton(f"🎒 Экипировка ({count_all_equipment(craft_base)})", callback_data="craft_section:equip"),
+                InlineKeyboardButton(f"⚒️ Инструменты ({count_all_instruments(craft_base)})", callback_data="craft_section:instr"),
             ],
             [
-                InlineKeyboardButton(f"🥨 Кулинария ({count_all_cooking()})", callback_data="craft_section:cook"),
-                InlineKeyboardButton(f"🧪 Алхимия ({count_all_alchemy()})", callback_data="craft_section:alchemy"),
+                InlineKeyboardButton(f"🥨 Кулинария ({count_all_cooking(craft_base)})", callback_data="craft_section:cook"),
+                InlineKeyboardButton(f"🧪 Алхимия ({count_all_alchemy(craft_base)})", callback_data="craft_section:alchemy"),
             ]
         ]
         await query.edit_message_text(
@@ -2841,7 +2740,7 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(
             "🎒 <b>Экипировка — выбери грейд:</b>",
             parse_mode="HTML",
-            reply_markup=build_grades_keyboard()
+            reply_markup=build_grades_keyboard(craft_base)
         )
         return
 
@@ -2855,8 +2754,8 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.edit_message_text("❌ Некорректные данные.")
             return
 
-        grade = get_grade_by_idx(grade_idx)
-        cls = get_class_by_idx(grade_idx, class_idx)
+        grade = get_grade_by_idx(grade_idx, craft_base)
+        cls = get_class_by_idx(grade_idx, class_idx, craft_base)
         if not grade or not cls or 'groups' not in cls:
             await query.edit_message_text("❌ Группа не найдена.")
             return
@@ -2917,8 +2816,8 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.edit_message_text("❌ Некорректные данные.")
             return
 
-        grade = get_grade_by_idx(grade_idx)
-        cls = get_class_by_idx(grade_idx, class_idx)
+        grade = get_grade_by_idx(grade_idx, craft_base)
+        cls = get_class_by_idx(grade_idx, class_idx, craft_base)
         if not grade or not cls or 'groups' not in cls:
             await query.edit_message_text("❌ Подгруппа не найдена.")
             return
@@ -2970,8 +2869,8 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.edit_message_text("❌ Некорректные данные.")
             return
 
-        grade = get_grade_by_idx(grade_idx)
-        cls = get_class_by_idx(grade_idx, class_idx)
+        grade = get_grade_by_idx(grade_idx, craft_base)
+        cls = get_class_by_idx(grade_idx, class_idx, craft_base)
         if not grade or not cls:
             await query.edit_message_text("❌ Предмет не найден.")
             return
