@@ -2496,6 +2496,10 @@ def build_grades_keyboard():
             row = []
     if row:
         buttons.append(row)
+    buttons.append([InlineKeyboardButton(
+        "⬅️ Назад",
+        callback_data="craft_back:main"
+    )])
     return InlineKeyboardMarkup(buttons)
 
 def build_instruments_keyboard():
@@ -2533,6 +2537,7 @@ async def craft_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ],
         [
             InlineKeyboardButton("🥨 Кулинария", callback_data="craft_section:cook"),
+            InlineKeyboardButton("🧪 Алхимия", callback_data="craft_section:alchemy"),
         ]
     ]
     await update.message.reply_text(
@@ -2613,6 +2618,130 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 reply_markup=InlineKeyboardMarkup(buttons)
             )
             return
+
+    # ==================== АЛХИМИЯ ====================
+    if parts[0] == 'craft_section' and len(parts) == 2 and parts[1] == 'alchemy':
+        alchemy = craft_base.get('alchemy', {})
+        if not alchemy:
+            await query.edit_message_text(
+                "❌ Алхимия не найдена в craft_base.json.",
+                parse_mode="HTML"
+            )
+            return
+
+        buttons = []
+        category_icons = {
+            'Зелья': '🧪',
+            'Свитки': '📜',
+            'Ресурсы': '🧱',
+            'Прочее': '🧩',
+        }
+        for category, items in alchemy.items():
+            icon = category_icons.get(category, '🧪')
+            buttons.append([InlineKeyboardButton(
+                f"{icon} {category} ({len(items)})",
+                callback_data=f"craft_ag:{list(alchemy.keys()).index(category)}"
+            )])
+
+        buttons.append([InlineKeyboardButton(
+            "⬅️ Назад",
+            callback_data="craft_back:main"
+        )])
+
+        await query.edit_message_text(
+            "🧪 <b>Алхимия — выбери раздел:</b>",
+            parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup(buttons)
+        )
+        return
+
+    # ==================== ВЫБОР КАТЕГОРИИ АЛХИМИИ ====================
+    if parts[0] == 'craft_ag' and len(parts) == 2:
+        try:
+            category_idx = int(parts[1])
+        except ValueError:
+            await query.edit_message_text("❌ Некорректные данные.")
+            return
+
+        alchemy = craft_base.get('alchemy', {})
+        categories = list(alchemy.keys())
+        if not (0 <= category_idx < len(categories)):
+            await query.edit_message_text("❌ Категория не найдена.")
+            return
+
+        category = categories[category_idx]
+        items = alchemy.get(category, [])
+        buttons = []
+        for i, item in enumerate(items):
+            buttons.append([InlineKeyboardButton(
+                item.get('title', 'Без названия')[:60],
+                callback_data=f"craft_ai:{category_idx}:{i}"
+            )])
+
+        buttons.append([InlineKeyboardButton(
+            "⬅️ Назад",
+            callback_data="craft_section:alchemy"
+        )])
+
+        await query.edit_message_text(
+            f"🧪 <b>{category}</b> — выбери рецепт:",
+            parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup(buttons)
+        )
+        return
+
+    # ==================== РЕЦЕПТ АЛХИМИИ ====================
+    if parts[0] == 'craft_ai' and len(parts) == 3:
+        try:
+            category_idx = int(parts[1])
+            item_idx = int(parts[2])
+        except ValueError:
+            await query.edit_message_text("❌ Некорректные данные.")
+            return
+
+        alchemy = craft_base.get('alchemy', {})
+        categories = list(alchemy.keys())
+        if not (0 <= category_idx < len(categories)):
+            await query.edit_message_text("❌ Категория не найдена.")
+            return
+
+        category = categories[category_idx]
+        items = alchemy.get(category, [])
+        if not (0 <= item_idx < len(items)):
+            await query.edit_message_text("❌ Рецепт не найден.")
+            return
+
+        item = items[item_idx]
+        text = f"<b>{item.get('title', 'Без названия')}</b>\n\n"
+
+        if item.get('where'):
+            text += f"📍 <b>Где:</b> {item['where']}\n\n"
+
+        if item.get('craft_block'):
+            text += "<b>Ресурсы для крафта:</b>\n"
+            text += item['craft_block'] + "\n\n"
+
+        if item.get('resources_block'):
+            text += "<b>📊 Все необходимые ресурсы для крафта:</b>\n"
+            text += f"<blockquote expandable>{item['resources_block']}</blockquote>\n\n"
+
+        if item.get('energy'):
+            text += f"<b>{item['energy']}</b>"
+
+        buttons = [[InlineKeyboardButton(
+            "⬅️ Назад",
+            callback_data=f"craft_ag:{category_idx}"
+        )]]
+
+        if len(text) > 4000:
+            text = text[:3997] + "..."
+
+        await query.edit_message_text(
+            text,
+            parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup(buttons)
+        )
+        return
 
     # ==================== ВЫБОР ГРУППЫ ИНСТРУМЕНТОВ ====================
     if parts[0] == 'craft_ig' and len(parts) == 2:
@@ -2807,6 +2936,7 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ],
             [
                 InlineKeyboardButton("🥨 Кулинария", callback_data="craft_section:cook"),
+                InlineKeyboardButton("🧪 Алхимия", callback_data="craft_section:alchemy"),
             ]
         ]
         await query.edit_message_text(
@@ -2825,6 +2955,7 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ],
             [
                 InlineKeyboardButton("🥨 Кулинария", callback_data="craft_section:cook"),
+                InlineKeyboardButton("🧪 Алхимия", callback_data="craft_section:alchemy"),
             ]
         ]
         await query.edit_message_text(
