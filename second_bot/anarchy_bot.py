@@ -52,7 +52,7 @@ from utils.craft_menu import (
     count_cooking_items, count_group_items, count_class_items, count_all_equipment,
     count_all_instruments, count_all_cooking, count_all_alchemy, build_grades_keyboard,
     build_instruments_keyboard, build_cooking_keyboard, build_alchemy_keyboard,
-    build_classes_keyboard, build_class_items_keyboard
+    build_alchemy_category_keyboard, build_classes_keyboard, build_class_items_keyboard
 ,
     build_instrument_items_keyboard, build_cooking_items_keyboard
 )
