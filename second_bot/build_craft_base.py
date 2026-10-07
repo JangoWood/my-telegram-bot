@@ -253,9 +253,14 @@ def is_item_message(entities):
     if not craft_block_text:
         return None
 
+    craft_block = (craft_block_text or '').strip().rstrip('\n')
+    # В алхимии/кулинарии перед уровнем встречается служебный маркер
+    # категории (🧪🌡 / 🥨), он не является ресурсом.
+    craft_block = re.sub(r'\n+\s*(?:🧪🌡|🥨)\s*$', '', craft_block)
+
     return {
         'title': first_bold,
-        'craft_block': (craft_block_text or '').strip().rstrip('\n'),
+        'craft_block': craft_block,
         'resources_block': (resources_block_text or '').strip(),
         'energy': energy_text,
     }
@@ -442,6 +447,139 @@ def collect_cooking(messages_dict):
         })
 
     return {'groups': groups}
+
+# ==================== АЛХИМИЯ ====================
+
+ALCHEMY_CATEGORIES = ('Зелья', 'Свитки', 'Ресурсы', 'Прочее')
+
+# Полная структура алхимии из result.json.
+# Ветки задаются по id меню, поэтому парсер не путает алхимию
+# с алхимическими ресурсами внутри рецептов экипировки.
+ALCHEMY_BRANCHES = {
+    57: 'iv_plus',    # Алхимия [IV+]
+    458: 'resources', # Алхимия [IV]
+    443: 'resources', # Алхимия [III+]
+    469: 'resources', # Алхимия [III]
+    491: 'potions',   # Зелья
+    530: 'scrolls',   # Свитки
+    544: 'resources', # Материя
+    550: 'other',     # Прочее
+}
+
+
+def _alchemy_menu_links(msg):
+    """Возвращает id карточек из меню алхимии, исключая служебные ссылки."""
+    result = []
+    for ent in msg.get('text_entities', []):
+        if not is_item_link(ent):
+            continue
+        item_id = extract_message_id_from_url(ent.get('href', ''))
+        if item_id:
+            result.append(item_id)
+    return result
+
+
+def _alchemy_where_from_card(msg):
+    """Пытается взять location | NPC непосредственно из карточки."""
+    entities = msg.get('text_entities', [])
+    text = ''.join(
+        ent if isinstance(ent, str) else ent.get('text', '')
+        for ent in entities
+    )
+
+    # В карточках нового result.json место идёт сразу после названия.
+    # Берём первую строку формата «локация | NPC».
+    for line in text.splitlines():
+        line = re.sub(r'\s+', ' ', line).strip()
+        if '|' not in line:
+            continue
+        left, right = [x.strip() for x in line.split('|', 1)]
+        if left and right and not left.startswith('Ресурсы для крафта'):
+            return f'{left} | {right}'
+
+    return None
+
+
+def _alchemy_where_from_menu(msg):
+    """Запасной вариант: общее место изготовления из меню ветки."""
+    text = ''.join(
+        ent if isinstance(ent, str) else ent.get('text', '')
+        for ent in msg.get('text_entities', [])
+    )
+
+    patterns = (
+        r'Вся алхимия(?:\s*\[[^\]]+\])?\s+делается\s+у\s*(.*?)\s+в\s*(.*?)\s*🌀',
+        r'Вся алхимия(?:\s*\[[^\]]+\])?\s+делается\s+в\s*(.*?)\s*🌀',
+    )
+
+    for pattern in patterns:
+        match = re.search(pattern, text, flags=re.S)
+        if not match:
+            continue
+
+        parts = [re.sub(r'\s+', ' ', x).strip() for x in match.groups()]
+        if len(parts) == 2 and all(parts):
+            # Формат: «у NPC в Локации».
+            return f'{parts[1]} — {parts[0]}'
+        if len(parts) == 1 and parts[0]:
+            return parts[0]
+
+    return None
+
+
+def _alchemy_item_category(branch, item_id, title):
+    """Категория определяется структурой меню, а не словами в названии."""
+    if branch == 'potions':
+        return 'Зелья'
+    if branch == 'scrolls':
+        return 'Свитки'
+    if branch == 'other':
+        return 'Прочее'
+    if branch == 'iv_plus' and item_id in (68, 69):
+        return 'Свитки'
+    return 'Ресурсы'
+
+
+def collect_alchemy(messages_dict):
+    """
+    Собирает всю алхимию из result.json.
+
+    Источники: [IV+], [IV], [III+], [III], Зелья, Свитки, Материя, Прочее.
+    68/69 встречаются и в [IV+], и в «Свитках», поэтому дедуплицируются.
+    """
+    result = {category: [] for category in ALCHEMY_CATEGORIES}
+    seen_ids = set()
+
+    for menu_id, branch in ALCHEMY_BRANCHES.items():
+        menu = messages_dict.get(menu_id)
+        if not menu:
+            print(f'  ⚠️ Алхимия: меню id={menu_id} не найдено')
+            continue
+
+        menu_where = _alchemy_where_from_menu(menu)
+
+        for item_id in _alchemy_menu_links(menu):
+            if item_id in seen_ids:
+                continue
+
+            item_full = build_item_output(item_id, messages_dict)
+            if not item_full:
+                print(f'  ⚠️ Алхимия: не удалось распознать карточку id={item_id}')
+                continue
+
+            category = _alchemy_item_category(branch, item_id, item_full['title'])
+
+            # В новых карточках location | NPC уже указан непосредственно в карточке.
+            # Если его нет, используем общее место ветки как fallback.
+            where = _alchemy_where_from_card(messages_dict[item_id]) or menu_where
+            if where:
+                item_full['where'] = where
+
+            result[category].append(item_full)
+            seen_ids.add(item_id)
+
+    return result
+
 # ==================== ОСНОВНАЯ ЛОГИКА ====================
 
 def build_base():
@@ -572,6 +710,13 @@ def build_base():
     for group in result['cooking']['groups']:
         print(f"  🍲 {group['name']}: {len(group['items'])} блюд")
 
+    # Шаг 6: собираем алхимию из того же result.json
+    print()
+    print("🧪 Собираем алхимию...")
+    result['alchemy'] = collect_alchemy(messages_dict)
+    for category in ALCHEMY_CATEGORIES:
+        print(f"  🧪 {category}: {len(result['alchemy'][category])} предметов")
+
     # Сохраняем
     with open(OUTPUT_FILE, 'w', encoding='utf-8') as f:
         json.dump(result, f, ensure_ascii=False, indent=2)
@@ -598,9 +743,11 @@ def build_base():
 
     instruments_count = sum(len(g['items']) for g in result['instruments']['groups'])
     cooking_count = sum(len(g['items']) for g in result['cooking']['groups'])
+    alchemy_count = sum(len(items) for items in result.get('alchemy', {}).values())
     print(f"  ИНСТРУМЕНТЫ: {len(result['instruments']['groups'])} групп, {instruments_count} предметов")
     print(f"  КУЛИНАРИЯ: {len(result['cooking']['groups'])} групп, {cooking_count} блюд")
-    print(f"  ВСЕГО предметов: {total_items + instruments_count + cooking_count}")
+    print(f"  АЛХИМИЯ: {len(result.get('alchemy', {}))} категорий, {alchemy_count} предметов")
+    print(f"  ВСЕГО предметов: {total_items + instruments_count + cooking_count + alchemy_count}")
 
 
 if __name__ == '__main__':
