@@ -72,6 +72,7 @@ from utils.chat_id import chat_id
 from utils.help_command import help_command
 from utils.start_command import start
 from utils.craft_command import craft_command
+from utils.calculator_callback import calculator_callback
 
 # ==================== ЗАГРУЗКА БАЗЫ КРАФТА ====================
 
@@ -570,34 +571,6 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ==================== ЗАПУСК БОТА ====================
 
-
-async def calculator_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Изменяет множитель ресурсов в текущей карточке."""
-    query = update.callback_query
-    await query.answer()
-
-    try:
-        _, item_id, quantity = query.data.split('_', 2)
-        quantity = int(quantity)
-        if quantity < 1:
-            quantity = 1
-    except (ValueError, AttributeError):
-        await query.answer("❌ Некорректные данные", show_alert=True)
-        return
-
-    item = find_craft_item_by_id(item_id, craft_base)
-    if not item:
-        await query.answer("❌ Предмет не найден", show_alert=True)
-        return
-
-    calc_back = context.user_data.get('craft_calc_back', {}).get(str(item_id))
-    if calc_back == '__get__':
-        calc_back = None
-
-    text = build_calculator_text(item, quantity)
-    markup = build_calculator_buttons(item_id, quantity, calc_back)
-
-    await query.edit_message_text(text, parse_mode="HTML", reply_markup=markup)
 def main():
     print("🟢 Запуск бота...")
     load_craft_base()  # ← добавить эту строку
