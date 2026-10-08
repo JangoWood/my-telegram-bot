@@ -73,6 +73,7 @@ from utils.help_command import help_command
 from utils.start_command import start
 from utils.craft_command import craft_command
 from utils.calculator_callback import calculator_callback
+from utils.realm_players import get_all_players_from_realm
 
 # ==================== ЗАГРУЗКА БАЗЫ КРАФТА ====================
 
@@ -343,43 +344,6 @@ async def spec_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(response, parse_mode="HTML", disable_web_page_preview=True)
 
 from utils.inline_search import inline_query
-
-def get_all_players_from_realm():
-    """Получает всех игроков из таблицы Ремесло"""
-    try:
-        ws = get_realm_worksheet()
-        if ws is None:
-            print("❌ Не удалось подключиться к таблице Ремесло")
-            return None
-
-        all_data = ws.get_all_values()
-        if len(all_data) < 2:
-            return []
-
-        players = []
-        for row in all_data[1:]:  # Пропускаем заголовки
-            if not row or len(row) < 3:
-                continue
-            if row[0] and row[1]:  # Есть тег и имя
-                players.append({
-                    'tag': row[0],
-                    'name': row[1],
-                    'clan': row[2],
-                    'skills': {
-                        'Крафтер': row[3] if len(row) > 3 else '',
-                        'Рыбалка': row[4] if len(row) > 4 else '',
-                        'Шахтёр': row[5] if len(row) > 5 else '',
-                        'Охота': row[6] if len(row) > 6 else '',
-                        'Кулинария': row[7] if len(row) > 7 else '',
-                        'Алхимия': row[8] if len(row) > 8 else '',
-                        'Плавильщик': row[9] if len(row) > 9 else '',
-                        'Фермер': row[10] if len(row) > 10 else '',
-                    }
-                })
-        return players
-    except Exception as e:
-        print(f"Ошибка получения данных из таблицы Ремесло: {e}")
-        return None
 
 @chat_restricted
 async def get_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
