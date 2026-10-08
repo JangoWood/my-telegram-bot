@@ -81,6 +81,8 @@ from utils.find_command import find
 from utils.realm_profile_formatter import format_specializations_for_profile
 from utils.craft_callback_command import craft_callback
 from utils.craft_base_loader import load_craft_base
+from utils.button_callback import button_callback
+
 
 # ==================== ЗАГРУЗКА БАЗЫ КРАФТА ====================
 
@@ -93,17 +95,7 @@ craft_index = {
     'items': {},          # {(grade_idx, class_idx, item_path): item}
 }
 
-
-async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await handle_button_callback(update, context, get_table_data_by_gid)
-
-
-
-
-
 # ==================== ОСНОВНАЯ ТАБЛИЦА (актуальная таблица) ====================
-
-
 
 def format_table_row(row, headers):
     """Форматирует строку данных, используя даты из заголовков"""
