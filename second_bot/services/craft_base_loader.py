@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from utils.craft_loader import load_craft_file
+from services.craft_loader import load_craft_file
 
 
 def load_craft_base(craft_base_file):

@@ -4,7 +4,7 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 from utils.permissions import chat_restricted
-from utils.find_search import find_players
+from services.find_search import find_players
 
 
 MAIN_SHEET_GID = '0'

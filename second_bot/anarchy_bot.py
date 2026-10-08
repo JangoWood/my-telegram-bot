@@ -41,7 +41,7 @@ from handlers.profile import get_profile
 from handlers.spec import spec_search
 from handlers.find import find
 from handlers.craft_callback import craft_callback
-from utils.craft_base_loader import load_craft_base
+from services.craft_base_loader import load_craft_base
 from handlers.button_callback import button_callback
 from handlers.inline_search import inline_query
 
