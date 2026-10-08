@@ -4,7 +4,7 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 from utils.permissions import chat_restricted
-from utils.realm_sheet import get_player_realm_from_sheet
+from services.realm_sheet import get_player_realm_from_sheet
 
 
 async def cmd_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
