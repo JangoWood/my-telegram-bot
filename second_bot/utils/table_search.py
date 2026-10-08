@@ -1,4 +1,4 @@
-from .table_data import get_table_data_by_gid
+from services.table_data import get_table_data_by_gid
 
 
 def get_combined_table_data(main_sheet_gid, second_sheet_gid, third_sheet_gid):

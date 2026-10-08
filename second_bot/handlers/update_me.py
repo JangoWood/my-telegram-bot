@@ -7,7 +7,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
 from utils.realm_skills import parse_skills_from_text
-from utils.realm_sheet import update_player_realm
+from services.realm_sheet import update_player_realm
 
 
 user_sessions = {}
