@@ -36,13 +36,13 @@ from handlers.chat_id import chat_id
 from handlers.help import help_command
 from handlers.start import start
 from utils.craft_command import craft_command
-from utils.calculator_callback import calculator_callback
+from handlers.calculator_callback import calculator_callback
 from handlers.profile import get_profile
 from handlers.spec import spec_search
 from handlers.find import find
-from utils.craft_callback_command import craft_callback
+from handlers.craft_callback import craft_callback
 from utils.craft_base_loader import load_craft_base
-from utils.button_callback import button_callback
+from handlers.button_callback import button_callback
 from utils.inline_search import inline_query
 
 # ==================== ЗАГРУЗКА БАЗЫ КРАФТА ====================
