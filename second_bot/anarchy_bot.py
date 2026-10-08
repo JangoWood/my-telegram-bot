@@ -75,6 +75,7 @@ from utils.craft_command import craft_command
 from utils.calculator_callback import calculator_callback
 from utils.realm_players import get_all_players_from_realm
 from utils.realm_specializations import get_specializations_data
+from utils.profile_command import get_profile
 
 
 # ==================== ЗАГРУЗКА БАЗЫ КРАФТА ====================
@@ -346,98 +347,6 @@ async def spec_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(response, parse_mode="HTML", disable_web_page_preview=True)
 
 from utils.inline_search import inline_query
-
-@chat_restricted
-async def get_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Показывает специализации игрока из таблицы Ремесло"""
-
-    user_tag = None
-    is_self = False
-
-    # Вариант 1: указан аргумент (@username или имя игрока)
-    if context.args:
-        arg = ' '.join(context.args).strip()
-        if arg.startswith('@'):
-            user_tag = arg
-        else:
-            player_data = get_player_realm_by_name(arg)
-            if player_data:
-                user_tag = player_data['tag']
-            else:
-                await update.message.reply_text(
-                    f"❌ Игрок с именем '{arg}' не найден в таблице Ремесло.",
-                    parse_mode="HTML"
-                )
-                return
-
-    # Вариант 2: ответ на сообщение (но только если это не команда и не @l1b_b1l)
-    elif update.message.reply_to_message:
-        replied_user = update.message.reply_to_message.from_user
-
-        # Проверяем, не отвечаем ли мы на проблемного пользователя
-        if replied_user.username == 'l1b_b1l':
-            # Если отвечаем на @l1b_b1l — игнорируем, показываем свой профиль
-            sender = update.message.from_user
-            if sender and sender.username:
-                user_tag = f"@{sender.username}"
-                is_self = True
-            else:
-                await update.message.reply_text(
-                    "❓ Используйте /prof @username или ответьте на сообщение игрока с username",
-                    parse_mode="HTML"
-                )
-                return
-        elif replied_user and replied_user.username:
-            user_tag = f"@{replied_user.username}"
-        else:
-            await update.message.reply_text(
-                f"❌ У пользователя нет username.\n"
-                f"Попросите его установить username в настройках Telegram.",
-                parse_mode="HTML"
-            )
-            return
-
-    # Вариант 3: без аргументов и без ответа — показываем отправителя команды
-    else:
-        sender = update.message.from_user
-        if sender and sender.username:
-            user_tag = f"@{sender.username}"
-            is_self = True
-        else:
-            await update.message.reply_text(
-                "❌ У вас нет username в Telegram.\n"
-                "Установите username в настройках Telegram.",
-                parse_mode="HTML"
-            )
-            return
-
-    if not user_tag:
-        await update.message.reply_text(
-            "❌ Не удалось определить пользователя.",
-            parse_mode="HTML"
-        )
-        return
-
-    # Загружаем данные из таблицы Ремесло
-    player_data = get_player_realm_from_sheet(user_tag)
-
-    if not player_data:
-        if is_self:
-            await update.message.reply_text(
-                f"❌ Ваш профиль не найден в таблице Ремесло.\n\n"
-                f"📝 Чтобы добавиться: ответьте на сообщение с навыками командой /update_me",
-                parse_mode="HTML"
-            )
-        else:
-            await update.message.reply_text(
-                f"❌ Профиль {user_tag} не найден в таблице Ремесло.\n\n"
-                f"Возможно, игрок ещё не обновил свои навыки через /update_me",
-                parse_mode="HTML"
-            )
-        return
-
-    response = format_realm_profile(player_data)
-    await update.message.reply_text(response, parse_mode="HTML")
 
 def format_realm_profile(player_data):
     """Форматирует вывод профиля из таблицы Ремесло"""
