@@ -4,7 +4,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
 from utils.permissions import chat_restricted
-from utils.table_data import get_table_data_by_gid
+from services.table_data import get_table_data_by_gid
 
 
 @chat_restricted
