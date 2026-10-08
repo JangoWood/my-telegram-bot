@@ -69,6 +69,7 @@ from utils.stats import stats
 from utils.get_command import get_command
 from utils.get_data import get_data
 from utils.chat_id import chat_id
+from utils.help_command import help_command
 
 # ==================== ЗАГРУЗКА БАЗЫ КРАФТА ====================
 
@@ -609,64 +610,6 @@ async def craft_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обёртка для callback-кнопок /craft."""
     await handle_craft_callback(update, context, craft_base)
-
-
-async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Показывает список всех команд бота"""
-    help_text = """
-📖 <b>Помощь — список команд бота</b>
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-📊 <b>Основная таблица (актуальная таблица)</b>
-  • <code>/get_data</code> — показать данные из таблицы
-  • <code>/stats</code> — статистика (очки, монеты, итог)
-  • <code>/find &lt;текст&gt;</code> — поиск по таблице
-    <i>Пример: /find pa3ym</i>
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-🛠️ <b>Специализации игроков (таблица «Ремесло»)</b>
-  • <code>/f &lt;специализация&gt; [уровень]</code> — поиск игроков
-    <i>Примеры: /f а, /f алхимия, /f крафтер ГМ4</i>
-  • <code>/prof</code> — профиль игрока
-    <i>Без аргументов — свой профиль</i>
-    <i>Ответом на сообщение — профиль автора</i>
-    <i>С аргументом — /prof @username или /prof Ник</i>
-  • <code>/update_me</code> — обновить свои навыки
-    <i>Ответом на сообщение с навыками из игры</i>
-
-  <b>Доступные специализации и синонимы:</b>
-  • крафтер / крафт / <b>к</b>
-  • рыбалка / рыба / <b>р</b>
-  • шахтёр / шахта / <b>ш</b>
-  • охота / охотник / <b>о</b>
-  • кулинария / еда / кухня / <b>кул</b>
-  • алхимия / алхим / алх / <b>а</b>
-  • плавильщик / плавка / <b>пл</b>
-  • фермер / ферма / <b>ф</b>
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-⚔️ <b>Команды для игры</b>
-  • <code>/trade</code> — команда /trade для игрока
-    <i>Ответом на сообщение игрока</i>
-  • <code>/cmd</code> — все игровые команды для игрока
-    <i>Ответом на сообщение игрока</i>
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-ℹ️ <b>Другие команды</b>
-  • <code>/start</code> — приветственное сообщение
-  • <code>/help</code> — это сообщение
-  • <code>/chat_id</code> — ID текущего чата
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-💡 Данные берутся из публичной Google Таблицы.
-    Обновления происходят автоматически.
-"""
-    await update.message.reply_text(help_text, parse_mode="HTML")
 
 
 # ==================== ЗАПУСК БОТА ====================
