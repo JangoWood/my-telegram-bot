@@ -84,6 +84,7 @@ from utils.craft_base_loader import load_craft_base
 from utils.button_callback import button_callback
 from utils.table_formatter import format_table_row
 from utils.inline_search import inline_query
+from utils.realm_profile import format_realm_profile
 
 # ==================== ЗАГРУЗКА БАЗЫ КРАФТА ====================
 
@@ -95,45 +96,6 @@ craft_index = {
     'classes': {},        # {grade_idx: [{name, ...}]}
     'items': {},          # {(grade_idx, class_idx, item_path): item}
 }
-
-
-
-def format_realm_profile(player_data):
-    """Форматирует вывод профиля из таблицы Ремесло"""
-    name = player_data['name']
-    tag = player_data['tag']
-    clan = player_data['clan']
-    skills = player_data['skills']
-    updated = player_data['updated']
-
-    response = f"🤟🏼 <b>{name}</b>\n"
-    response += f"📱 {tag}\n"
-    response += f"🏛️ {clan}\n\n"
-    response += "<b>📋 Специализации:</b>\n"
-
-    # Эмодзи для каждой специализации
-    emojis = {
-        'Крафтер': '⚒️',
-        'Рыбалка': '🎣',
-        'Шахтёр': '⛏️',
-        'Охота': '🏹',
-        'Кулинария': '🥨',
-        'Алхимия': '🧪',
-        'Плавильщик': '🪔',
-        'Фермер': '🌽'
-    }
-
-    for skill, value in skills.items():
-        if value:
-            emoji = emojis.get(skill, '•')
-            response += f"  {emoji} {skill}: <b>{value}</b>\n"
-        else:
-            response += f"  • {skill}: —\n"
-
-    if updated:
-        response += f"\n📅 <i>Обновлено: {updated}</i>"
-
-    return response
 
 # ==================== ЗАПУСК БОТА ====================
 
