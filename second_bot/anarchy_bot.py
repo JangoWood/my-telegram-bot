@@ -33,8 +33,8 @@ from utils.stats import stats
 from utils.get_command import get_command
 from utils.get_data import get_data
 from utils.chat_id import chat_id
-from second_bot.handlers.help import help_command
-from second_bot.handlers.start import start
+from handlers.help import help_command
+from handlers.start import start
 from utils.craft_command import craft_command
 from utils.calculator_callback import calculator_callback
 from utils.profile_command import get_profile
