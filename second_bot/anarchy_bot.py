@@ -53,7 +53,7 @@ from utils.craft_calculator import build_calculator_text, build_calculator_butto
 from utils.craft_callback import handle_craft_callback
 from utils.callback_handlers import handle_button_callback
 from utils.table_data import get_table_data, get_table_data_by_gid, get_table_data_by_gid_with_fallback
-from utils.table_search import get_combined_table_data
+from utils.find_search import find_players
 from utils.spec_table import show_specializations
 from utils.realm_skills import parse_skills_from_text
 from utils.realm_update import user_sessions, update_realm, handle_nickname, clan_callback
@@ -348,7 +348,7 @@ async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 @chat_restricted
 async def find(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Ищет игрока в объединённых данных с трёх листов"""
+    """Ищет игрока в объединённых данных с трёх листов."""
     if not context.args:
         await update.message.reply_text(
             "ℹ️ Укажите имя игрока для поиска. Пример: /find pa3ym",
@@ -356,26 +356,18 @@ async def find(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    search = ' '.join(context.args).lower().strip()
+    search = " ".join(context.args).lower().strip()
 
-    combined_data = get_combined_table_data(
-        MAIN_SHEET_GID, SECOND_SHEET_GID, THIRD_SHEET_GID
+    found_items = find_players(
+        search,
+        MAIN_SHEET_GID,
+        SECOND_SHEET_GID,
+        THIRD_SHEET_GID
     )
 
-    if not combined_data:
+    if found_items is None:
         await update.message.reply_text("❌ Нет данных для поиска")
         return
-
-    found_items = []
-
-    for item in combined_data:
-        row = item['row']
-        name = row[0].strip().lower() if row[0] else ""
-        if not name:
-            continue
-
-        if search in name:
-            found_items.append(item)
 
     if not found_items:
         await update.message.reply_text(f"❌ Игрок '{search}' не найден")
@@ -383,7 +375,6 @@ async def find(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     response = f"🔎 <b>Найдено {len(found_items)} результатов:</b>\n\n"
 
-    # Названия листов для отображения
     sheet_names = {
         'main': '📊 Анархия',
         'second': '📊 Наследие Анархии',
@@ -404,7 +395,6 @@ async def find(update: Update, context: ContextTypes.DEFAULT_TYPE):
         total = row[5].strip() if len(row) > 5 else "0"
         minus = row[6].strip() if len(row) > 6 else ""
 
-        # Добавляем название листа
         sheet_label = sheet_names.get(source, f'📊 {source}')
 
         response += f"🤟🏼 <b>{player_name}</b> — {sheet_label}\n"
