@@ -1,20 +1,12 @@
 import os
-import csv
-import requests
 from telegram import Update
-from telegram.ext import Application, CommandHandler, ContextTypes
+from telegram.ext import Application, CommandHandler
 from telegram.ext import InlineQueryHandler
 from dotenv import load_dotenv
 from pathlib import Path
-from io import StringIO
 import threading
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CallbackQueryHandler
-import gspread
-from google.oauth2.service_account import Credentials
-import pytz
 from telegram.ext import MessageHandler, filters
-import json
 
 # Загружаем переменные из .env в корне проекта
 env_path = Path(__file__).parent.parent / '.env'
@@ -34,35 +26,9 @@ CREDENTIALS_FILE = 'credentials.json'
 REALM_SHEET_ID = os.getenv('REALM_SHEET_ID')
 REALM_SHEET_NAME = 'Ремесло'  # Название листа (можно тоже вынести в переменные, если нужно)
 
-user_sessions = {}  # {user_id: {'skills': {}, 'user_tag': str, 'telegram_name': str, 'skills_text': str}}
 from utils.permissions import chat_restricted
 from utils.health import run_flask
-from utils.craft_loader import load_craft_file
-from utils.get_keyboard import get_search_keyboard
-from utils.get_craft import get_all_craft_search_items, build_get_card_text, find_craft_item_by_id
-from utils.craft_menu import (
-    get_grade_by_idx, get_class_by_idx, count_grade_items, count_instrument_items,
-    count_cooking_items, count_group_items, count_class_items, count_all_equipment,
-    count_all_instruments, count_all_cooking, count_all_alchemy, build_grades_keyboard,
-    build_instruments_keyboard, build_cooking_keyboard, build_alchemy_keyboard,
-    build_classes_keyboard, build_class_items_keyboard
-,
-    build_instrument_items_keyboard, build_cooking_items_keyboard
-)
-from utils.craft_calculator import build_calculator_text, build_calculator_buttons
-from utils.craft_callback import handle_craft_callback
-from utils.callback_handlers import handle_button_callback
-from utils.table_data import get_table_data, get_table_data_by_gid, get_table_data_by_gid_with_fallback
-from utils.find_search import find_players
-from utils.spec_table import show_specializations
-from utils.realm_skills import parse_skills_from_text
 from utils.realm_update import user_sessions, update_realm, handle_nickname, clan_callback
-from utils.realm_sheet import (
-    get_player_realm_by_name,
-    get_player_realm_from_sheet,
-    update_player_realm,
-    get_realm_worksheet,
-)
 from utils.equipment import enchant_command
 from utils.player_commands import cmd_command, trade_command
 from utils.stats import stats
@@ -73,16 +39,12 @@ from utils.help_command import help_command
 from utils.start_command import start
 from utils.craft_command import craft_command
 from utils.calculator_callback import calculator_callback
-from utils.realm_players import get_all_players_from_realm
-from utils.realm_specializations import get_specializations_data
 from utils.profile_command import get_profile
 from utils.spec_command import spec_search
 from utils.find_command import find
-from utils.realm_profile_formatter import format_specializations_for_profile
 from utils.craft_callback_command import craft_callback
 from utils.craft_base_loader import load_craft_base
 from utils.button_callback import button_callback
-from utils.table_formatter import format_table_row
 from utils.inline_search import inline_query
 from utils.realm_profile import format_realm_profile
 
@@ -90,18 +52,11 @@ from utils.realm_profile import format_realm_profile
 
 CRAFT_BASE_FILE = Path(__file__).parent / 'craft_base.json'
 
-craft_base = {'grades': []}
-craft_index = {
-    'grades': [],         # [{name, classes: [...]}]
-    'classes': {},        # {grade_idx: [{name, ...}]}
-    'items': {},          # {(grade_idx, class_idx, item_path): item}
-}
-
 # ==================== ЗАПУСК БОТА ====================
 
 def main():
     print("🟢 Запуск бота...")
-    craft_base, craft_index = load_craft_base(CRAFT_BASE_FILE)
+    craft_base, _ = load_craft_base(CRAFT_BASE_FILE)
     app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
     app.bot_data["craft_base"] = craft_base
 
