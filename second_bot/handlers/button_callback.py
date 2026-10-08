@@ -3,7 +3,7 @@
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from utils.callback_handlers import handle_button_callback
+from services.callback_handlers import handle_button_callback
 from services.table_data import get_table_data_by_gid
 
 

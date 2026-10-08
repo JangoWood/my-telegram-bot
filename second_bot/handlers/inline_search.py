@@ -6,7 +6,7 @@ from telegram import InlineQueryResultArticle, InputTextMessageContent
 
 from utils.permissions import chat_restricted
 from services.get_craft import get_all_craft_search_items, build_get_card_text
-from utils.craft_calculator import build_calculator_buttons
+from services.craft_calculator import build_calculator_buttons
 from services.table_data import get_table_data
 
 

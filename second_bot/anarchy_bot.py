@@ -35,7 +35,7 @@ from handlers.get_data import get_data
 from handlers.chat_id import chat_id
 from handlers.help import help_command
 from handlers.start import start
-from utils.craft_command import craft_command
+from handlers.craft import craft_command
 from handlers.calculator_callback import calculator_callback
 from handlers.profile import get_profile
 from handlers.spec import spec_search

@@ -3,7 +3,7 @@
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from utils.craft_callback import handle_craft_callback
+from services.craft_callback import handle_craft_callback
 
 
 async def craft_callback(
