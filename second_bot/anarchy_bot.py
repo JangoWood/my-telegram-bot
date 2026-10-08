@@ -78,6 +78,7 @@ from utils.realm_specializations import get_specializations_data
 from utils.profile_command import get_profile
 from utils.spec_command import spec_search
 from utils.find_command import find
+from utils.realm_profile_formatter import format_specializations_for_profile
 
 # ==================== ЗАГРУЗКА БАЗЫ КРАФТА ====================
 
@@ -196,31 +197,6 @@ def format_realm_profile(player_data):
         response += f"\n📅 <i>Обновлено: {updated}</i>"
 
     return response
-
-def format_specializations_for_profile(row, headers):
-    """Форматирует специализации игрока для красивого вывода (как в /f, но для одного игрока)"""
-    if not row or len(row) < 2:
-        return "❌ Нет данных"
-
-    # Первая колонка — это тег (@username), вторая — имя игрока
-    tag = row[0].strip() if len(row) > 0 else "?"
-    name = row[1].strip() if len(row) > 1 and row[1] else "Неизвестно"
-
-    # Названия специализаций (заголовки)
-    spec_names = headers[2:] if len(headers) > 2 else []
-
-    response = f"🤟🏼 <b>{name}</b>\n"
-    response += f"📱 {tag}\n\n"
-    response += "<b>📋 Специализации:</b>\n"
-
-    for i, spec in enumerate(spec_names):
-        if i + 2 < len(row) and row[i + 2]:
-            value = row[i + 2].strip()
-            if value and value != '-':
-                response += f"  • {spec}: <b>{value}</b>\n"
-
-    return response
-
 
 async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обёртка для callback-кнопок /craft."""
