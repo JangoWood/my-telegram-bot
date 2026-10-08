@@ -70,6 +70,7 @@ from utils.get_command import get_command
 from utils.get_data import get_data
 from utils.chat_id import chat_id
 from utils.help_command import help_command
+from utils.start_command import start
 
 # ==================== ЗАГРУЗКА БАЗЫ КРАФТА ====================
 
@@ -149,19 +150,6 @@ def format_table_row(row, headers):
 
     return result
 
-
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "📊 <b>Бот для чтения таблицы</b>\n\n"
-        "Отправьте /help для просмотра всех команд.\n\n"
-        "📋 <b>Быстрые команды:</b>\n"
-        "  /get_data — данные из таблицы\n"
-        "  /stats — статистика\n"
-        "  /s — специализации игроков\n"
-        "  /f алхимия — поиск по специализации"
-        "  /prof - 👤 Показать специализации игрока (ответом на его сообщение)",
-        parse_mode="HTML"
-    )
 
 @chat_restricted
 async def find(update: Update, context: ContextTypes.DEFAULT_TYPE):
