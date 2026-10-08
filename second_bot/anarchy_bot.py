@@ -218,10 +218,6 @@ async def find(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(response, parse_mode="HTML")
 
 # ==================== СПЕЦИАЛИЗАЦИИ (лист с GID 279368796) ====================
-@chat_restricted
-async def spec(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await show_specializations(update, context, CW_SHEET_GID)
-
 
 async def spec_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Поиск игроков по специализации из таблицы Ремесло"""
