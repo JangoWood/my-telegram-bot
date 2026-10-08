@@ -27,12 +27,12 @@ REALM_SHEET_NAME = 'Ремесло'  # Название листа (можно �
 
 from utils.health import run_flask
 from utils.realm_update import update_realm, handle_nickname, clan_callback
-from utils.equipment import enchant_command
-from utils.player_commands import cmd_command, trade_command
+from handlers.equipment import enchant_command
+from handlers.player_commands import cmd_command, trade_command
 from handlers.stats import stats
 from handlers.get import get_command
 from handlers.get_data import get_data
-from utils.chat_id import chat_id
+from handlers.chat_id import chat_id
 from handlers.help import help_command
 from handlers.start import start
 from utils.craft_command import craft_command
