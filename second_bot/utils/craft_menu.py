@@ -105,6 +105,14 @@ def build_instruments_keyboard(craft_base):
             row = []
     if row:
         buttons.append(row)
+
+    buttons.append([
+        InlineKeyboardButton(
+            "⬅️ Назад",
+            callback_data="craft_back:main"
+        )
+    ])
+
     return InlineKeyboardMarkup(buttons)
 
 
