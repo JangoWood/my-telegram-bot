@@ -1,6 +1,6 @@
 """Поиск игроков для команды /find."""
 
-from utils.table_search import get_combined_table_data
+from services.table_search import get_combined_table_data
 
 
 def find_players(search, main_gid, second_gid, third_gid):
