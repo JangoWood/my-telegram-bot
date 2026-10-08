@@ -66,6 +66,7 @@ from utils.realm_sheet import (
 from utils.equipment import enchant_command
 from utils.player_commands import cmd_command, trade_command
 from utils.stats import stats
+from utils.get_command import get_command
 
 # ==================== ЗАГРУЗКА БАЗЫ КРАФТА ====================
 
@@ -435,21 +436,6 @@ async def spec_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if response:
         await update.message.reply_text(response, parse_mode="HTML", disable_web_page_preview=True)
-
-@chat_restricted
-async def get_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Команда /get — открывает inline-поиск по карточкам крафта."""
-    await update.message.reply_text(
-        "🔎 <b>Поиск предмета</b>\n\nНажми кнопку и начни вводить название.",
-        parse_mode="HTML",
-        reply_markup=get_search_keyboard()
-    )
-
-
-
-
-
-
 
 from utils.inline_search import inline_query
 
