@@ -74,6 +74,8 @@ from utils.start_command import start
 from utils.craft_command import craft_command
 from utils.calculator_callback import calculator_callback
 from utils.realm_players import get_all_players_from_realm
+from utils.realm_specializations import get_specializations_data
+
 
 # ==================== ЗАГРУЗКА БАЗЫ КРАФТА ====================
 
@@ -497,35 +499,6 @@ def format_specializations_for_profile(row, headers):
                 response += f"  • {spec}: <b>{value}</b>\n"
 
     return response
-
-
-def get_specializations_data():
-    """Загружает данные из таблицы специализаций (лист CW_SHEET_GID)"""
-    try:
-        url = f'https://docs.google.com/spreadsheets/d/e/2PACX-1vQhxznVeD5jD268Xb5x9crTJe0Di5Ra0OeSfqn_O_GA0plGpQHd8RFUg1GLlAnHgQx45XlklE1IVub9/pub?gid={CW_SHEET_GID}&output=csv'
-        response = requests.get(url, timeout=15)
-        response.raise_for_status()
-        response.encoding = 'utf-8'
-
-        csv_file = StringIO(response.text)
-        reader = csv.reader(csv_file)
-        data = list(reader)
-
-        if not data:
-            return None, None, "❌ Таблица пуста"
-
-        # Заголовки — первая строка
-        headers = data[0]
-
-        # Данные — все остальные строки
-        result = []
-        for row in data[1:]:
-            if any(cell and cell.strip() for cell in row):
-                result.append(row)
-
-        return result, headers, None
-    except Exception as e:
-        return None, None, f"❌ Ошибка: {e}"
 
 
 async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
