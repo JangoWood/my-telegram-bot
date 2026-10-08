@@ -79,6 +79,7 @@ from utils.profile_command import get_profile
 from utils.spec_command import spec_search
 from utils.find_command import find
 from utils.realm_profile_formatter import format_specializations_for_profile
+from utils.craft_callback_command import craft_callback
 
 # ==================== ЗАГРУЗКА БАЗЫ КРАФТА ====================
 
@@ -197,11 +198,6 @@ def format_realm_profile(player_data):
         response += f"\n📅 <i>Обновлено: {updated}</i>"
 
     return response
-
-async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обёртка для callback-кнопок /craft."""
-    await handle_craft_callback(update, context, craft_base)
-
 
 # ==================== ЗАПУСК БОТА ====================
 
