@@ -4,7 +4,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
 from utils.permissions import chat_restricted
-from utils.craft_menu import (
+from services.craft_menu import (
     count_all_equipment,
     count_all_instruments,
     count_all_cooking,

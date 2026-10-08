@@ -6,7 +6,7 @@
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
-from utils.craft_menu import (
+from services.craft_menu import (
     get_grade_by_idx,
     get_class_by_idx,
     count_all_equipment,
@@ -23,7 +23,7 @@ from utils.craft_menu import (
     build_cooking_items_keyboard,
     build_alchemy_category_keyboard,
 )
-from utils.craft_calculator import build_calculator_buttons
+from services.craft_calculator import build_calculator_buttons
 
 
 async def handle_craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, craft_base):

@@ -2,7 +2,7 @@ import re
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
-from utils.get_craft import find_craft_item_by_id
+from services.get_craft import find_craft_item_by_id
 
 
 def _multiply_quantities(text, multiplier):

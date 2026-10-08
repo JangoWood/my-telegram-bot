@@ -3,8 +3,8 @@
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from utils.craft_calculator import build_calculator_text, build_calculator_buttons
-from utils.get_craft import find_craft_item_by_id
+from services.craft_calculator import build_calculator_text, build_calculator_buttons
+from services.get_craft import find_craft_item_by_id
 
 
 async def calculator_callback(
