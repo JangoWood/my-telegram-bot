@@ -4,7 +4,7 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 from utils.callback_handlers import handle_button_callback
-from utils.table_data import get_table_data_by_gid
+from services.table_data import get_table_data_by_gid
 
 
 async def button_callback(
