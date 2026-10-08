@@ -71,6 +71,7 @@ from utils.get_data import get_data
 from utils.chat_id import chat_id
 from utils.help_command import help_command
 from utils.start_command import start
+from utils.craft_command import craft_command
 
 # ==================== ЗАГРУЗКА БАЗЫ КРАФТА ====================
 
@@ -560,35 +561,6 @@ def get_specializations_data():
         return result, headers, None
     except Exception as e:
         return None, None, f"❌ Ошибка: {e}"
-
-
-# ==================== ЗАТОЧКА ЭКИПИРОВКИ (/enchant) ====================
-
-@chat_restricted
-async def craft_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Команда /craft — меню выбора раздела"""
-    if not craft_base.get('grades'):
-        await update.message.reply_text(
-            "❌ База крафта не загружена.",
-            parse_mode="HTML"
-        )
-        return
-
-    keyboard = [
-        [
-            InlineKeyboardButton(f"🎒 Экипировка ({count_all_equipment(craft_base)})", callback_data="craft_section:equip"),
-            InlineKeyboardButton(f"⚒️ Инструменты ({count_all_instruments(craft_base)})", callback_data="craft_section:instr"),
-        ],
-        [
-            InlineKeyboardButton(f"🥨 Кулинария ({count_all_cooking(craft_base)})", callback_data="craft_section:cook"),
-            InlineKeyboardButton(f"🧪 Алхимия ({count_all_alchemy(craft_base)})", callback_data="craft_section:alchemy"),
-        ]
-    ]
-    await update.message.reply_text(
-        "⚒️ <b>Крафт — выбери раздел:</b>",
-        parse_mode="HTML",
-        reply_markup=InlineKeyboardMarkup(keyboard)
-    )
 
 
 async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
