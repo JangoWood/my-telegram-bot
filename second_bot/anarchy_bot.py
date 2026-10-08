@@ -68,6 +68,7 @@ from utils.player_commands import cmd_command, trade_command
 from utils.stats import stats
 from utils.get_command import get_command
 from utils.get_data import get_data
+from utils.chat_id import chat_id
 
 # ==================== ЗАГРУЗКА БАЗЫ КРАФТА ====================
 
@@ -574,19 +575,6 @@ def get_specializations_data():
         return result, headers, None
     except Exception as e:
         return None, None, f"❌ Ошибка: {e}"
-
-
-
-async def chat_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Показывает ID текущего чата"""
-    chat = update.effective_chat
-    await update.message.reply_text(
-        f"📋 <b>Информация о чате</b>\n\n"
-        f"🆔 ID чата: <code>{chat.id}</code>\n"
-        f"📝 Название: {chat.title or 'Личный чат'}\n"
-        f"📌 Тип: {chat.type}",
-        parse_mode="HTML"
-    )
 
 
 # ==================== ЗАТОЧКА ЭКИПИРОВКИ (/enchant) ====================
