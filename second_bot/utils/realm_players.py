@@ -1,6 +1,6 @@
 """Получение списка игроков из таблицы «Ремесло»."""
 
-from utils.realm_sheet import get_realm_worksheet
+from services.realm_sheet import get_realm_worksheet
 
 
 def get_all_players_from_realm():
