@@ -1,5 +1,4 @@
 import os
-from telegram import Update
 from telegram.ext import Application, CommandHandler
 from telegram.ext import InlineQueryHandler
 from dotenv import load_dotenv
@@ -26,17 +25,16 @@ CREDENTIALS_FILE = 'credentials.json'
 REALM_SHEET_ID = os.getenv('REALM_SHEET_ID')
 REALM_SHEET_NAME = 'Ремесло'  # Название листа (можно тоже вынести в переменные, если нужно)
 
-from utils.permissions import chat_restricted
 from utils.health import run_flask
-from utils.realm_update import user_sessions, update_realm, handle_nickname, clan_callback
+from utils.realm_update import update_realm, handle_nickname, clan_callback
 from utils.equipment import enchant_command
 from utils.player_commands import cmd_command, trade_command
 from utils.stats import stats
 from utils.get_command import get_command
 from utils.get_data import get_data
 from utils.chat_id import chat_id
-from utils.help_command import help_command
-from utils.start_command import start
+from second_bot.handlers.help import help_command
+from second_bot.handlers.start import start
 from utils.craft_command import craft_command
 from utils.calculator_callback import calculator_callback
 from utils.profile_command import get_profile
@@ -46,7 +44,6 @@ from utils.craft_callback_command import craft_callback
 from utils.craft_base_loader import load_craft_base
 from utils.button_callback import button_callback
 from utils.inline_search import inline_query
-from utils.realm_profile import format_realm_profile
 
 # ==================== ЗАГРУЗКА БАЗЫ КРАФТА ====================
 
