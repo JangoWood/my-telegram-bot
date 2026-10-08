@@ -26,7 +26,7 @@ REALM_SHEET_ID = os.getenv('REALM_SHEET_ID')
 REALM_SHEET_NAME = 'Ремесло'  # Название листа (можно тоже вынести в переменные, если нужно)
 
 from utils.health import run_flask
-from utils.realm_update import update_realm, handle_nickname, clan_callback
+from handlers.update_me import update_realm, handle_nickname, clan_callback
 from handlers.equipment import enchant_command
 from handlers.player_commands import cmd_command, trade_command
 from handlers.stats import stats
@@ -43,7 +43,7 @@ from handlers.find import find
 from handlers.craft_callback import craft_callback
 from utils.craft_base_loader import load_craft_base
 from handlers.button_callback import button_callback
-from utils.inline_search import inline_query
+from handlers.inline_search import inline_query
 
 # ==================== ЗАГРУЗКА БАЗЫ КРАФТА ====================
 
