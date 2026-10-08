@@ -80,6 +80,7 @@ from utils.spec_command import spec_search
 from utils.find_command import find
 from utils.realm_profile_formatter import format_specializations_for_profile
 from utils.craft_callback_command import craft_callback
+from utils.craft_base_loader import load_craft_base
 
 # ==================== ЗАГРУЗКА БАЗЫ КРАФТА ====================
 
@@ -92,27 +93,6 @@ craft_index = {
     'items': {},          # {(grade_idx, class_idx, item_path): item}
 }
 
-
-def load_craft_base():
-    """Загружает craft_base.json и строит индексы для callback_data"""
-    global craft_base, craft_index
-    if not CRAFT_BASE_FILE.exists():
-        print(f"⚠️ craft_base.json не найден по пути {CRAFT_BASE_FILE}")
-        return
-
-    craft_base, total = load_craft_file(CRAFT_BASE_FILE)
-
-    # Строим индексы
-    craft_index = {'grades': []}
-
-    for grade in craft_base.get('grades', []):
-        craft_index['grades'].append(grade['name'])
-        for cls in grade.get('classes', []):
-            # items — если плоский класс
-            # groups — если класс с группами
-            pass  # Индексы строим динамически в хендлерах по позициям
-
-    print(f"✅ Загружено {len(craft_base.get('grades', []))} грейдов, {total} предметов")
 
 async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await handle_button_callback(update, context, get_table_data_by_gid)
@@ -203,7 +183,7 @@ def format_realm_profile(player_data):
 
 def main():
     print("🟢 Запуск бота...")
-    load_craft_base()  # ← добавить эту строку
+    craft_base, craft_index = load_craft_base(CRAFT_BASE_FILE)
     app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
     app.bot_data["craft_base"] = craft_base
 
