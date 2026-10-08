@@ -3,7 +3,7 @@
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from utils.realm_players import get_all_players_from_realm
+from services.realm_players import get_all_players_from_realm
 
 
 async def spec_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
