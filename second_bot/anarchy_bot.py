@@ -29,17 +29,17 @@ from utils.health import run_flask
 from utils.realm_update import update_realm, handle_nickname, clan_callback
 from utils.equipment import enchant_command
 from utils.player_commands import cmd_command, trade_command
-from utils.stats import stats
-from utils.get_command import get_command
-from utils.get_data import get_data
+from handlers.stats import stats
+from handlers.get import get_command
+from handlers.get_data import get_data
 from utils.chat_id import chat_id
 from handlers.help import help_command
 from handlers.start import start
 from utils.craft_command import craft_command
 from utils.calculator_callback import calculator_callback
-from utils.profile_command import get_profile
-from utils.spec_command import spec_search
-from utils.find_command import find
+from handlers.profile import get_profile
+from second_bot.handlers.spec import spec_search
+from handlers.find import find
 from utils.craft_callback_command import craft_callback
 from utils.craft_base_loader import load_craft_base
 from utils.button_callback import button_callback
