@@ -38,7 +38,7 @@ from handlers.start import start
 from utils.craft_command import craft_command
 from utils.calculator_callback import calculator_callback
 from handlers.profile import get_profile
-from second_bot.handlers.spec import spec_search
+from handlers.spec import spec_search
 from handlers.find import find
 from utils.craft_callback_command import craft_callback
 from utils.craft_base_loader import load_craft_base
