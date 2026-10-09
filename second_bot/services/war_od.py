@@ -66,8 +66,12 @@ def _actor_before(line: str, verb: str) -> str | None:
     return m.group(1) if m else None
 
 def extract_player_name(text: str) -> str | None:
-    m = re.search(r"([А-Яа-яA-Za-z0-9_]+)\s+🔸\d+", text)
-    return m.group(1) if m else None
+    matches = re.findall(
+        r"([А-Яа-яЁёA-Za-z0-9_]+)\s+🔸\d+",
+        text
+    )
+
+    return matches[-1] if matches else None
 
 def parse_players(text: str) -> List[str]:
     result = []
