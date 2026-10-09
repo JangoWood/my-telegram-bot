@@ -121,7 +121,11 @@ def parse_action_gains(text: str) -> Dict[str, Dict[str, int]]:
                 result[actor]["🌬"] += 1
 
                 target_part = line.split("бьет", 1)[1]
-                target = extract_player_name(target_part)
+                target_match = re.search(
+                    r"([А-Яа-яЁёA-Za-z0-9_]+)\s+🔸\d+",
+                    target_part
+                )
+                target = target_match.group(1) if target_match else None
 
                 if target:
                     result[target]["🛡"] += 1
@@ -131,7 +135,11 @@ def parse_action_gains(text: str) -> Dict[str, Dict[str, int]]:
                 result[actor]["🌬"] += 1
 
                 target_part = line.split("бьет", 1)[1]
-                target = extract_player_name(target_part)
+                target_match = re.search(
+                    r"([А-Яа-яЁёA-Za-z0-9_]+)\s+🔸\d+",
+                    target_part
+                )
+                target = target_match.group(1) if target_match else None
 
                 if target:
                     result[target]["🛡"] += 1
