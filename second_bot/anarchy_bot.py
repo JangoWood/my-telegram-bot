@@ -44,6 +44,7 @@ from handlers.craft_callback import craft_callback
 from services.craft_base_loader import load_craft_base
 from handlers.button_callback import button_callback
 from handlers.inline_search import inline_query
+from handlers.war import start_war, stop_war, war_log
 
 # ==================== ЗАГРУЗКА БАЗЫ КРАФТА ====================
 
@@ -80,6 +81,11 @@ def main():
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_nickname))
 
     app.add_handler(CommandHandler("craft", craft_command))
+
+    # Новый тестовый помощник по ОД. combat_war.py не используется.
+    app.add_handler(CommandHandler("start_war", start_war))
+    app.add_handler(CommandHandler("stop_war", stop_war))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND & filters.Regex(r"(?m)\bХод\s+\d+\s+👀"), war_log))
 
     # Callback обработчики: сначала специфичный, потом общий
 
