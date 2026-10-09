@@ -96,13 +96,15 @@ def parse_action_gains(text: str) -> Dict[str, Dict[str, int]]:
     🥊 — крит
     ⚡️ — уклонение
     🤺 — контрудар
-    🌬 — удар в блок
+    🌬 — удар в блок / удар, от которого увернулись / пробитие блока
     """
     result: Dict[str, Dict[str, int]] = defaultdict(empty_od)
 
     for line in text.splitlines():
 
-        # Атака
+        # ---------------------------------------------------------
+        # АТАКА
+        # ---------------------------------------------------------
         if "бьет" in line:
             actor_part = line.split("бьет", 1)[0]
             actor = extract_player_name(actor_part)
@@ -110,55 +112,57 @@ def parse_action_gains(text: str) -> Dict[str, Dict[str, int]]:
             if not actor:
                 continue
 
-            # Обычное успешное попадание
+            # 1. Обычное успешное попадание
             if "И наносит" in line:
                 result[actor]["🗡"] += 1
 
-            # Крит
+            # 2. Атака попала в блок
+            if "попадает в блок" in line:
+                result[actor]["🌬"] += 1
+
+                target_part = line.split("бьет", 1)[1]
+                target = extract_player_name(target_part)
+
+                if target:
+                    result[target]["🛡"] += 1
+
+            # 3. Атака пробила блок
+            if "пробивает блок" in line:
+                result[actor]["🌬"] += 1
+
+                target_part = line.split("бьет", 1)[1]
+                target = extract_player_name(target_part)
+
+                if target:
+                    result[target]["🛡"] += 1
+
+            # 4. Крит
             if "критическим ударом" in line:
                 result[actor]["🥊"] += 1
 
-            # Пробил блок
-            if "пробивает блок" in line:
-                result[actor]["🌬"] += 1
-
-                target_part = line.split("бьет", 1)[1]
-                target = extract_player_name(target_part)
-
-                if target:
-                    result[target]["🛡"] += 1
-
-            # Пробитие блока
-            if "пробивает блок" in line:
-                result[actor]["🌬"] += 1
-
-            # Попал в блок
-            if "попадает в блок" in line and "пробивает блок" not in line:
-                result[actor]["🌬"] += 1
-
-                target_part = line.split("бьет", 1)[1]
-                target = extract_player_name(target_part)
-
-                if target:
-                    result[target]["🛡"] += 1
-
-        # Уклонение
+        # ---------------------------------------------------------
+        # УКЛОНЕНИЕ
+        # ---------------------------------------------------------
         if "⚡️ увернулся" in line or "⚡️ увернулась" in line:
             prefix = line.split("⚡️", 1)[0]
 
-            # Кто атаковал
+            # Атакующий получает 🌬
             if "бьет" in prefix:
-                actor = extract_player_name(prefix.split("бьет", 1)[0])
+                actor_part = prefix.split("бьет", 1)[0]
+                actor = extract_player_name(actor_part)
+
                 if actor:
                     result[actor]["🌬"] += 1
 
-            # Кто увернулся
+            # Увернувшийся получает ⚡️
             dodger = extract_player_name(prefix)
 
             if dodger:
                 result[dodger]["⚡️"] += 1
 
-        # Контрудар
+        # ---------------------------------------------------------
+        # КОНТРУДАР
+        # ---------------------------------------------------------
         if "контрударом" in line:
             prefix = line.split("контрударом", 1)[0]
             actor = extract_player_name(prefix)
