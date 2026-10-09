@@ -135,6 +135,10 @@ def parse_action_gains(text: str) -> Dict[str, Dict[str, int]]:
 
                 if target:
                     result[target]["🛡"] += 1
+                    print(
+                        f"DEBUG ПРОБИЛ БЛОК: "
+                        f"атакующий={actor}, защитник={target}"
+                    )
 
             # 4. Крит
             if "критическим ударом" in line:
