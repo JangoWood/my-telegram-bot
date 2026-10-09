@@ -118,6 +118,16 @@ def parse_action_gains(text: str) -> Dict[str, Dict[str, int]]:
             if "критическим ударом" in line:
                 result[actor]["🥊"] += 1
 
+            # Пробил блок
+            if "пробивает блок" in line:
+                result[actor]["🌬"] += 1
+
+                target_part = line.split("бьет", 1)[1]
+                target = extract_player_name(target_part)
+
+                if target:
+                    result[target]["🛡"] += 1
+
             # Пробитие блока
             if "пробивает блок" in line:
                 result[actor]["🌬"] += 1
