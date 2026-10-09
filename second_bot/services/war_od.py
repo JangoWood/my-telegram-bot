@@ -65,50 +65,80 @@ def _actor_before(line: str, verb: str) -> str | None:
     m = re.search(r"([А-Яа-яA-Za-z0-9_]+)\s+🔸\d+\s*$", prefix)
     return m.group(1) if m else None
 
+def extract_player_name(text: str) -> str | None:
+    m = re.search(r"([А-Яа-яA-Za-z0-9_]+)\s+🔸\d+", text)
+    return m.group(1) if m else None
+
+def parse_players(text: str) -> List[str]:
+    result = []
+
+    for line in text.splitlines():
+        if not re.match(r"^\s*\d+\.\s+", line):
+            continue
+
+        name = extract_player_name(line)
+
+        if name and name not in result:
+            result.append(name)
+
+    return result
 
 def parse_action_gains(text: str) -> Dict[str, Dict[str, int]]:
-    """Начисления ОД за боевые события текущего хода.
+    """
+    Начисления ОД за боевые события текущего хода.
 
-    Правила соответствуют зафиксированной старой механике:
-    🗡 попадание, 🛡 блок, 🥊 крит, ⚡️ уклонение,
-    🤺 контрудар, 🌬 удар в блок/промах.
+    🗡 — успешное попадание
+    🛡 — успешный блок
+    🥊 — крит
+    ⚡️ — уклонение
+    🤺 — контрудар
+    🌬 — удар в блок
     """
     result: Dict[str, Dict[str, int]] = defaultdict(empty_od)
 
     for line in text.splitlines():
-        # Удар игрока с уроном, не заблокированный.
-        actor = _actor_before(line, "бьет")
-        if actor and "наносит" in line and "попадает в блок" not in line and "И попадает в блок" not in line:
-            result[actor]["🗡"] += 1
 
-        # Игрок поставил блок: в строке перед "бьет" находится именно он.
-        if actor and "попадает в блок" in line:
-            result[actor]["🌬"] += 1
-            # Отдельное событие блока относится к атакующему игроку-цели.
-            target_part = line.split("бьет", 1)[1]
-            target_m = re.search(r"по\s+.*?\s([А-Яа-яA-Za-z0-9_]+)\s*(?:🔸\d+)", target_part)
-            if target_m:
-                result[target_m.group(1)]["🛡"] += 1
+        # Атака
+        if "бьет" in line:
+            actor_part = line.split("бьет", 1)[0]
+            actor = extract_player_name(actor_part)
 
-        # Уклонение цели.
-        if "увернулся" in line or "увернулась" in line:
-            # В строке перед "увернулся" обычно явно стоит имя цели.
-            prefix = re.split(r"увернул(?:ся|ась)", line, maxsplit=1)[0]
-            m = re.search(r"([А-Яа-яA-Za-z0-9_]+)\s*(?:🔸\d+).*?$", prefix)
-            if m:
-                result[m.group(1)]["⚡️"] += 1
+            if not actor:
+                continue
 
-        # Крит. Считаем только если игрок является субъектом строки.
-        if "критическим ударом" in line:
-            actor = _actor_before(line, "бьет")
-            if actor:
+            # Обычное успешное попадание
+            if "И наносит" in line:
+                result[actor]["🗡"] += 1
+
+            # Крит
+            if "критическим ударом" in line:
                 result[actor]["🥊"] += 1
 
-        # Контрудар принадлежит игроку, имя которого стоит перед "нанес"/"контрударом".
-        if "контрудар" in line:
-            m = re.search(r"([А-Яа-яA-Za-z0-9_]+)\s+🔸\d+[^\n]*контрудар", line)
-            if m:
-                result[m.group(1)]["🤺"] += 1
+            # Попал в блок
+            if "попадает в блок" in line:
+                result[actor]["🌬"] += 1
+
+                target_part = line.split("бьет", 1)[1]
+                target = extract_player_name(target_part)
+
+                if target:
+                    result[target]["🛡"] += 1
+
+        # Уклонение
+        if "⚡️ увернулся" in line or "⚡️ увернулась" in line:
+            prefix = line.split("⚡️", 1)[0]
+            dodger = extract_player_name(prefix)
+
+            if dodger:
+                result[dodger]["⚡️"] += 1
+
+        # Контрудар
+        if "контрударом" in line:
+            prefix = line.split("контрударом", 1)[0]
+            actor = extract_player_name(prefix)
+
+            if actor:
+                result[actor]["🤺"] += 1
 
     return dict(result)
 
@@ -123,7 +153,7 @@ def apply_turn(previous: Dict[str, Dict[str, int]], text: str) -> TurnOD:
     spent = parse_combo_costs(text)
     gained = parse_action_gains(text)
 
-    names = set(previous) | set(spent) | set(gained)
+    names = set(parse_players(text)) | set(previous) | set(spent) | set(gained)
     balances: Dict[str, Dict[str, int]] = {}
     for name in names:
         balances[name] = empty_od()
