@@ -114,6 +114,10 @@ def parse_action_gains(text: str) -> Dict[str, Dict[str, int]]:
             if "критическим ударом" in line:
                 result[actor]["🥊"] += 1
 
+            # Пробитие блока
+            if "пробивает блок" in line:
+                result[actor]["🌬"] += 1
+
             # Попал в блок
             if "попадает в блок" in line:
                 result[actor]["🌬"] += 1
