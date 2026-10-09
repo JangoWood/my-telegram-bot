@@ -78,7 +78,6 @@ def main():
 
     # Новая команда для обновления навыков
     app.add_handler(CommandHandler("update_me", update_realm))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_nickname))
 
     app.add_handler(CommandHandler("craft", craft_command))
 
@@ -86,6 +85,9 @@ def main():
     app.add_handler(CommandHandler("start_war", start_war))
     app.add_handler(CommandHandler("stop_war", stop_war))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND & filters.Regex(r"(?m)\bХод\s+\d+\s+👀"), war_log))
+
+    # Обычный текст — ПОСЛЕ обработчика войны
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_nickname))
 
     # Callback обработчики: сначала специфичный, потом общий
 
