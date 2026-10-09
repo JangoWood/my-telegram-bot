@@ -135,6 +135,14 @@ def parse_action_gains(text: str) -> Dict[str, Dict[str, int]]:
         # Уклонение
         if "⚡️ увернулся" in line or "⚡️ увернулась" in line:
             prefix = line.split("⚡️", 1)[0]
+
+            # Кто атаковал
+            if "бьет" in prefix:
+                actor = extract_player_name(prefix.split("бьет", 1)[0])
+                if actor:
+                    result[actor]["🌬"] += 1
+
+            # Кто увернулся
             dodger = extract_player_name(prefix)
 
             if dodger:
