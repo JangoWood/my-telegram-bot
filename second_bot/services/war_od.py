@@ -133,7 +133,7 @@ def parse_action_gains(text: str) -> Dict[str, Dict[str, int]]:
                 result[actor]["🌬"] += 1
 
             # Попал в блок
-            if "попадает в блок" in line:
+            if "попадает в блок" in line and "пробивает блок" not in line:
                 result[actor]["🌬"] += 1
 
                 target_part = line.split("бьет", 1)[1]
