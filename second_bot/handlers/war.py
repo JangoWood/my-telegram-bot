@@ -136,6 +136,8 @@ async def war_log(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     text = update.message.text
 
+    player_clans = parse_player_clans(text)
+
     # ---------------------------------------------------------
     # Рассчитываем текущий ход
     # ---------------------------------------------------------
@@ -162,8 +164,6 @@ async def war_log(update: Update, context: ContextTypes.DEFAULT_TYPE):
             session["balances"],
             text,
         )
-
-        player_clans = parse_player_clans(text)
 
     used_combos = parse_used_combos(text)
 
