@@ -6,6 +6,7 @@ from telegram.ext import ContextTypes
 
 from services.war_od import (
     OD_TYPES,
+    WARNING_SEQUENCES,
     apply_turn,
     format_turn,
     parse_used_combos,
