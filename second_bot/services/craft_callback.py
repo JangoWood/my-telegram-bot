@@ -147,7 +147,7 @@ async def handle_craft_callback(update: Update, context: ContextTypes.DEFAULT_TY
         subgroup_icons = {
             'Таланты': '💟',
             'Очищение камня': '🌡🎆',
-            'Элексиры здоровья': '🧪',
+            'Эликсиры здоровья': '🧪',
             'Антидоты': '🧪',
             'Усиление': '🌡',
             'Заточки': '🔖',
