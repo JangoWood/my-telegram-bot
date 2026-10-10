@@ -155,6 +155,7 @@ async def war_log(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if session["last_turn"] and result.turn <= session["last_turn"]:
         session["balances"] = {}
         session["pending_sequences"] = {}
+        session["disabled_targets"] = {}
 
         result = apply_turn(
             session["balances"],
