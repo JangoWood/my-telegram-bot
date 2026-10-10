@@ -13,6 +13,20 @@ from typing import Dict, List, Tuple
 
 OD_TYPES = ("🗡", "🛡", "🥊", "⚡️", "🤺", "🌬")
 COST_RE = re.compile(r"(🗡|🛡|🥊|⚡️|🤺|🌬)(\d+)")
+WARNING_SEQUENCES = {
+    "Резня II": {
+        "target": "Тысяча ударов II",
+        "cost": {"🛡": 1, "🤺": 1},
+    },
+    "Сосредоточение II": {
+        "target": "Отступление II",
+        "cost": {"⚡️": 1, "🌬": 1},
+    },
+    "Деморализующая волна II": {
+        "target": "Шоковый удар II",
+        "cost": {"🛡": 1, "🌬": 1},
+    },
+}
 TURN_RE = re.compile(r"(?m)\bХод\s+(\d+)\s+👀")
 PLAYER_RE = re.compile(r"(?:^|\n)\s*\d+\.\s+.*?\s+([А-Яа-яA-Za-z0-9_]+)\s*(?:🔸(\d+))?\s+❤️\((\d+)/(\d+)\)")
 DEAD_RE = re.compile(r"(?:^|\n)\s*\d+\.\s+.*?\s+([А-Яа-яA-Za-z0-9_]+).*?💀")
@@ -56,6 +70,69 @@ def parse_combo_costs(text: str) -> Dict[str, Dict[str, int]]:
             result[player][symbol] += int(amount)
     return dict(result)
 
+def parse_used_combos(text: str) -> Dict[str, List[str]]:
+    """Возвращает применённые приёмы по игрокам за ход."""
+    result: Dict[str, List[str]] = defaultdict(list)
+
+    for line in text.splitlines():
+        if "использует комбинацию" not in line:
+            continue
+
+        player = extract_player_name(
+            line.split("использует комбинацию", 1)[0]
+        )
+        if not player:
+            continue
+
+        match = re.search(
+            r"использует комбинацию\s+(.+?)\s*\(",
+            line
+        )
+        if not match:
+            continue
+
+        combo_name = match.group(1).strip()
+
+        if combo_name in WARNING_SEQUENCES:
+            result[player].append(combo_name)
+
+    return dict(result)
+
+def check_warning_sequences(
+    previous_balances: Dict[str, Dict[str, int]],
+    pending_sequences: Dict[str, List[str]],
+) -> List[str]:
+    """
+    Проверяет опасные связки на ближайшем следующем ходу.
+
+    previous_balances — ОД игрока на начало текущего хода.
+    pending_sequences — приёмы, применённые на предыдущем ходу.
+    """
+    warnings = []
+
+    for player, sequences in pending_sequences.items():
+        balance = previous_balances.get(player, {})
+
+        for first_combo in sequences:
+            sequence = WARNING_SEQUENCES.get(first_combo)
+            if not sequence:
+                continue
+
+            target = sequence["target"]
+            cost = sequence["cost"]
+
+            ready = all(
+                balance.get(symbol, 0) >= amount
+                for symbol, amount in cost.items()
+            )
+
+            if ready:
+                warnings.append(
+                    f"⚠️ {player}: после «{first_combo}» "
+                    f"на этом ходу доступен «{target}»"
+                )
+
+    return warnings
 
 def _actor_before(line: str, verb: str) -> str | None:
     if verb not in line:
