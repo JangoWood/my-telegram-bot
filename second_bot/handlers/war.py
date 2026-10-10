@@ -21,6 +21,7 @@ def _empty():
 
 async def start_war(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
+
     war_sessions[user_id] = {
         "balances": {},
         "processed": set(),
@@ -49,65 +50,98 @@ async def war_log(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     text = update.message.text
 
-    # Проверяем ход заранее, чтобы не считать дубликаты.
+    # Сначала рассчитываем текущий ход.
     result = apply_turn(session["balances"], text)
 
+    # Не обрабатываем один и тот же лог дважды.
     if result.log_id in session["processed"]:
         await update.message.reply_text(
             f"ℹ️ Ход {result.turn} уже обработан. Повторно не считаю."
         )
         return
 
-    # ---------------------------------------------------------
-    # ПРЕДУПРЕЖДЕНИЯ ПО ПОСЛЕДОВАТЕЛЬНОСТЯМ
-    # ---------------------------------------------------------
-    #
-    # session["pending_sequences"] содержит приёмы,
-    # которые игрок использовал на предыдущем ходу.
-    #
-    # Проверяем их против ОД, накопленного к началу текущего хода.
-    #
-    warnings = check_warning_sequences(
-        session["balances"],
-        session.get("pending_sequences", {}),
-    )
-
-    # ---------------------------------------------------------
-    # Если пришёл ход не по порядку — начинаем расчёт заново.
-    # ---------------------------------------------------------
+    # Если ход пришёл не по порядку — начинаем расчёт заново.
     if session["last_turn"] and result.turn <= session["last_turn"]:
         session["balances"] = {}
+        session["pending_sequences"] = {}
 
         result = apply_turn(
             session["balances"],
             text,
         )
 
-        # После сброса старые предупреждения уже не актуальны.
-        warnings = []
+    # ---------------------------------------------------------
+    # Какие специальные приёмы использованы в текущем ходу
+    # ---------------------------------------------------------
+    used_combos = parse_used_combos(text)
+
+    pending = session.get("pending_sequences", {})
 
     # ---------------------------------------------------------
-    # Сохраняем обработанный ход
+    # Добавляем первые приёмы новых связок.
     # ---------------------------------------------------------
+    for player, combos in used_combos.items():
+        for combo in combos:
+            if combo in WARNING_SEQUENCES:
+                player_pending = pending.setdefault(player, [])
+
+                if combo not in player_pending:
+                    player_pending.append(combo)
+
+    # ---------------------------------------------------------
+    # Если второй приём связки уже использован,
+    # закрываем эту связку.
+    # ---------------------------------------------------------
+    for player, combos in used_combos.items():
+        if player not in pending:
+            continue
+
+        finished = set(combos)
+
+        remaining = []
+
+        for first_combo in pending[player]:
+            sequence = WARNING_SEQUENCES.get(first_combo)
+
+            if not sequence:
+                continue
+
+            target = sequence["target"]
+
+            if target in finished:
+                # Второй приём уже применён —
+                # больше ждать его не нужно.
+                continue
+
+            remaining.append(first_combo)
+
+        if remaining:
+            pending[player] = remaining
+        else:
+            pending.pop(player, None)
+
+    # ---------------------------------------------------------
+    # Сохраняем состояние после текущего хода.
+    # ---------------------------------------------------------
+    session["pending_sequences"] = pending
     session["processed"].add(result.log_id)
     session["balances"] = result.balances
     session["last_turn"] = result.turn
 
     # ---------------------------------------------------------
-    # Запоминаем специальные приёмы текущего хода.
-    #
-    # Они будут проверены уже на СЛЕДУЮЩЕМ ходу.
+    # Проверяем возможность продолжить связку
+    # по ОД ПОСЛЕ всех действий текущего хода.
     # ---------------------------------------------------------
-    session["pending_sequences"] = parse_used_combos(text)
+    warnings = check_warning_sequences(
+        result.balances,
+        pending,
+    )
 
     # ---------------------------------------------------------
-    # Формируем обычный отчёт ОД
+    # Формируем обычный отчёт.
     # ---------------------------------------------------------
     output = format_turn(result)
 
-    # ---------------------------------------------------------
-    # Добавляем предупреждения
-    # ---------------------------------------------------------
     if warnings:
         output += "\n\n" + "\n".join(warnings)
 

@@ -99,19 +99,13 @@ def parse_used_combos(text: str) -> Dict[str, List[str]]:
     return dict(result)
 
 def check_warning_sequences(
-    previous_balances: Dict[str, Dict[str, int]],
+    balances: Dict[str, Dict[str, int]],
     pending_sequences: Dict[str, List[str]],
 ) -> List[str]:
-    """
-    Проверяет опасные связки на ближайшем следующем ходу.
-
-    previous_balances — ОД игрока на начало текущего хода.
-    pending_sequences — приёмы, применённые на предыдущем ходу.
-    """
     warnings = []
 
     for player, sequences in pending_sequences.items():
-        balance = previous_balances.get(player, {})
+        balance = balances.get(player, {})
 
         for first_combo in sequences:
             sequence = WARNING_SEQUENCES.get(first_combo)
@@ -129,7 +123,7 @@ def check_warning_sequences(
             if ready:
                 warnings.append(
                     f"⚠️ {player}: после «{first_combo}» "
-                    f"на этом ходу доступен «{target}»"
+                    f"доступен «{target}»"
                 )
 
     return warnings
