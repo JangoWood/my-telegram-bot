@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections import defaultdict
 from telegram import Update
 from telegram.ext import ContextTypes
+import re
 
 from services.war_od import (
     OD_TYPES,
@@ -11,6 +12,7 @@ from services.war_od import (
     format_turn,
     parse_used_combos,
     check_warning_sequences,
+    extract_player_name,
 )
 
 war_sessions = {}
@@ -28,6 +30,7 @@ async def start_war(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "processed": set(),
         "last_turn": 0,
         "pending_sequences": {},
+        "disabled_targets": {},
     }
 
     await update.message.reply_text(
@@ -41,6 +44,87 @@ async def stop_war(update: Update, context: ContextTypes.DEFAULT_TYPE):
     war_sessions.pop(update.effective_user.id, None)
     await update.message.reply_text("🛑 Учёт ОД остановлен.")
 
+def parse_combo_usage(text: str) -> dict[str, dict[str, tuple[int, int]]]:
+    """
+    Возвращает для каждого игрока использованные приёмы
+    и их количество использований.
+
+    Пример:
+    Мурианна:
+        Отступление II -> (3, 3)
+    """
+    result = {}
+
+    current_player = None
+
+    for line in text.splitlines():
+        if "использует комбинацию" not in line:
+            continue
+
+        player = extract_player_name(
+            line.split("использует комбинацию", 1)[0]
+        )
+
+        if not player:
+            continue
+
+        match_combo = re.search(
+            r"использует комбинацию\s+(.+?)\s*\(",
+            line,
+        )
+
+        if not match_combo:
+            continue
+
+        combo_name = match_combo.group(1).strip().replace("*", "")
+
+        # Пока только запоминаем игрока и приём.
+        current_player = player
+
+        # Само "X/Y" находится ниже в блоке,
+        # поэтому обработка делается во втором проходе.
+        result.setdefault(player, {})[combo_name] = (0, 0)
+
+    # Ищем блоки использования и связываем X/Y
+    # с последним найденным приёмом.
+    lines = text.splitlines()
+
+    current_player = None
+    current_combo = None
+
+    for line in lines:
+        if "использует комбинацию" in line:
+            player = extract_player_name(
+                line.split("использует комбинацию", 1)[0]
+            )
+
+            match_combo = re.search(
+                r"использует комбинацию\s+(.+?)\s*\(",
+                line,
+            )
+
+            if player and match_combo:
+                current_player = player
+                current_combo = match_combo.group(1).strip().replace("*", "")
+
+        elif current_player and current_combo:
+            match_usage = re.search(
+                r"Кол-во использований:\s*(\d+)\s*/\s*(\d+)",
+                line,
+            )
+
+            if match_usage:
+                used = int(match_usage.group(1))
+                maximum = int(match_usage.group(2))
+
+                result.setdefault(current_player, {})[
+                    current_combo
+                ] = (used, maximum)
+
+                current_player = None
+                current_combo = None
+
+    return result
 
 async def war_log(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -82,6 +166,30 @@ async def war_log(update: Update, context: ContextTypes.DEFAULT_TYPE):
     pending = session.get("pending_sequences", {})
 
     # ---------------------------------------------------------
+    # Проверяем максимальное количество использований приёмов.
+    #
+    # Например:
+    # Отступление II: 3/3
+    #
+    # После этого Отступление II больше никогда не отслеживаем
+    # для этого игрока в рамках текущей войны.
+    # ---------------------------------------------------------
+    combo_usage = parse_combo_usage(text)
+
+    disabled_targets = session.setdefault(
+        "disabled_targets",
+        {},
+    )
+
+    for player, combos in combo_usage.items():
+        for combo, (used, maximum) in combos.items():
+            if used >= maximum:
+                disabled_targets.setdefault(
+                    player,
+                    set(),
+                ).add(combo)
+
+    # ---------------------------------------------------------
     # 1. Закрываем существующие связки,
     # если их второй приём использован в текущем ходу.
     # ---------------------------------------------------------
@@ -113,6 +221,38 @@ async def war_log(update: Update, context: ContextTypes.DEFAULT_TYPE):
             pending.pop(player, None)
 
     # ---------------------------------------------------------
+    # Если второй приём достиг максимального количества
+    # использований, удаляем уже существующую связку.
+    # ---------------------------------------------------------
+    for player, combos in combo_usage.items():
+        for combo, (used, maximum) in combos.items():
+            if used < maximum:
+                continue
+
+            if player not in pending:
+                continue
+
+            remaining_sequences = []
+
+            for state in pending[player]:
+                sequence = WARNING_SEQUENCES.get(state["first"])
+
+                if not sequence:
+                    continue
+
+                target = sequence["target"]
+
+                if target == combo:
+                    continue
+
+                remaining_sequences.append(state)
+
+            if remaining_sequences:
+                pending[player] = remaining_sequences
+            else:
+                pending.pop(player, None)
+
+    # ---------------------------------------------------------
     # 2. Добавляем новые первые приёмы.
     #
     # expires_turn:
@@ -131,6 +271,10 @@ async def war_log(update: Update, context: ContextTypes.DEFAULT_TYPE):
             sequence = WARNING_SEQUENCES.get(combo)
 
             if not sequence:
+                continue
+            target = sequence["target"]
+
+            if target in disabled_targets.get(player, set()):
                 continue
 
             player_pending = pending.setdefault(player, [])
