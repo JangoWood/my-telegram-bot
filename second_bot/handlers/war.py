@@ -276,6 +276,7 @@ async def war_log(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             if not sequence:
                 continue
+
             target = sequence["target"]
 
             if target in disabled_targets.get(player, set()):
@@ -319,6 +320,7 @@ async def war_log(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 continue
 
             sequence = WARNING_SEQUENCES.get(first_combo)
+
             if not sequence:
                 continue
 
@@ -336,15 +338,19 @@ async def war_log(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     expires_turn - result.turn,
                 )
 
+                # Получаем эмодзи клана игрока.
+                clan = player_clans.get(player, "")
+                clan_emoji = clan.split()[0] if clan else ""
+
                 if future_turns > 0:
                     warnings.append(
-                        f"⚠️ {player}: после «{first_combo}» "
+                        f"⚠️ {clan_emoji}{player}: после «{first_combo}» "
                         f"доступен «{target}» "
                         f"(ещё {future_turns} следующих ходов)"
                     )
                 else:
                     warnings.append(
-                        f"⚠️ {player}: после «{first_combo}» "
+                        f"⚠️ {clan_emoji}{player}: после «{first_combo}» "
                         f"доступен «{target}» "
                         f"(последний доступный ход)"
                     )
