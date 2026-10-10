@@ -66,7 +66,7 @@ async def war_log(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     # ---------------------------------------------------------
-    # Если ход пришёл не по порядку — начинаем расчёт заново
+    # Если ход пришёл не по порядку — начинаем заново
     # ---------------------------------------------------------
     if session["last_turn"] and result.turn <= session["last_turn"]:
         session["balances"] = {}
@@ -77,18 +77,13 @@ async def war_log(update: Update, context: ContextTypes.DEFAULT_TYPE):
             text,
         )
 
-    # ---------------------------------------------------------
-    # Приёмы, использованные в текущем ходу
-    # ---------------------------------------------------------
     used_combos = parse_used_combos(text)
 
     pending = session.get("pending_sequences", {})
 
     # ---------------------------------------------------------
-    # Удаляем из pending те связки, чей второй приём
-    # уже был использован в ТЕКУЩЕМ ходу.
-    #
-    # Это делаем до добавления новых связок.
+    # 1. Закрываем существующие связки,
+    # если их второй приём использован в текущем ходу.
     # ---------------------------------------------------------
     for player, combos in used_combos.items():
         if player not in pending:
@@ -107,8 +102,7 @@ async def war_log(update: Update, context: ContextTypes.DEFAULT_TYPE):
             target = sequence["target"]
 
             if target in finished_targets:
-                # Второй приём использован.
-                # Связка полностью закрыта.
+                # Второй приём применён — связка закрыта.
                 continue
 
             remaining_sequences.append(state)
@@ -119,17 +113,18 @@ async def war_log(update: Update, context: ContextTypes.DEFAULT_TYPE):
             pending.pop(player, None)
 
     # ---------------------------------------------------------
-    # Добавляем первые приёмы, использованные ТЕКУЩЕМ ходу.
+    # 2. Добавляем новые первые приёмы.
     #
-    # ВАЖНО:
-    # новый first_combo НЕ уменьшаем сейчас.
+    # expires_turn:
     #
-    # Например:
-    # Сосредоточение на ходу 8
-    # remaining = 3
+    # Сосредоточение на 7 → expires_turn = 10
+    # Деморализующая волна на 7 → expires_turn = 9
+    # Резня на 7 → expires_turn = 8
     #
-    # Эти 3 хода будут:
-    # 9, 10, 11
+    # То есть:
+    # Сосредоточение → 8, 9, 10
+    # Деморализующая → 8, 9
+    # Резня → 8
     # ---------------------------------------------------------
     for player, combos in used_combos.items():
         for combo in combos:
@@ -149,19 +144,18 @@ async def war_log(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 player_pending.append(
                     {
                         "first": combo,
-                        "remaining": sequence["turns"],
-                        "started_turn": result.turn,
+                        "expires_turn": result.turn + sequence["turns"],
                     }
                 )
 
     # ---------------------------------------------------------
-    # Проверяем предупреждения ПО ТЕКУЩЕМУ ходу.
+    # 3. Проверяем предупреждения.
     #
-    # Для новой связки первый приём уже применён сейчас,
-    # но её окно начинается со следующего хода.
+    # ВАЖНО:
+    # первый приём тоже проверяется СЕЙЧАС.
     #
-    # Поэтому предупреждение для НОВОЙ связки здесь
-    # не показываем.
+    # Поэтому Сосредоточение на ходу 7 при достаточном
+    # количестве ОД даёт предупреждение уже на ходу 7.
     # ---------------------------------------------------------
     warnings = []
 
@@ -170,12 +164,10 @@ async def war_log(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         for state in sequences:
             first_combo = state["first"]
-            remaining = state["remaining"]
-            started_turn = state["started_turn"]
+            expires_turn = state["expires_turn"]
 
-            # Связка создана именно сейчас.
-            # Она начинает действовать со следующего хода.
-            if started_turn == result.turn:
+            # После окончания окна связка больше не действует.
+            if result.turn > expires_turn:
                 continue
 
             sequence = WARNING_SEQUENCES.get(first_combo)
@@ -190,43 +182,39 @@ async def war_log(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 for symbol, amount in cost.items()
             )
 
-            if ready and remaining > 0:
-                warnings.append(
-                    f"⚠️ {player}: после «{first_combo}» "
-                    f"доступен «{target}» "
-                    f"(осталось ходов: {remaining})"
+            if ready:
+                future_turns = max(
+                    0,
+                    expires_turn - result.turn,
                 )
 
+                if future_turns > 0:
+                    warnings.append(
+                        f"⚠️ {player}: после «{first_combo}» "
+                        f"доступен «{target}» "
+                        f"(ещё {future_turns} следующих ходов)"
+                    )
+                else:
+                    warnings.append(
+                        f"⚠️ {player}: после «{first_combo}» "
+                        f"доступен «{target}» "
+                        f"(последний доступный ход)"
+                    )
+
     # ---------------------------------------------------------
-    # После проверки текущего хода уменьшаем срок
-    # существующих связок.
-    #
-    # Но только тех, которые были активны ДО текущего хода.
-    #
-    # Например:
-    # Ход 8: Сосредоточение → 3
-    # Ход 9: предупреждение → потом 2
-    # Ход 10: предупреждение → потом 1
-    # Ход 11: предупреждение → потом 0
-    # Ход 12: связки уже нет.
+    # 4. Удаляем истёкшие связки.
     # ---------------------------------------------------------
     expired_players = []
 
     for player, sequences in pending.items():
-        updated_sequences = []
+        active_sequences = [
+            state
+            for state in sequences
+            if result.turn <= state["expires_turn"]
+        ]
 
-        for state in sequences:
-            if state["started_turn"] == result.turn:
-                updated_sequences.append(state)
-                continue
-
-            state["remaining"] -= 1
-
-            if state["remaining"] > 0:
-                updated_sequences.append(state)
-
-        if updated_sequences:
-            pending[player] = updated_sequences
+        if active_sequences:
+            pending[player] = active_sequences
         else:
             expired_players.append(player)
 
