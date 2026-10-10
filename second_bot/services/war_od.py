@@ -17,14 +17,17 @@ WARNING_SEQUENCES = {
     "Резня II": {
         "target": "Тысяча ударов II",
         "cost": {"🛡": 1, "🤺": 1},
+        "turns": 1,
     },
     "Сосредоточение II": {
         "target": "Отступление II",
         "cost": {"⚡️": 1, "🌬": 1},
+        "turns": 3,
     },
     "Деморализующая волна II": {
         "target": "Шоковый удар II",
         "cost": {"🛡": 1, "🌬": 1},
+        "turns": 2,
     },
 }
 TURN_RE = re.compile(r"(?m)\bХод\s+(\d+)\s+👀")
@@ -100,14 +103,17 @@ def parse_used_combos(text: str) -> Dict[str, List[str]]:
 
 def check_warning_sequences(
     balances: Dict[str, Dict[str, int]],
-    pending_sequences: Dict[str, List[str]],
+    pending_sequences: Dict[str, List[dict]],
 ) -> List[str]:
     warnings = []
 
     for player, sequences in pending_sequences.items():
         balance = balances.get(player, {})
 
-        for first_combo in sequences:
+        for sequence_state in sequences:
+            first_combo = sequence_state["first"]
+            remaining = sequence_state["remaining"]
+
             sequence = WARNING_SEQUENCES.get(first_combo)
             if not sequence:
                 continue
@@ -120,10 +126,11 @@ def check_warning_sequences(
                 for symbol, amount in cost.items()
             )
 
-            if ready:
+            if ready and remaining > 0:
                 warnings.append(
                     f"⚠️ {player}: после «{first_combo}» "
-                    f"доступен «{target}»"
+                    f"доступен «{target}» "
+                    f"(осталось ходов: {remaining})"
                 )
 
     return warnings
