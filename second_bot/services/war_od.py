@@ -165,6 +165,29 @@ def parse_players(text: str) -> List[str]:
 
     return result
 
+def parse_player_clans(text: str) -> Dict[str, str]:
+    """Определяет клан каждого игрока из блока текущего хода."""
+    result = {}
+
+    current_clan = None
+
+    for line in text.splitlines():
+        if line.startswith("🔵 Защитники:"):
+            current_clan = line.split(":", 1)[1].strip()
+            continue
+
+        if line.startswith("🔴 Нападающие:"):
+            current_clan = line.split(":", 1)[1].strip()
+            continue
+
+        if current_clan and re.match(r"^\s*\d+\.\s+", line):
+            player = extract_player_name(line)
+
+            if player:
+                result[player] = current_clan
+
+    return result
+
 def parse_action_gains(text: str) -> Dict[str, Dict[str, int]]:
     """
     Начисления ОД за боевые события текущего хода.
@@ -283,11 +306,70 @@ def apply_turn(previous: Dict[str, Dict[str, int]], text: str) -> TurnOD:
     return TurnOD(turn=turn, log_id=log_id, spent=spent, gained=gained, balances=balances)
 
 
-def format_turn(result: TurnOD) -> str:
-    lines = [f"⚔️ Ход {result.turn}: учёт ОД"]
-    for name in sorted(result.balances, key=str.lower):
-        spent = " ".join(f"{s}{result.spent.get(name, {}).get(s, 0)}" for s in OD_TYPES if result.spent.get(name, {}).get(s, 0)) or "—"
-        gained = " ".join(f"{s}{result.gained.get(name, {}).get(s, 0)}" for s in OD_TYPES if result.gained.get(name, {}).get(s, 0)) or "—"
-        balance = " ".join(f"{s}{result.balances[name][s]}" for s in OD_TYPES)
-        lines.append(f"{name}\n  − {spent}\n  + {gained}\n  = {balance}")
-    return "\n".join(lines)
+def format_turn(result, player_clans):
+    """Формирует компактный вывод ОД по кланам."""
+
+    def clan_emoji(clan):
+        if not clan:
+            return ""
+
+        return clan.split()[0]
+
+    defenders = []
+    attackers = []
+
+    for player, balance in result.balances.items():
+        clan = player_clans.get(player, "")
+        emoji = clan_emoji(clan)
+
+        item = {
+            "name": player,
+            "emoji": emoji,
+            "balance": balance,
+        }
+
+        if "ХАОС" in clan:
+            defenders.append(item)
+        elif "Анархия" in clan:
+            attackers.append(item)
+
+    lines = [
+        f"⚔️ Ход {result.turn}: учёт ОД",
+        "",
+    ]
+
+    if defenders:
+        lines.append("🔵 Защитники: 🌚 ХАОС")
+
+        for player in defenders:
+            od = player["balance"]
+
+            values = " ".join(
+                f"{od_type}{od.get(od_type, 0)}"
+                for od_type in OD_TYPES
+            )
+
+            lines.append(
+                f"{player['emoji']}{player['name']}  ({values})"
+            )
+
+        lines.append("")
+
+    if attackers:
+        lines.append("🔴 Нападающие: 🤟 Анархия")
+
+        for player in attackers:
+            od = player["balance"]
+
+            values = " ".join(
+                f"{od_type}{od.get(od_type, 0)}"
+                for od_type in OD_TYPES
+            )
+
+            lines.append(
+                f"{player['emoji']}{player['name']}  ({values})"
+            )
+
+        lines.append("")
+
+    return "\n".join(lines).rstrip()

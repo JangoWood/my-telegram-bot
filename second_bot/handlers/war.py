@@ -13,6 +13,7 @@ from services.war_od import (
     parse_used_combos,
     check_warning_sequences,
     extract_player_name,
+    parse_player_clans,
 )
 
 war_sessions = {}
@@ -161,6 +162,8 @@ async def war_log(update: Update, context: ContextTypes.DEFAULT_TYPE):
             session["balances"],
             text,
         )
+
+        player_clans = parse_player_clans(text)
 
     used_combos = parse_used_combos(text)
 
@@ -377,7 +380,7 @@ async def war_log(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # ---------------------------------------------------------
     # Формируем ответ
     # ---------------------------------------------------------
-    output = format_turn(result)
+    output = format_turn(result, player_clans)
 
     if warnings:
         output += "\n\n" + "\n".join(warnings)
