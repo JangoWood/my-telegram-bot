@@ -294,7 +294,10 @@ async def war_log(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
 
             if existing_state:
-                if combo == "Сосредоточение II":
+                if combo in (
+                        "Сосредоточение II",
+                        "Деморализующая волна II",
+                ):
                     existing_state["expires_turn"] += sequence["turns"]
             else:
                 if combo == "Резня II":
