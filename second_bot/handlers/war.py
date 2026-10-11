@@ -290,10 +290,15 @@ async def war_log(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
 
             if not already_pending:
+                if combo == "Резня II":
+                    expires_turn = result.turn
+                else:
+                    expires_turn = result.turn + sequence["turns"]
+
                 player_pending.append(
                     {
                         "first": combo,
-                        "expires_turn": result.turn + sequence["turns"],
+                        "expires_turn": expires_turn,
                     }
                 )
 
