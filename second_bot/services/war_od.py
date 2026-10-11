@@ -306,21 +306,25 @@ def apply_turn(previous: Dict[str, Dict[str, int]], text: str) -> TurnOD:
     return TurnOD(turn=turn, log_id=log_id, spent=spent, gained=gained, balances=balances)
 
 
-def format_turn(result, player_clans):
-    """Формирует компактный вывод ОД по кланам."""
+def format_turn(result, player_clans, warnings=None):
+    """Формирует вывод ОД по командам и кланам."""
 
-    def clan_emoji(clan):
-        if not clan:
-            return ""
+    warnings = warnings or []
 
-        return clan.split()[0]
+    # Предупреждения группируем по игроку.
+    warnings_by_player = {}
+
+    for player, warning_text in warnings:
+        warnings_by_player.setdefault(player, []).append(
+            warning_text
+        )
 
     defenders = []
     attackers = []
 
     for player, balance in result.balances.items():
         clan = player_clans.get(player, "")
-        emoji = clan_emoji(clan)
+        emoji = clan.split()[0] if clan else ""
 
         item = {
             "name": player,
@@ -333,15 +337,24 @@ def format_turn(result, player_clans):
         elif "Анархия" in clan:
             attackers.append(item)
 
+    # Стабильный порядок игроков
+    defenders.sort(key=lambda x: x["name"].lower())
+    attackers.sort(key=lambda x: x["name"].lower())
+
     lines = [
         f"⚔️ Ход {result.turn}: учёт ОД",
         "",
     ]
 
-    if defenders:
-        lines.append("🔵 Защитники: 🌚 ХАОС")
+    def append_team(title, players):
+        if not players:
+            return
 
-        for player in defenders:
+        lines.append(title)
+
+        for player in players:
+            name = player["name"]
+            emoji = player["emoji"]
             od = player["balance"]
 
             values = " ".join(
@@ -349,27 +362,30 @@ def format_turn(result, player_clans):
                 for od_type in OD_TYPES
             )
 
+            # Имя отдельно
             lines.append(
-                f"{player['emoji']}{player['name']}  ({values})"
+                f"{emoji}{name}"
             )
+
+            # ОД отдельным блоком цитаты
+            lines.append(
+                f"<blockquote>{values}</blockquote>"
+            )
+
+            # Предупреждения сразу после игрока
+            for warning in warnings_by_player.get(name, []):
+                lines.append(warning)
 
         lines.append("")
 
-    if attackers:
-        lines.append("🔴 Нападающие: 🤟 Анархия")
+    append_team(
+        "🔵 Защитники: 🌚 ХАОС",
+        defenders,
+    )
 
-        for player in attackers:
-            od = player["balance"]
-
-            values = " ".join(
-                f"{od_type}{od.get(od_type, 0)}"
-                for od_type in OD_TYPES
-            )
-
-            lines.append(
-                f"{player['emoji']}{player['name']}  ({values})"
-            )
-
-        lines.append("")
+    append_team(
+        "🔴 Нападающие: 🤟 Анархия",
+        attackers,
+    )
 
     return "\n".join(lines).rstrip()

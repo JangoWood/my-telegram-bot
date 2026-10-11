@@ -359,15 +359,21 @@ async def war_log(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
                 if future_turns > 0:
                     warnings.append(
-                        f"⚠️ {clan_emoji}{player}: после «{first_combo}» "
-                        f"доступен «{target}» "
-                        f"(ещё {future_turns} следующих ходов)"
+                        (
+                            player,
+                            f"⚠️ {clan_emoji}{player}: после «{first_combo}» "
+                            f"доступен «{target}» "
+                            f"(ещё {future_turns} следующих ходов)"
+                        )
                     )
                 else:
                     warnings.append(
-                        f"⚠️ {clan_emoji}{player}: после «{first_combo}» "
-                        f"доступен «{target}» "
-                        f"(последний доступный ход)"
+                        (
+                            player,
+                            f"⚠️ {clan_emoji}{player}: после «{first_combo}» "
+                            f"доступен «{target}» "
+                            f"(последний доступный ход)"
+                        )
                     )
 
     # ---------------------------------------------------------
@@ -401,9 +407,13 @@ async def war_log(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # ---------------------------------------------------------
     # Формируем ответ
     # ---------------------------------------------------------
-    output = format_turn(result, player_clans)
+    output = format_turn(
+        result,
+        player_clans,
+        warnings,
+    )
 
-    if warnings:
-        output += "\n\n" + "\n".join(warnings)
-
-    await update.message.reply_text(output)
+    await update.message.reply_text(
+        output,
+        parse_mode="HTML",
+    )
