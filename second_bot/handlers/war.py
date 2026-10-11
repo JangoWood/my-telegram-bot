@@ -284,12 +284,19 @@ async def war_log(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             player_pending = pending.setdefault(player, [])
 
-            already_pending = any(
-                state["first"] == combo
-                for state in player_pending
+            existing_state = next(
+                (
+                    state
+                    for state in player_pending
+                    if state["first"] == combo
+                ),
+                None,
             )
 
-            if not already_pending:
+            if existing_state:
+                if combo == "Сосредоточение II":
+                    existing_state["expires_turn"] += sequence["turns"]
+            else:
                 if combo == "Резня II":
                     expires_turn = result.turn
                 else:
