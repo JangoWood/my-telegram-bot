@@ -331,17 +331,15 @@ async def war_log(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         (
                             player,
                             f"⚠️ {clan_emoji}{player}: после «{first_combo}» "
-                            f"доступен «{target}» "
-                            f"(ещё {future_turns} следующих ходов)"
+                            f"доступен «{target}» ⏳{future_turns}"
                         )
                     )
-                else:
+                elif first_combo == "Резня II":
                     warnings.append(
                         (
                             player,
                             f"⚠️ {clan_emoji}{player}: после «{first_combo}» "
-                            f"доступен «{target}» "
-                            f"(последний доступный ход)"
+                            f"доступен «{target}»"
                         )
                     )
 
