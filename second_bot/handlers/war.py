@@ -262,7 +262,7 @@ async def war_log(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 None,
             )
 
-            if existing_state:
+            if existing_state and existing_state["expires_turn"] >= result.turn:
                 if combo in (
                         "Сосредоточение II",
                         "Деморализующая волна II",
