@@ -194,37 +194,6 @@ async def war_log(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 ).add(combo)
 
     # ---------------------------------------------------------
-    # 1. Закрываем существующие связки,
-    # если их второй приём использован в текущем ходу.
-    # ---------------------------------------------------------
-    for player, combos in used_combos.items():
-        if player not in pending:
-            continue
-
-        finished_targets = set(combos)
-        remaining_sequences = []
-
-        for state in pending[player]:
-            first_combo = state["first"]
-            sequence = WARNING_SEQUENCES.get(first_combo)
-
-            if not sequence:
-                continue
-
-            target = sequence["target"]
-
-            if target in finished_targets:
-                # Второй приём применён — связка закрыта.
-                continue
-
-            remaining_sequences.append(state)
-
-        if remaining_sequences:
-            pending[player] = remaining_sequences
-        else:
-            pending.pop(player, None)
-
-    # ---------------------------------------------------------
     # Если второй приём достиг максимального количества
     # использований, удаляем уже существующую связку.
     # ---------------------------------------------------------
