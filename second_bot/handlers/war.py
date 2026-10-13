@@ -426,7 +426,6 @@ async def war_log(update: Update, context: ContextTypes.DEFAULT_TYPE):
         attackers_clan,
     )
 
-    )
 
     await update.message.reply_text(
         output,
