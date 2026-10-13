@@ -96,8 +96,11 @@ def parse_used_combos(text: str) -> Dict[str, List[str]]:
 
         combo_name = match.group(1).strip()
 
-        if combo_name in WARNING_SEQUENCES:
-            result[player].append(combo_name)
+        # Возвращаем все использованные комбинации.
+        # Логика предупреждений сама отфильтрует только первые приёмы
+        # из WARNING_SEQUENCES, а status_effects.py должен видеть и
+        # целевые приёмы вроде «Тысяча ударов II» и «Шоковый удар II».
+        result[player].append(combo_name)
 
     return dict(result)
 
