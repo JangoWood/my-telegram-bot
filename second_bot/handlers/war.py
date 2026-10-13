@@ -171,6 +171,9 @@ async def war_log(update: Update, context: ContextTypes.DEFAULT_TYPE):
             text,
         )
 
+    session.setdefault("statuses", {})
+    tick_statuses(session["statuses"])
+
     used_combos = parse_used_combos(text)
 
     # ---------------------------------------------------------
@@ -400,7 +403,6 @@ async def war_log(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # ---------------------------------------------------------
     status_lines = {}
 
-    print("DEBUG STATUSES:", session["statuses"])
 
     for player, player_statuses in session["statuses"].items():
         lines = []
