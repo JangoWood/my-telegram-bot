@@ -147,8 +147,6 @@ async def war_log(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Рассчитываем текущий ход
     # ---------------------------------------------------------
     result = apply_turn(session["balances"], text)
-    # Уменьшаем длительность эффектов перед новым ходом.
-    tick_statuses(session["statuses"])
     # ---------------------------------------------------------
     # Защита от повторной обработки
     # ---------------------------------------------------------
@@ -165,6 +163,7 @@ async def war_log(update: Update, context: ContextTypes.DEFAULT_TYPE):
         session["balances"] = {}
         session["pending_sequences"] = {}
         session["disabled_targets"] = {}
+        session["statuses"] = {}
 
         result = apply_turn(
             session["balances"],
@@ -172,6 +171,24 @@ async def war_log(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
     session.setdefault("statuses", {})
+
+    # Снимок активных статусов текущего хода.
+    # Статус, наложенный в этом ходу, начнёт отображаться со следующего хода.
+    status_lines = {}
+
+    for player, player_statuses in session["statuses"].items():
+        lines = []
+
+        for effect in player_statuses.values():
+            status = effect["status"]
+            duration = effect["duration"]
+            lines.append(f"{status} — {duration} ⏳")
+
+        if lines:
+            status_lines[player] = lines
+
+    # Старые статусы переходят на следующий ход.
+    # Новые статусы будут добавлены ниже и не уменьшатся сразу.
     tick_statuses(session["statuses"])
 
     used_combos = parse_used_combos(text)
@@ -399,26 +416,6 @@ async def war_log(update: Update, context: ContextTypes.DEFAULT_TYPE):
     session["last_turn"] = result.turn
 
     # ---------------------------------------------------------
-    # Формируем отображение активных эффектов.
-    # ---------------------------------------------------------
-    status_lines = {}
-
-
-    for player, player_statuses in session["statuses"].items():
-        lines = []
-
-        for effect in player_statuses.values():
-            status = effect["status"]
-            duration = effect["duration"]
-
-            lines.append(
-                f"{status} — {duration} ⏳"
-                if duration == 1
-                else f"{status} — {duration} ⏳"
-            )
-
-        if lines:
-            status_lines[player] = lines
     # ---------------------------------------------------------
     # Формируем ответ
     # ---------------------------------------------------------
