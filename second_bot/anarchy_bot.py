@@ -45,6 +45,7 @@ from services.craft_base_loader import load_craft_base
 from handlers.button_callback import button_callback
 from handlers.inline_search import inline_query
 from handlers.war import start_war, stop_war, war_log
+from handlers.combo import getcombo_handler
 
 # ==================== ЗАГРУЗКА БАЗЫ КРАФТА ====================
 
@@ -80,6 +81,7 @@ def main():
     app.add_handler(CommandHandler("update_me", update_realm))
 
     app.add_handler(CommandHandler("craft", craft_command))
+    app.add_handler(CommandHandler("getcombo", getcombo_handler))
 
     # Новый тестовый помощник по ОД. combat_war.py не используется.
     app.add_handler(CommandHandler("start_war", start_war))
