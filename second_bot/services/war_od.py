@@ -188,6 +188,21 @@ def parse_player_clans(text: str) -> Dict[str, str]:
 
     return result
 
+def parse_war_sides(text: str) -> tuple[str, str]:
+    """Возвращает (клан_защитников, клан_нападающих)."""
+
+    defenders_clan = ""
+    attackers_clan = ""
+
+    for line in text.splitlines():
+        if line.startswith("🔵 Защитники:"):
+            defenders_clan = line.split(":", 1)[1].strip()
+
+        elif line.startswith("🔴 Нападающие:"):
+            attackers_clan = line.split(":", 1)[1].strip()
+
+    return defenders_clan, attackers_clan
+
 def parse_action_gains(text: str) -> Dict[str, Dict[str, int]]:
     """
     Начисления ОД за боевые события текущего хода.
@@ -306,10 +321,18 @@ def apply_turn(previous: Dict[str, Dict[str, int]], text: str) -> TurnOD:
     return TurnOD(turn=turn, log_id=log_id, spent=spent, gained=gained, balances=balances)
 
 
-def format_turn(result, player_clans, warnings=None):
+def format_turn(
+    result,
+    player_clans,
+    warnings=None,
+    status_lines=None,
+    defenders_clan="",
+    attackers_clan="",
+):
     """Формирует вывод ОД по командам и кланам."""
 
     warnings = warnings or []
+    status_lines = status_lines or {}
 
     # Предупреждения группируем по игроку.
     warnings_by_player = {}
@@ -332,9 +355,9 @@ def format_turn(result, player_clans, warnings=None):
             "balance": balance,
         }
 
-        if "ХАОС" in clan:
+        if clan == defenders_clan:
             defenders.append(item)
-        elif "Анархия" in clan:
+        elif clan == attackers_clan:
             attackers.append(item)
 
     # Стабильный порядок игроков
@@ -372,6 +395,10 @@ def format_turn(result, player_clans, warnings=None):
                 f"<blockquote>{values}</blockquote>"
             )
 
+            # Активные эффекты
+            for status_line in status_lines.get(name, []):
+                lines.append(status_line)
+
             # Предупреждения сразу после игрока
             for warning in warnings_by_player.get(name, []):
                 lines.append(warning)
@@ -379,12 +406,12 @@ def format_turn(result, player_clans, warnings=None):
         lines.append("")
 
     append_team(
-        "🔵 Защитники: 🌚 ХАОС",
+        f"🔵 Защитники: {defenders_clan}",
         defenders,
     )
 
     append_team(
-        "🔴 Нападающие: 🤟 Анархия",
+        f"🔴 Нападающие: {attackers_clan}",
         attackers,
     )
 

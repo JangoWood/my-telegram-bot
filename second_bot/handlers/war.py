@@ -14,6 +14,7 @@ from services.war_od import (
     check_warning_sequences,
     extract_player_name,
     parse_player_clans,
+    parse_war_sides,
 )
 from services.status_effects import STATUS_EFFECTS
 from services.status_manager import apply_status, tick_statuses
@@ -140,6 +141,7 @@ async def war_log(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
 
     player_clans = parse_player_clans(text)
+    defenders_clan, attackers_clan = parse_war_sides(text)
 
     # ---------------------------------------------------------
     # Рассчитываем текущий ход
@@ -185,6 +187,7 @@ async def war_log(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 session["statuses"],
                 player,
                 effect,
+                player_clans,
             )
 
     pending = session.get("pending_sequences", {})
@@ -392,12 +395,37 @@ async def war_log(update: Update, context: ContextTypes.DEFAULT_TYPE):
     session["last_turn"] = result.turn
 
     # ---------------------------------------------------------
+    # Формируем отображение активных эффектов.
+    # ---------------------------------------------------------
+    status_lines = {}
+
+    for player, player_statuses in session["statuses"].items():
+        lines = []
+
+        for effect in player_statuses.values():
+            status = effect["status"]
+            duration = effect["duration"]
+
+            lines.append(
+                f"{status} — {duration} ⏳"
+                if duration == 1
+                else f"{status} — {duration} ⏳"
+            )
+
+        if lines:
+            status_lines[player] = lines
+    # ---------------------------------------------------------
     # Формируем ответ
     # ---------------------------------------------------------
     output = format_turn(
         result,
         player_clans,
         warnings,
+        status_lines,
+        defenders_clan,
+        attackers_clan,
+    )
+
     )
 
     await update.message.reply_text(

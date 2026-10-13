@@ -1,21 +1,42 @@
 def apply_status(
     statuses,
-    target,
+    player,
     effect,
+    player_clans,
 ):
     """
-    Накладывает эффект на цель.
+    Накладывает эффект на цель приёма.
 
-    statuses:
-        словарь активных эффектов игрока
+    enemy:
+        случайный/конкретный противник здесь пока не выбирается —
+        эффект сохраняется для команды противника.
 
-    target:
-        имя игрока
-
-    effect:
-        описание эффекта из status_effects.py
+    enemy_team:
+        эффект сохраняется для всей команды противника.
     """
 
+    target_type = effect.get("target", "enemy")
+
+    player_clan = player_clans.get(player, "")
+
+    if target_type in ("enemy", "enemy_team"):
+        targets = [
+            name
+            for name, clan in player_clans.items()
+            if clan and clan != player_clan
+        ]
+    else:
+        targets = [player]
+
+    for target in targets:
+        _apply_to_target(
+            statuses,
+            target,
+            effect,
+        )
+
+
+def _apply_to_target(statuses, target, effect):
     stack_key = effect.get("stack_key", effect["status"])
     duration = effect.get("duration", 1)
     repeat_mode = effect.get("repeat_mode", "stack")
@@ -34,6 +55,32 @@ def apply_status(
             "status": effect["status"],
             "duration": duration,
         }
+
+
+def tick_statuses(statuses):
+    expired = []
+
+    for player, player_statuses in statuses.items():
+        for stack_key, effect in player_statuses.items():
+            effect["duration"] -= 1
+
+            if effect["duration"] <= 0:
+                expired.append((player, stack_key))
+
+    for player, stack_key in expired:
+        statuses[player].pop(stack_key, None)
+
+    for player in list(statuses):
+        if not statuses[player]:
+            statuses.pop(player, None)
+
+
+def has_status(statuses, player, stack_key):
+    return (
+        player in statuses
+        and stack_key in statuses[player]
+        and statuses[player][stack_key]["duration"] > 0
+    )
 
 
 def tick_statuses(statuses):
