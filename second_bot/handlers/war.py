@@ -15,6 +15,8 @@ from services.war_od import (
     extract_player_name,
     parse_player_clans,
 )
+from services.status_effects import STATUS_EFFECTS
+from services.status_manager import apply_status, tick_statuses
 
 war_sessions = {}
 
@@ -32,6 +34,7 @@ async def start_war(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "last_turn": 0,
         "pending_sequences": {},
         "disabled_targets": {},
+        "statuses": {},
     }
 
     await update.message.reply_text(
@@ -166,6 +169,23 @@ async def war_log(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
     used_combos = parse_used_combos(text)
+
+    # ---------------------------------------------------------
+    # Применяем эффекты использованных приёмов.
+    # Пока эффект накладывается на самого игрока — это тест.
+    # ---------------------------------------------------------
+    for player, combos in used_combos.items():
+        for combo in combos:
+            effect = STATUS_EFFECTS.get(combo)
+
+            if not effect:
+                continue
+
+            apply_status(
+                session["statuses"],
+                player,
+                effect,
+            )
 
     pending = session.get("pending_sequences", {})
 
@@ -362,10 +382,10 @@ async def war_log(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     for player in expired_players:
         pending.pop(player, None)
-
     # ---------------------------------------------------------
     # Сохраняем состояние
     # ---------------------------------------------------------
+    tick_statuses(session["statuses"]) # Уменьшаем длительность активных эффектов.
     session["pending_sequences"] = pending
     session["processed"].add(result.log_id)
     session["balances"] = result.balances
