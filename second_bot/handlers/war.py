@@ -400,6 +400,8 @@ async def war_log(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # ---------------------------------------------------------
     status_lines = {}
 
+    print("DEBUG STATUSES:", session["statuses"])
+
     for player, player_statuses in session["statuses"].items():
         lines = []
 
