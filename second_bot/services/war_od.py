@@ -389,17 +389,18 @@ def format_turn(
             )
 
             # Имя отдельно
-            statuses = status_lines.get(name, [])
-            status_text = " ".join(statuses)
+            lines.append(
+                f"{emoji}{name}"
+            )
 
-            if status_text:
-                lines.append(f"{emoji}{name} {status_text}")
-            else:
-                lines.append(f"{emoji}{name}")
-
+            # ОД отдельным блоком
             lines.append(
                 f"<blockquote>{values}</blockquote>"
             )
+
+            # Активные эффекты отдельной строкой
+            for status_line in status_lines.get(name, []):
+                lines.append(f"[{status_line}]")
 
             # Предупреждения сразу после игрока
             for warning in warnings_by_player.get(name, []):
