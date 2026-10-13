@@ -8,7 +8,7 @@ from utils.permissions import chat_restricted
 from services.get_craft import get_all_craft_search_items, build_get_card_text
 from services.craft_calculator import build_calculator_buttons
 from services.table_data import get_table_data
-
+from services.combo_loader import get_all_combos
 
 @chat_restricted
 async def inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -63,6 +63,101 @@ async def inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )]
 
         await update.inline_query.answer(found, cache_time=0, is_personal=True)
+        return
+
+    # /getcombo использует тот же inline-хендлер,
+    # но полностью изолирован префиксом "getcombo ".
+    if query == "getcombo" or query.startswith("getcombo "):
+        combo_query = raw_query[8:].strip().lower()
+        combos = get_all_combos()
+
+        if not combo_query:
+            results = [
+                InlineQueryResultArticle(
+                    id="getcombo_help",
+                    title="🔍 Введите название приема",
+                    description=f"Поиск по {len(combos)} приемам",
+                    input_message_content=InputTextMessageContent(
+                        "🔎 Начни вводить название приема для поиска."
+                    ),
+                )
+            ]
+
+            await update.inline_query.answer(
+                results,
+                cache_time=0,
+                is_personal=True,
+            )
+            return
+
+        found = []
+
+        for index, (name, combo) in enumerate(combos.items()):
+            if combo_query not in name.lower():
+                continue
+
+            lines = [
+                f"📋 <b>{combo['name']}</b>",
+                "",
+            ]
+
+            if combo["cost"]:
+                lines.append(
+                    f"💠 Стоимость: {combo['cost']}"
+                )
+
+            if combo["description"]:
+                lines.extend([
+                    "",
+                    combo["description"],
+                ])
+
+            if combo["requirements"]:
+                lines.extend([
+                    "",
+                    "<b>Требования:</b>",
+                ])
+
+                lines.extend(
+                    f"• {requirement}"
+                    for requirement in combo["requirements"]
+                )
+
+            found.append(
+                InlineQueryResultArticle(
+                    id=f"combo_{index}",
+                    title=name[:64],
+                    description=(
+                        combo["cost"]
+                        or "Прием"
+                    ),
+                    input_message_content=InputTextMessageContent(
+                        "\n".join(lines),
+                        parse_mode="HTML",
+                    ),
+                )
+            )
+
+            if len(found) >= 20:
+                break
+
+        if not found:
+            found = [
+                InlineQueryResultArticle(
+                    id="combo_not_found",
+                    title=f"❌ Не найдено: {combo_query}",
+                    description="Попробуйте другое название",
+                    input_message_content=InputTextMessageContent(
+                        f"❌ Прием «{combo_query}» не найден."
+                    ),
+                )
+            ]
+
+        await update.inline_query.answer(
+            found,
+            cache_time=0,
+            is_personal=True,
+        )
         return
 
     if not query:

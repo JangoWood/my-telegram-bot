@@ -1,62 +1,24 @@
-from telegram import Update
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
-from services.combo_loader import get_combo
+from utils.permissions import chat_restricted
 
 
+@chat_restricted
 async def getcombo_handler(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
 ):
-    if not context.args:
-        await update.message.reply_text(
-            "Использование:\n"
-            "/getcombo название приема"
+    keyboard = [[
+        InlineKeyboardButton(
+            "🔍 Начать поиск",
+            switch_inline_query_current_chat="getcombo ",
         )
-        return
-
-    combo_name = " ".join(context.args).strip()
-
-    combo = get_combo(combo_name)
-
-    if combo is None:
-        await update.message.reply_text(
-            f"❌ Прием «{combo_name}» не найден."
-        )
-        return
-
-    lines = [
-        f"📋 <b>{combo['name']}</b>",
-        "",
-    ]
-
-    if combo["cost"]:
-        lines.append(f"💠 Стоимость: {combo['cost']}")
-
-    if combo["description"]:
-        lines.extend([
-            "",
-            combo["description"],
-        ])
-
-    if combo["uses"] is not None:
-        lines.extend([
-            "",
-            f"🔄 Кол-во использований: {combo['uses']}",
-        ])
-
-    if combo["requirements"]:
-        lines.extend([
-            "",
-            "<b>Требования:</b>",
-        ])
-
-        lines.extend(
-            f"• {requirement}"
-            for requirement in combo["requirements"]
-        )
+    ]]
 
     await update.message.reply_text(
-        "\n".join(lines),
+        "🔎 <b>Поиск приема</b>\n\n"
+        "Нажми кнопку и начни вводить название.",
         parse_mode="HTML",
+        reply_markup=InlineKeyboardMarkup(keyboard),
     )
