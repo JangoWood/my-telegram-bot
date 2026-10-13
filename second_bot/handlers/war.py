@@ -147,7 +147,8 @@ async def war_log(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Рассчитываем текущий ход
     # ---------------------------------------------------------
     result = apply_turn(session["balances"], text)
-
+    # Уменьшаем длительность эффектов перед новым ходом.
+    tick_statuses(session["statuses"])
     # ---------------------------------------------------------
     # Защита от повторной обработки
     # ---------------------------------------------------------
@@ -388,7 +389,7 @@ async def war_log(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # ---------------------------------------------------------
     # Сохраняем состояние
     # ---------------------------------------------------------
-    tick_statuses(session["statuses"]) # Уменьшаем длительность активных эффектов.
+
     session["pending_sequences"] = pending
     session["processed"].add(result.log_id)
     session["balances"] = result.balances
