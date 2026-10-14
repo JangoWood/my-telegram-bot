@@ -491,6 +491,7 @@ async def war_log(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # ---------------------------------------------------------
     # Формируем ответ
     # ---------------------------------------------------------
+
     output = format_turn(
         result,
         player_clans,
@@ -500,8 +501,23 @@ async def war_log(update: Update, context: ContextTypes.DEFAULT_TYPE):
         attackers_clan,
     )
 
+    # Добавляем классы игроков в ответ
+    player_classes = session.get("player_classes", {})
+
+    class_lines = ["", "🎭 Классы игроков:"]
+
+    if player_classes:
+        for player in sorted(player_classes, key=str.lower):
+            class_lines.append(
+                f"• {player} — {player_classes[player]}"
+            )
+    else:
+        class_lines.append("Пока классы не определены.")
+
+    output += "\n" + "\n".join(class_lines)
 
     await update.message.reply_text(
         output,
         parse_mode="HTML",
     )
+
