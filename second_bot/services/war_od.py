@@ -11,6 +11,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Dict, List, Tuple
 
+
 OD_TYPES = ("🗡", "🛡", "🥊", "⚡️", "🤺", "🌬")
 COST_RE = re.compile(r"(🗡|🛡|🥊|⚡️|🤺|🌬)(\d+)")
 WARNING_SEQUENCES = {

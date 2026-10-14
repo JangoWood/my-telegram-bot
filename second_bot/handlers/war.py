@@ -18,8 +18,34 @@ from services.war_od import (
 )
 from services.status_effects import STATUS_EFFECTS
 from services.status_manager import apply_status, tick_statuses
+import json
+from pathlib import Path
 
 war_sessions = {}
+
+
+COMBO_BASE_PATH = Path(__file__).resolve().parent / "combo_base.json"
+
+with COMBO_BASE_PATH.open("r", encoding="utf-8") as f:
+    COMBO_BASE = json.load(f)
+
+COMBO_CARDS = COMBO_BASE.get("cards", {})
+
+
+def get_combo_class(combo_name: str) -> str | None:
+    """Возвращает класс приёма из combo_base.json."""
+    combo = COMBO_CARDS.get(combo_name)
+
+    if not combo:
+        return None
+
+    for requirement in combo.get("requirements", []):
+        match = re.match(r"^\s*Класс:\s*(.+?)\s*$", requirement)
+
+        if match:
+            return match.group(1).strip()
+
+    return None
 
 
 def _empty():
@@ -43,6 +69,7 @@ async def start_war(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "pending_sequences": {},
         "disabled_targets": {},
         "statuses": {},
+        "player_classes": {},
     }
 
     await update.message.reply_text(
@@ -171,6 +198,7 @@ async def war_log(update: Update, context: ContextTypes.DEFAULT_TYPE):
         session["pending_sequences"] = {}
         session["disabled_targets"] = {}
         session["statuses"] = {}
+        session["player_classes"] = {}
 
         result = apply_turn(
             session["balances"],
@@ -203,6 +231,20 @@ async def war_log(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
     used_combos = parse_used_combos(text)
+
+    # Закрепляем класс по первому подходящему приёму игрока.
+    player_classes = session.setdefault("player_classes", {})
+
+    for player, combos in used_combos.items():
+        if player in player_classes:
+            continue
+
+        for combo in combos:
+            player_class = get_combo_class(combo)
+
+            if player_class:
+                player_classes[player] = player_class
+                break
 
     # ---------------------------------------------------------
     # Применяем эффекты использованных приёмов.
