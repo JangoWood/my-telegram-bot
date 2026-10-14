@@ -1,6 +1,7 @@
 # Секреты и ключи (НИКОГДА не коммитить!)
 *.json
 !second_bot/craft_base.json
+!second_bot/combo_base.json
 *.key
 *.pem
 .env

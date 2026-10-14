@@ -25,7 +25,14 @@ war_sessions = {}
 def _empty():
     return {x: 0 for x in OD_TYPES}
 
+def will_be_silenced_next_turn(statuses, player):
+    player_statuses = statuses.get(player, {})
 
+    return any(
+        effect.get("status") == "🔇"
+        and effect.get("duration", 0) > 0
+        for effect in player_statuses.values()
+    )
 async def start_war(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
 
@@ -174,6 +181,19 @@ async def war_log(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Снимок активных статусов текущего хода.
     # Статус, наложенный в этом ходу, начнёт отображаться со следующего хода.
+
+    # Запоминаем игроков под 🔇 до уменьшения длительности статусов.
+    silenced_players = {
+        player
+        for player, player_statuses in session["statuses"].items()
+        if any(
+            effect.get("status") == "🔇"
+            and effect.get("duration", 0) > 0
+            for effect in player_statuses.values()
+        )
+    }
+
+    # Снимок активных статусов для отображения.
     status_lines = {}
 
     for player, player_statuses in session["statuses"].items():
@@ -187,9 +207,9 @@ async def war_log(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if lines:
             status_lines[player] = lines
 
-    # Старые статусы переходят на следующий ход.
-    # Новые статусы будут добавлены ниже и не уменьшатся сразу.
+    # Уменьшаем длительность старых статусов.
     tick_statuses(session["statuses"])
+
 
     used_combos = parse_used_combos(text)
 
@@ -354,6 +374,12 @@ async def war_log(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             target = sequence["target"]
             cost = sequence["cost"]
+
+            # Предупреждение относится к следующему ходу.
+            # Если на следующем ходу игрок будет под 🔇,
+            # предупреждение не показываем.
+            if player in silenced_players:
+                continue
 
             ready = all(
                 balance.get(symbol, 0) >= amount
