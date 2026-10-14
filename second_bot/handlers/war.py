@@ -501,20 +501,30 @@ async def war_log(update: Update, context: ContextTypes.DEFAULT_TYPE):
         attackers_clan,
     )
 
-    # Добавляем классы игроков в ответ
+    # Добавляем эмодзи класса перед эмодзи клана.
     player_classes = session.get("player_classes", {})
 
-    class_lines = ["", "🎭 Классы игроков:"]
+    for player, player_class in player_classes.items():
+        match = re.match(r"([^\w\s]+)", player_class)
+        if not match:
+            continue
 
-    if player_classes:
-        for player in sorted(player_classes, key=str.lower):
-            class_lines.append(
-                f"• {player} — {player_classes[player]}"
-            )
-    else:
-        class_lines.append("Пока классы не определены.")
+        class_emoji = match.group(1)
 
-    output += "\n" + "\n".join(class_lines)
+        # Ищем имя игрока в начале строки после эмодзи клана.
+        pattern = re.compile(
+            r"(^|\n)([^\w\s<>\n]+)" + re.escape(player),
+        )
+
+        output = pattern.sub(
+            lambda m: (
+                    m.group(1)
+                    + class_emoji
+                    + m.group(2)
+                    + player
+            ),
+            output,
+        )
 
     await update.message.reply_text(
         output,
