@@ -183,15 +183,6 @@ async def war_log(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Статус, наложенный в этом ходу, начнёт отображаться со следующего хода.
 
     # Запоминаем игроков под 🔇 до уменьшения длительности статусов.
-    silenced_players = {
-        player
-        for player, player_statuses in session["statuses"].items()
-        if any(
-            effect.get("status") == "🔇"
-            and effect.get("duration", 0) > 0
-            for effect in player_statuses.values()
-        )
-    }
 
     # Снимок активных статусов для отображения.
     status_lines = {}
@@ -230,6 +221,17 @@ async def war_log(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 effect,
                 player_clans,
             )
+
+    # Учитываем 🔇, наложенный в текущем ходу.
+    silenced_players = {
+        player
+        for player, player_statuses in session["statuses"].items()
+        if any(
+            effect.get("status") == "🔇"
+            and effect.get("duration", 0) > 0
+            for effect in player_statuses.values()
+        )
+    }
 
     pending = session.get("pending_sequences", {})
 
