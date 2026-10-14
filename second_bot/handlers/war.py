@@ -24,7 +24,9 @@ from pathlib import Path
 war_sessions = {}
 
 
-COMBO_BASE_PATH = Path(__file__).resolve().parent / "combo_base.json"
+COMBO_BASE_PATH = (
+    Path(__file__).resolve().parent.parent / "combo_base.json"
+)
 
 with COMBO_BASE_PATH.open("r", encoding="utf-8") as f:
     COMBO_BASE = json.load(f)
