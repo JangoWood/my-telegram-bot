@@ -50,6 +50,7 @@ class TurnOD:
     spent: Dict[str, Dict[str, int]]
     gained: Dict[str, Dict[str, int]]
     balances: Dict[str, Dict[str, int]]
+    health: Dict[str, tuple[int, int]]
 
 
 def empty_od() -> Dict[str, int]:
@@ -167,6 +168,30 @@ def parse_players(text: str) -> List[str]:
             result.append(name)
 
     return result
+
+
+def parse_player_health(text: str) -> Dict[str, tuple[int, int]]:
+    """Возвращает текущее и максимальное здоровье игроков."""
+    result = {}
+
+    for line in text.splitlines():
+        if line.startswith("Ход боя:") or line.startswith("Следующий ход:"):
+            break
+
+        if not re.match(r"^\s*\d+\.\s+", line):
+            continue
+
+        player = extract_player_name(line)
+        hp_match = re.search(r"❤️\((\d+)/(\d+)\)", line)
+
+        if player and hp_match:
+            result[player] = (
+                int(hp_match.group(1)),
+                int(hp_match.group(2)),
+            )
+
+    return result
+
 
 def parse_player_clans(text: str) -> Dict[str, str]:
     """Определяет клан каждого игрока из блока текущего хода."""
@@ -321,7 +346,16 @@ def apply_turn(previous: Dict[str, Dict[str, int]], text: str) -> TurnOD:
         for symbol in OD_TYPES:
             balances[name][symbol] = max(0, previous.get(name, {}).get(symbol, 0) - spent.get(name, {}).get(symbol, 0) + gained.get(name, {}).get(symbol, 0))
 
-    return TurnOD(turn=turn, log_id=log_id, spent=spent, gained=gained, balances=balances)
+    health = parse_player_health(text)
+
+    return TurnOD(
+        turn=turn,
+        log_id=log_id,
+        spent=spent,
+        gained=gained,
+        balances=balances,
+        health=health,
+    )
 
 
 def format_turn(
@@ -368,7 +402,7 @@ def format_turn(
     attackers.sort(key=lambda x: x["name"].lower())
 
     lines = [
-        f"⚔️ Ход {result.turn}: учёт ОД",
+        f"⚔️ Ход {result.turn}: помощь в КВ",
         "",
     ]
 
@@ -388,9 +422,12 @@ def format_turn(
                 for od_type in OD_TYPES
             )
 
-            # Имя отдельно
+            # Имя, текущее здоровье, максимум и процент
+            hp, max_hp = result.health.get(name, (0, 0))
+            hp_percent = round(hp / max_hp * 100) if max_hp else 0
+
             lines.append(
-                f"{emoji}{name}"
+                f"{emoji}{name} ❤️({hp}/{max_hp}) {hp_percent}%"
             )
 
             # ОД отдельным блоком
