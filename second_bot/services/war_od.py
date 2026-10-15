@@ -294,7 +294,7 @@ def parse_action_gains(text: str) -> Dict[str, Dict[str, int]]:
                     )
 
             # 4. Крит
-            if "критическ" in line:
+            if "🥊" in line:
                 result[actor]["🥊"] += 1
 
         # ---------------------------------------------------------
