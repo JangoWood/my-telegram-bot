@@ -6,19 +6,8 @@ def apply_status(
     player_clans,
     target_player=None,
 ):
-    """
-    Накладывает эффект на цель приёма.
+    """Накладывает эффект на конкретную цель или по старым правилам."""
 
-    enemy:
-        конкретный противник, если передан target_player;
-        иначе — все игроки вражеской команды (старое поведение).
-
-    enemy_team:
-        вся вражеская команда.
-
-    self:
-        сам игрок.
-    """
     target_type = effect.get("target", "enemy")
     player_clan = player_clans.get(player, "")
 
@@ -36,11 +25,7 @@ def apply_status(
         targets = [player]
 
     for target in targets:
-        _apply_to_target(
-            statuses,
-            target,
-            effect,
-        )
+        _apply_to_target(statuses, target, effect)
 
 
 

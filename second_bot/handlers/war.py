@@ -323,6 +323,77 @@ async def war_log(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 player_clans,
             )
 
+
+    # ---------------------------------------------------------
+    # Выстрел в горло: приём сработал, определяем цель по бою.
+    # ---------------------------------------------------------
+    throat_shot_users = {}
+
+    for line in text.splitlines():
+        if "💫" not in line or "Выстрел в горло" not in line:
+            continue
+
+        player = extract_player_name(line.split("💫", 1)[0])
+        match = re.search(r"Выстрел в горло\s+([IVX]+)", line)
+
+        if not player or not match:
+            continue
+
+        combo_name = f"Выстрел в горло {match.group(1)}"
+        effect = STATUS_EFFECTS.get(combo_name)
+
+        if effect:
+            throat_shot_users[player] = effect
+
+    # Берём только строки собственно боевого блока.
+    combat_lines = []
+    in_combat = False
+
+    for line in text.splitlines():
+        if "Ход боя:" in line:
+            in_combat = True
+            continue
+
+        if in_combat and "Следующий ход:" in line:
+            break
+
+        if in_combat and "бьет" in line:
+            combat_lines.append(line)
+
+    # Связываем участников по взаимным ударам.
+    opponents = {}
+
+    for line in combat_lines:
+        if "бьет" not in line:
+            continue
+
+        left, right = line.split("бьет", 1)
+        attacker = extract_player_name(left)
+        target = extract_player_name(right)
+
+        if not attacker or not target or attacker == target:
+            continue
+
+        opponents.setdefault(attacker, set()).add(target)
+        opponents.setdefault(target, set()).add(attacker)
+
+    for player, effect in throat_shot_users.items():
+        targets = opponents.get(player, set())
+
+        # Не накладываем статус, если цель нельзя определить однозначно.
+        if len(targets) != 1:
+            continue
+
+        target = next(iter(targets))
+
+        apply_status(
+            session["statuses"],
+            player,
+            effect,
+            player_clans,
+            target_player=target,
+        )
+
     # Учитываем 🔇, наложенный в текущем ходу.
     silenced_players = {
         player
