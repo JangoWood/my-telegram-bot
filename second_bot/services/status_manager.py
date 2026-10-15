@@ -1,30 +1,37 @@
+
 def apply_status(
     statuses,
     player,
     effect,
     player_clans,
+    target_player=None,
 ):
     """
     Накладывает эффект на цель приёма.
 
     enemy:
-        случайный/конкретный противник здесь пока не выбирается —
-        эффект сохраняется для команды противника.
+        конкретный противник, если передан target_player;
+        иначе — все игроки вражеской команды (старое поведение).
 
     enemy_team:
-        эффект сохраняется для всей команды противника.
+        вся вражеская команда.
+
+    self:
+        сам игрок.
     """
-
     target_type = effect.get("target", "enemy")
-
     player_clan = player_clans.get(player, "")
 
-    if target_type in ("enemy", "enemy_team"):
+    if target_type == "enemy" and target_player:
+        targets = [target_player]
+
+    elif target_type in ("enemy", "enemy_team"):
         targets = [
             name
             for name, clan in player_clans.items()
             if clan and clan != player_clan
         ]
+
     else:
         targets = [player]
 
@@ -34,6 +41,7 @@ def apply_status(
             target,
             effect,
         )
+
 
 
 def _apply_to_target(statuses, target, effect):

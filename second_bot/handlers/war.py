@@ -248,9 +248,66 @@ async def war_log(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 player_classes[player] = player_class
                 break
 
+
+    # ---------------------------------------------------------
+    # Выстрел в горло: цель определяется по блоку ударов.
+    # Строка 💫 означает, что приём сработал.
+    # ---------------------------------------------------------
+    throat_shot_users = {}
+
+    for line in text.splitlines():
+        if "💫" not in line or "Выстрел в горло" not in line:
+            continue
+
+        player = extract_player_name(line.split("💫", 1)[0])
+        match = re.search(r"Выстрел в горло\s+([IVX]+)", line)
+
+        if not player or not match:
+            continue
+
+        combo_name = f"Выстрел в горло {match.group(1)}"
+        effect = STATUS_EFFECTS.get(combo_name)
+
+        if effect:
+            throat_shot_users[player] = effect
+
+    # Находим противников, которых атаковал каждый игрок.
+    attacked_targets = {}
+
+    for line in text.splitlines():
+        if "бьет" not in line:
+            continue
+
+        # Имя атакующего находится до слова «бьет».
+        attacker = extract_player_name(line.split("бьет", 1)[0])
+
+        # Имя цели — после слова «бьет».
+        target = extract_player_name(line.split("бьет", 1)[1])
+
+        if not attacker or not target or attacker == target:
+            continue
+
+        attacked_targets.setdefault(attacker, set()).add(target)
+
+    # Накладываем 🔇 только на однозначно найденную цель.
+    for player, effect in throat_shot_users.items():
+        targets = attacked_targets.get(player, set())
+
+        if len(targets) != 1:
+            continue
+
+        target = next(iter(targets))
+
+        apply_status(
+            session["statuses"],
+            player,
+            effect,
+            player_clans,
+            target_player=target,
+        )
+
     # ---------------------------------------------------------
     # Применяем эффекты использованных приёмов.
-    # Пока эффект накладывается на самого игрока — это тест.
     # ---------------------------------------------------------
     for player, combos in used_combos.items():
         for combo in combos:
