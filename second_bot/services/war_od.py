@@ -297,30 +297,28 @@ def parse_action_gains(text: str) -> Dict[str, Dict[str, int]]:
             if "🥊" in line:
                 result[actor]["🥊"] += 1
 
+
         # ---------------------------------------------------------
-        # УКЛОНЕНИЕ
+        # ⚡️ ПРОМАХ / УКЛОНЕНИЕ
         # ---------------------------------------------------------
-        if "⚡️ увернулся" in line or "⚡️ увернулась" in line:
-            prefix = line.split("⚡️", 1)[0]
+        if "⚡️" in line and "бьет" in line:
+            prefix, suffix = line.split("бьет", 1)
 
-            # Атакующий получает 🌬
-            if "бьет" in prefix:
-                actor_part = prefix.split("бьет", 1)[0]
-                actor = extract_player_name(actor_part)
+            # Тот, кто слева от «бьет», получает 🌬
+            actor = extract_player_name(prefix)
+            if actor:
+                result[actor]["🌬"] += 1
 
-                if actor:
-                    result[actor]["🌬"] += 1
+            # Тот, кто после «бьет», получает ⚡️
+            target = extract_player_name(suffix)
+            if target:
+                result[target]["⚡️"] += 1
 
-            # Увернувшийся получает ⚡️
-            dodger = extract_player_name(prefix)
-
-            if dodger:
-                result[dodger]["⚡️"] += 1
 
         # ---------------------------------------------------------
         # КОНТРУДАР
         # ---------------------------------------------------------
-        if "контрударом" in line:
+        if "🤺" in line:
             prefix = line.split("контрударом", 1)[0]
             actor = extract_player_name(prefix)
 
