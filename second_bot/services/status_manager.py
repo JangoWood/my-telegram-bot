@@ -6,21 +6,19 @@ def apply_status(
     player_clans,
     target_player=None,
 ):
-    """Накладывает эффект на конкретную цель или по старым правилам."""
+    """Накладывает эффект на выбранную цель или по правилам команды."""
 
     target_type = effect.get("target", "enemy")
     player_clan = player_clans.get(player, "")
 
     if target_type == "enemy" and target_player:
         targets = [target_player]
-
     elif target_type in ("enemy", "enemy_team"):
         targets = [
             name
             for name, clan in player_clans.items()
             if clan and clan != player_clan
         ]
-
     else:
         targets = [player]
 
@@ -28,14 +26,14 @@ def apply_status(
         _apply_to_target(statuses, target, effect)
 
 
-
 def _apply_to_target(statuses, target, effect):
+    """Добавляет эффект или обновляет существующий."""
+
     stack_key = effect.get("stack_key", effect["status"])
     duration = effect.get("duration", 1)
     repeat_mode = effect.get("repeat_mode", "stack")
 
     player_statuses = statuses.setdefault(target, {})
-
     existing = player_statuses.get(stack_key)
 
     if existing:
@@ -51,35 +49,7 @@ def _apply_to_target(statuses, target, effect):
 
 
 def tick_statuses(statuses):
-    expired = []
-
-    for player, player_statuses in statuses.items():
-        for stack_key, effect in player_statuses.items():
-            effect["duration"] -= 1
-
-            if effect["duration"] <= 0:
-                expired.append((player, stack_key))
-
-    for player, stack_key in expired:
-        statuses[player].pop(stack_key, None)
-
-    for player in list(statuses):
-        if not statuses[player]:
-            statuses.pop(player, None)
-
-
-def has_status(statuses, player, stack_key):
-    return (
-        player in statuses
-        and stack_key in statuses[player]
-        and statuses[player][stack_key]["duration"] > 0
-    )
-
-
-def tick_statuses(statuses):
-    """
-    Уменьшает длительность активных эффектов на 1 ход.
-    """
+    """Уменьшает длительность активных эффектов на один ход."""
 
     expired = []
 
@@ -99,9 +69,7 @@ def tick_statuses(statuses):
 
 
 def has_status(statuses, player, stack_key):
-    """
-    Проверяет, есть ли у игрока активный эффект.
-    """
+    """Проверяет, есть ли у игрока активный эффект по ключу."""
 
     return (
         player in statuses
